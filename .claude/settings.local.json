@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(node \"C:\\\\Users\\\\gupta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Telescope-Simulator\\\\4ee04640-6fe3-4092-a6d9-196a5bc6f409\\\\scratchpad\\\\ephemeris_check.mjs\")",
+      "Bash(ls .claude)",
+      "Bash(cat .claude/launch.json)",
+      "Bash(node \"C:\\\\Users\\\\gupta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Telescope-Simulator\\\\4ee04640-6fe3-4092-a6d9-196a5bc6f409\\\\scratchpad\\\\eq_kinematics_check.mjs\")",
+      "Bash(netstat -ano)",
+      "WebFetch(domain:poly.pizza)",
+      "WebSearch",
+      "Bash(node -e ' *)",
+      "Bash(node \"C:\\\\Users\\\\gupta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Telescope-Simulator\\\\4ee04640-6fe3-4092-a6d9-196a5bc6f409\\\\scratchpad\\\\telemetry_edits.mjs\")",
+      "Bash(node \"C:\\\\Users\\\\gupta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Telescope-Simulator\\\\4ee04640-6fe3-4092-a6d9-196a5bc6f409\\\\scratchpad\\\\app_edits.mjs\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP_CODE:%{http_code} TIME:%{time_total}s\\\\n\" --max-time 8 https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg)",
+      "Bash(curl -sI -o /dev/null -w \"%{http_code} %{url_effective}\\\\n\" \"https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg\")",
+      "Bash(curl -sI -o /dev/null -w \"%{http_code} %{url_effective}\\\\n\" \"https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({deps:p.dependencies, dev:Object.keys\\(p.devDependencies||{}\\)}\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('three/package.json'\\).version\\)\")",
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git add *)"
+    ]
+  }
+}

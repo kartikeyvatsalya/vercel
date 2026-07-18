@@ -1,0 +1,411 @@
+BRAHMAND
+ब्रह्मांड
+Bharat’s Rural Astronomy and Holistic Minds Advancement for Nation’s Development
+A Field Handbook of Practical Astronomy
+व्यावहारिक खगोल विज्ञान की सचित्र पुस्तिका
+For absolute beginners — bilingual (English + हिन्दी)
+बिल्कुल नए विद्यार्थियों के लिए — द्विभाषी
+Vatsalya Society  ·  BRAHMAND Astronomy Programme
+Jaipur, Rajasthan  ·  वात्सल्य सोसाइटी, जयपुर
+www.vatsalya.org
+Compiled & Authored by  ·  संकलन एवं लेखन
+Kartikey Gupta
+Energify® — Equanimity Engineering Solutions LLP
+www.energify.space
+BRAHMAND
+A Field Handbook of Practical Astronomy
+व्यावहारिक खगोल विज्ञान की एक क्षेत्र-पुस्तिका
+Version 6  ·  First print edition  ·  2026
+संस्करण 6  ·  प्रथम मुद्रित संस्करण  ·  2026
+© 2026 Kartikey Gupta. All rights reserved.
+© 2026 वात्सल्य सोसायटी। सर्वाधिकार सुरक्षित।
+Copyright & Permissions
+© Vatsalya Society. All rights reserved.
+Published by Vatsalya Society under the BRAHMAND Astronomy Education Programme, Achrol Observatory Campus, Jaipur District, Rajasthan, India.
+Compiled and written by Kartikey Gupta
+Energify® · Equanimity Engineering Solutions LLP
+This handbook is protected by copyright. No part of this publication may be reproduced, modified, translated, republished or commercially distributed without the prior written permission of Vatsalya Society. Educational institutions, observatories, astronomy clubs and non-profit organisations wishing to use this handbook for teaching or training are encouraged to contact Vatsalya Society for permission or licensing arrangements. The availability, pricing and distribution of printed and digital editions are determined solely by the publisher and may vary between editions.
+Credits
+Unless otherwise stated, diagrams, illustrations and educational graphics were created specifically for this handbook. Astronomical photographs were captured at the Vatsalya Space Observatory. Product names, telescope models and trademarks remain the property of their respective owners and are used solely for identification and educational purposes.
+Safety Notice
+Never observe the Sun through any telescope, finderscope or binoculars without a securely fitted, certified solar filter. Permanent eye damage or blindness can occur instantly. Please read Chapter 7 before conducting any solar observations.
+The publisher and authors accept no liability for injury or equipment damage arising from improper or unsafe use of astronomical equipment.
+For contacting us for the latest edition, permissions, educational licences and distribution information, please visit:
+www.vatsalya.org
+About This Handbook  इस पुस्तिका के बारे में
+Welcome, young sky-watcher. This little book is your companion for the astronomy course. It starts from the very beginning — no prior knowledge is needed. We will travel from the smallest idea (what is light?) all the way to operating large telescopes and even doing real science with them.
+स्वागत है, युवा आकाश-दर्शक। यह छोटी-सी किताब आपके खगोल विज्ञान पाठ्यक्रम की साथी है। यह बिल्कुल शुरुआत से आरंभ होती है — किसी पूर्व ज्ञान की आवश्यकता नहीं। हम सबसे छोटे विचार (प्रकाश क्या है?) से लेकर बड़ी दूरबीनें चलाने और उनसे असली विज्ञान करने तक की यात्रा करेंगे।
+Contents  विषय-सूची
+Tip: page numbers fill in automatically when you open this file in Microsoft Word and update the field (right-click → Update Field).
+PART ONE
+Understanding the Universe
+भाग एक — ब्रह्मांड को समझना
+Vatsalya’s Science teacher Mr Mohan Prakash Sharma on an expedition at Chamoli, Uttarakhand.
+वात्सल्य के विज्ञान शिक्षक श्री मोहन प्रकाश शर्मा, चमोली (उत्तराखण्ड) अभियान के दौरान।
+1.  What Is Astronomy?  खगोल विज्ञान क्या है?
+Astronomy is the study of everything beyond the Earth — the Moon, the Sun, the planets, the stars, galaxies, and the whole Universe. It is the oldest science: humans have watched the sky for tens of thousands of years to keep time, find directions, and wonder about our place in the cosmos.
+खगोल विज्ञान पृथ्वी से परे की हर चीज़ का अध्ययन है — चंद्रमा, सूर्य, ग्रह, तारे, गैलेक्सियाँ और पूरा ब्रह्मांड। यह सबसे पुराना विज्ञान है: मनुष्य हज़ारों वर्षों से समय जानने, दिशा खोजने और ब्रह्मांड में अपने स्थान पर विचार करने के लिए आकाश देखते आए हैं।
+An astronomer does not need to be a genius — only curious and patient. You are about to become one.
+खगोलविद बनने के लिए प्रतिभाशाली होना ज़रूरी नहीं — बस जिज्ञासु और धैर्यवान होना काफ़ी है। आप एक बनने जा रहे हैं।
+Before we start: a few words from physics  शुरू करने से पहले: भौतिकी के कुछ शब्द
+To talk about the sky we need a handful of simple words. Do not worry about learning them all now — come back to this page whenever a word is unfamiliar.
+आकाश की बात करने के लिए हमें कुछ सरल शब्द चाहिए। इन्हें अभी रटने की चिंता न करें — जब भी कोई शब्द अनजान लगे, इस पृष्ठ पर लौट आएँ।
+2.  The Size and Scale of the Universe  ब्रह्मांड का आकार और विस्तार
+The Universe is mind-bendingly large. To measure it, kilometres are far too small. Astronomers use bigger 'rulers':
+ब्रह्मांड कल्पना से परे विशाल है। इसे मापने के लिए किलोमीटर बहुत छोटे पड़ते हैं। खगोलविद बड़े 'पैमाने' इस्तेमाल करते हैं:
+Astronomical Unit (AU): the Earth–Sun distance, about 150 million km.  खगोलीय इकाई (AU): पृथ्वी–सूर्य की दूरी, लगभग 15 करोड़ किमी।
+Light-year: how far light travels in a year (~9.5 trillion km). Used for stars and galaxies.  प्रकाश-वर्ष: एक वर्ष में प्रकाश की दूरी (~9.5 खरब किमी)। तारों व गैलेक्सियों के लिए।
+Parsec: a professional's unit, about 3.26 light-years.  पारसेक: विशेषज्ञों की इकाई, लगभग 3.26 प्रकाश-वर्ष।
+A 'ladder' of distances, from Earth out to the edge of the visible Universe.  ·  पृथ्वी से दृश्य ब्रह्मांड के किनारे तक दूरियों की 'सीढ़ी'।
+Deep time — the age of everything  गहरा समय — हर चीज़ की आयु
+Space is vast, but TIME is just as staggering. The Universe is about 13.8 billion years old. The Earth and Sun are about 4.6 billion years old. If we squeeze that whole history into a single year, all of human history fits into the last few seconds.
+अंतरिक्ष विशाल है, पर समय भी उतना ही चकित करने वाला है। ब्रह्मांड लगभग 13.8 अरब वर्ष पुराना है। पृथ्वी व सूर्य लगभग 4.6 अरब वर्ष पुराने। यदि इस पूरे इतिहास को एक वर्ष में समेटें, तो समस्त मानव इतिहास अंतिम कुछ सेकंडों में समा जाता है।
+A real photograph: in this tiny patch of sky — smaller than a grain of sand held at arm’s length — the Hubble Space Telescope found thousands of galaxies, each with billions of stars. (NASA / ESA, public domain.)  ·  एक वास्तविक तस्वीर: आकाश के इस छोटे-से टुकड़े में — बाँह की दूरी पर रखे रेत के एक कण से भी छोटे — हबल अंतरिक्ष दूरबीन ने हज़ारों गैलेक्सियाँ पाईं, हर एक में अरबों तारे। (NASA / ESA, सार्वजनिक डोमेन।)
+3.  Light and the Speed of Light  प्रकाश और प्रकाश की चाल
+Almost everything we know about the sky arrives as light. Light travels in straight lines, and nothing in the Universe moves faster. Its speed is about 300,000 km every second.
+आकाश के बारे में हम जो भी जानते हैं वह लगभग सब प्रकाश के रूप में आता है। प्रकाश सीधी रेखाओं में चलता है, और ब्रह्मांड में कोई भी चीज़ इससे तेज़ नहीं चलती। इसकी चाल लगभग 3 लाख किमी प्रति सेकंड है।
+Visible light is only a small part of a much larger family called the electromagnetic spectrum, which also includes radio waves, infrared, ultraviolet, X-rays and gamma rays. Telescopes can be built to 'see' these invisible kinds of light too.
+दृश्य प्रकाश एक बहुत बड़े परिवार — विद्युत-चुंबकीय वर्णक्रम — का छोटा-सा हिस्सा है, जिसमें रेडियो तरंगें, अवरक्त, पराबैंगनी, एक्स-रे और गामा किरणें भी शामिल हैं। इन अदृश्य प्रकाशों को 'देखने' वाली दूरबीनें भी बनाई जा सकती हैं।
+Telescopes are time machines  दूरबीनें समय-यान हैं
+Because light takes time to reach us, we never see distant objects as they are NOW — we see them as they were when the light left them. Sunlight is 8 minutes old. The nearest star is seen as it was 4 years ago. Some galaxies we photograph are seen as they were millions of years before humans existed. To look far away is to look back in time.
+चूँकि प्रकाश को हम तक आने में समय लगता है, हम दूर की वस्तुओं को कभी 'अभी' जैसा नहीं देखते — हम उन्हें वैसा देखते हैं जैसी वे तब थीं जब प्रकाश रवाना हुआ। सूर्य का प्रकाश 8 मिनट पुराना है। निकटतम तारा 4 वर्ष पहले जैसा दिखता है। कुछ गैलेक्सियाँ हम वैसी देखते हैं जैसी वे मनुष्यों से भी लाखों वर्ष पहले थीं। दूर देखना अतीत में देखना है।
+4.  A First Taste of Relativity  सापेक्षता की पहली झलक
+Just over a hundred years ago, Albert Einstein changed how we understand space, time and gravity with his theory of relativity. You do not need the mathematics — just two big ideas.
+सौ साल से कुछ अधिक पहले, अल्बर्ट आइंस्टाइन ने अपने सापेक्षता सिद्धांत से अंतरिक्ष, समय और गुरुत्व की हमारी समझ बदल दी। आपको गणित की ज़रूरत नहीं — बस दो बड़े विचार।
+Idea 1 — The speed of light is the same for everyone  विचार 1 — प्रकाश की चाल सबके लिए समान है
+No matter how fast you move, you always measure light at the same speed. This strange fact leads to an even stranger one: a clock moving very fast actually ticks slower than one at rest. This is real and has been measured with atomic clocks on aeroplanes and satellites.
+आप चाहे कितनी भी तेज़ चलें, आप प्रकाश की चाल हमेशा एक ही मापते हैं। यह अजीब तथ्य एक और अजीब बात की ओर ले जाता है: बहुत तेज़ चलती घड़ी, स्थिर घड़ी से सचमुच धीमी चलती है। यह सच है और हवाई जहाज़ों व उपग्रहों पर परमाणु घड़ियों से मापा गया है।
+Idea 2 — Gravity is curved space  विचार 2 — गुरुत्व झुका हुआ अंतरिक्ष है
+Einstein said heavy objects bend the space and time around them, like a heavy ball on a stretched sheet. Smaller things then roll along these curves. That 'rolling' is what we feel as gravity. This idea even explains how starlight bends as it passes the Sun.
+आइंस्टाइन ने कहा कि भारी वस्तुएँ अपने आस-पास के अंतरिक्ष और समय को मोड़ देती हैं, जैसे खिंची चादर पर रखी भारी गेंद। छोटी चीज़ें फिर इन घुमावों पर लुढ़कती हैं। यही 'लुढ़कना' हमें गुरुत्व जैसा महसूस होता है। यह विचार यह भी समझाता है कि सूर्य के पास से गुज़रते समय तारों का प्रकाश कैसे मुड़ता है।
+5.  Why We Have Seasons  ऋतुएँ क्यों होती हैं
+A very common mistake is to think summer happens because Earth is closer to the Sun. That is NOT the reason. (In fact, Earth is slightly closer to the Sun during the northern winter.)
+एक बहुत आम ग़लती यह सोचना है कि गर्मी इसलिए होती है क्योंकि पृथ्वी सूर्य के पास होती है। यह कारण नहीं है। (असल में, उत्तरी सर्दियों में पृथ्वी सूर्य के थोड़ा पास होती है।)
+The real reason is that Earth's axis is tilted by 23.5°. As Earth orbits the Sun, this tilt always points the same way (toward the Pole Star). For half the year the northern half of Earth leans toward the Sun — sunlight hits more directly and days are longer: this is our summer in India. Six months later it leans away, giving winter.
+असली कारण यह है कि पृथ्वी की धुरी 23.5° झुकी हुई है। जैसे-जैसे पृथ्वी सूर्य की परिक्रमा करती है, यह झुकाव हमेशा एक ही दिशा (ध्रुव तारे की ओर) रहता है। वर्ष के आधे भाग में पृथ्वी का उत्तरी हिस्सा सूर्य की ओर झुकता है — धूप अधिक सीधी पड़ती है और दिन लंबे होते हैं: यही भारत में हमारी ग्रीष्म ऋतु है। छह महीने बाद यह दूर झुकता है, जिससे शीत ऋतु आती है।
+Why the Pole Star changes: Earth's tilted axis slowly sweeps a great circle (precession), so a different bright star marks north in each era.  ·  ध्रुव तारा क्यों बदलता है: पृथ्वी की झुकी धुरी धीरे-धीरे एक बड़ा वृत्त खींचती है (पुरस्सरण), इसलिए हर युग में कोई अलग चमकीला तारा उत्तर दिशा दर्शाता है।
+Seasons come from the tilt of Earth's axis, not its distance from the Sun.  ·  ऋतुएँ धुरी के झुकाव से आती हैं, सूर्य से दूरी से नहीं।
+The spinning of the Earth on its axis (once every 24 hours) gives us day and night. The twice-yearly moments when day and night are equal everywhere are called equinoxes; the longest and shortest days are the solstices.
+पृथ्वी का अपनी धुरी पर घूमना (हर 24 घंटे में एक बार) हमें दिन और रात देता है। वर्ष में दो बार जब हर जगह दिन-रात बराबर होते हैं, उन्हें विषुव कहते हैं; सबसे लंबे और सबसे छोटे दिन अयनांत कहलाते हैं।
+Deneb, imaged from the observatory — one of the most luminous stars we can see, shining like tens of thousands of Suns. Thanks to precession (above), Deneb will itself become a northern 'pole star' thousands of years from now.  ·  डेनेब, वेधशाला से लिया गया — हमें दिखने वाले सबसे चमकीले तारों में से एक, हज़ारों सूर्यों जितना चमकता। पुरस्सरण (ऊपर) के कारण डेनेब स्वयं हज़ारों वर्ष बाद उत्तरी 'ध्रुव तारा' बनेगा।
+6.  Our Moon  हमारा चंद्रमा
+The Moon is our nearest neighbour in space, about 384,400 km away, and the easiest, most rewarding object for a beginner's telescope. It makes no light of its own — it shines by reflecting sunlight.
+चंद्रमा अंतरिक्ष में हमारा निकटतम पड़ोसी है, लगभग 3,84,400 किमी दूर, और नए विद्यार्थी की दूरबीन के लिए सबसे सरल और सबसे संतोषजनक वस्तु। यह अपना प्रकाश नहीं बनाता — यह सूर्य के प्रकाश को परावर्तित करके चमकता है।
+The Moon through our telescope (21 March 2024). Notice how the craters and mountains stand out most along the day–night line (the terminator), where long shadows reveal every ridge — far more detail than a flat, full Moon shows.  ·  हमारी दूरबीन से चंद्रमा (21 मार्च 2024)। ध्यान दें कि क्रेटर और पहाड़ दिन-रात रेखा (टर्मिनेटर) के पास सबसे स्पष्ट दिखते हैं, जहाँ लंबी छायाएँ हर उभार दिखाती हैं — सपाट पूर्णिमा से कहीं अधिक विवरण।
+Why the Moon has phases  चंद्रमा की कलाएँ क्यों होती हैं
+The Sun always lights up one half of the Moon. As the Moon orbits Earth (about once a month), we see different amounts of that lit half — from no Moon (new) to a full disc (full) and back. These shapes are the phases.
+सूर्य हमेशा चंद्रमा के एक आधे भाग को रोशन करता है। जैसे-जैसे चंद्रमा पृथ्वी की परिक्रमा करता है (लगभग महीने में एक बार), हमें उस रोशन आधे भाग का अलग-अलग हिस्सा दिखता है — अमावस्या से पूर्णिमा तक और वापस। ये आकार ही कलाएँ हैं।
+The same face — always  वही चेहरा — हमेशा
+The Moon spins exactly once for each orbit of Earth, so it always shows us the same face. We never see its 'far side' from Earth. The dark smooth patches are 'maria' (Latin for seas) — vast plains of ancient, frozen lava. The bright rugged areas are older highlands covered in craters.
+चंद्रमा अपनी परिक्रमा के साथ ठीक एक बार घूमता है, इसलिए वह हमें हमेशा वही चेहरा दिखाता है। हम पृथ्वी से उसका 'दूर वाला भाग' कभी नहीं देखते। गहरे चिकने धब्बे 'मारिया' (लैटिन में 'समुद्र') हैं — प्राचीन, जमे हुए लावा के विशाल मैदान। चमकीले ऊबड़-खाबड़ क्षेत्र पुराने, क्रेटरों से भरे ऊँचे इलाके हैं।
+A map for finding craters  क्रेटर खोजने का नक्शा
+A simple finder map of the Moon's near side (naked-eye orientation, North up).  ·  चंद्रमा के निकट भाग का सरल खोज-नक्शा (नंगी आँख का दृश्य, उत्तर ऊपर)।
+Remember: most telescopes flip or mirror the image, so use this map to recognise shapes, not exact left/right.
+Compare with a real photo  असली तस्वीर से मिलाएँ
+Below is a real full-Moon photograph, gently contrast-enhanced so the dark seas show clearly, with the main maria and the Moon’s brightest crater (Aristarchus) marked. Compare it with the finder map above and find the same shapes.
+नीचे पूर्ण चंद्रमा की एक वास्तविक तस्वीर है, जिसमें गहरे सागर साफ़ दिखाने हेतु कंट्रास्ट हल्का बढ़ाया गया है, और मुख्य सागर तथा चंद्रमा का सबसे चमकीला क्रेटर (अरिस्टार्कस) अंकित हैं। ऊपर के खोज-नक्शे से इसकी तुलना करें और वही आकृतियाँ खोजें।
+Orientation note: every telescope and phone can rotate or flip the Moon, so north may not be “up” in your eyepiece. Identify features by the pattern of the seas, then work out which way your view is turned.
+Here are wonderful craters and seas to hunt for, easily visible even in a small telescope:
+यहाँ कुछ अद्भुत क्रेटर और समुद्र हैं जिन्हें छोटी दूरबीन से भी आसानी से देखा जा सकता है:
+The Moon and the tides  चंद्रमा और ज्वार-भाटा
+The Moon's gravity pulls on Earth's oceans, lifting the water into bulges that we feel as high and low tides. The Sun helps too: when Sun, Earth and Moon line up (new and full Moon) we get the strongest 'spring' tides.
+चंद्रमा का गुरुत्व पृथ्वी के महासागरों को खींचता है, जिससे पानी उभर आता है — यही ज्वार-भाटा है। सूर्य भी सहायता करता है: जब सूर्य, पृथ्वी और चंद्रमा एक सीध में होते हैं (अमावस्या व पूर्णिमा), तब सबसे तेज़ ज्वार आते हैं।
+PART TWO
+Observing Safely & Setting Up
+भाग दो — सुरक्षित अवलोकन और सेट-अप
+7.  Safety First — Especially in the Dark  सुरक्षा सबसे पहले — विशेषकर अंधेरे में
+Astronomy happens at night, around heavy equipment, in the cold. A calm, careful group has a wonderful time; a careless one gets hurt or breaks costly gear. Read this chapter before every session.
+खगोल विज्ञान रात में, भारी उपकरणों के बीच, ठंड में होता है। शांत और सावधान समूह बेहतरीन समय बिताता है; लापरवाह समूह को चोट लगती है या महँगा सामान टूट जाता है। हर सत्र से पहले यह अध्याय पढ़ें।
+Our own Sun at sunset, imaged from the observatory. The tiny dark specks on its face are sunspots — cooler magnetic regions, each one larger than the whole Earth. This was safe only because the low Sun was heavily dimmed by haze; never point a telescope at the daytime Sun without a proper solar filter.  ·  सूर्यास्त के समय हमारा अपना सूर्य, वेधशाला से लिया गया। इसके चेहरे पर छोटे काले धब्बे सनस्पॉट हैं — ठंडे चुंबकीय क्षेत्र, हर एक पूरी पृथ्वी से बड़ा। यह केवल इसलिए सुरक्षित था क्योंकि नीचा सूर्य धुंध से बहुत मंद था; दिन के सूर्य पर उचित सोलर फ़िल्टर के बिना दूरबीन कभी न करें।
+The golden rules  सुनहरे नियम
+Protect your night vision  अपनी रात्रि-दृष्टि बचाएँ
+Use a RED torch only. White light destroys the night vision of the whole group in a second.  केवल लाल टॉर्च का उपयोग करें। सफ़ेद रोशनी पूरे समूह की रात्रि-दृष्टि पल भर में ख़त्म कर देती है।
+Let your eyes adapt for 20–30 minutes. Then faint stars and the Milky Way appear.  अपनी आँखों को 20–30 मिनट ढलने दें। तब धुँधले तारे और आकाशगंगा दिखने लगते हैं।
+Dim your phone fully and turn on its red/night filter, or keep it in your pocket.  फ़ोन की चमक पूरी कम करें और लाल/नाइट फ़िल्टर चालू करें, या उसे जेब में रखें।
+Avoid trips and falls  गिरने और ठोकर से बचें
+Know where every tripod leg and cable is. Mark them with glow/reflective tape if possible.  हर तिपाई-पैर और तार की जगह जानें। हो सके तो उन पर चमकीला/परावर्तक टेप लगाएँ।
+Keep one tidy area for cases and bags. Never leave gear scattered on the ground.  डिब्बों व थैलों के लिए एक साफ़-सुथरा स्थान रखें। सामान ज़मीन पर बिखरा न छोड़ें।
+Walk slowly. Never run in the dark observing area.  धीरे चलें। अंधेरे अवलोकन-क्षेत्र में कभी न दौड़ें।
+Handle the telescopes with care  दूरबीनों को सावधानी से सँभालें
+Never touch the glass of lenses or mirrors with your fingers.  लेंस या दर्पण के काँच को उँगलियों से कभी न छुएँ।
+Carry a tube (OTA) with both hands; ask for help with the big 16-inch and 8-inch scopes.  नली (OTA) को दोनों हाथों से उठाएँ; बड़ी 16-इंच और 8-इंच दूरबीनों के लिए मदद माँगें।
+Watch for pinch points near mounts and counterweights. Tighten clutches before letting go.  माउंट और संतुलन-भार के पास उँगली दबने से बचें। छोड़ने से पहले क्लच कसें।
+A green laser pointer must NEVER be aimed at people, vehicles, or aircraft. A teacher controls it.  हरे लेज़र पॉइंटर को लोगों, वाहनों या विमानों की ओर कभी न करें। इसे शिक्षक ही चलाएँ।
+Look after yourselves  अपना ध्यान रखें
+Dress warmer than you think — nights cool down fast. Bring water and a snack.  अपनी सोच से अधिक गर्म कपड़े पहनें — रातें तेज़ी से ठंडी होती हैं। पानी और हल्का नाश्ता लाएँ।
+Stay with the group. Use a buddy system. Tell a teacher before stepping away.  समूह के साथ रहें। साथी-प्रणाली अपनाएँ। दूर जाने से पहले शिक्षक को बताएँ।
+If a session is by a road, field or water, a teacher marks the safe boundary first.  यदि सत्र सड़क, खेत या पानी के पास है, तो शिक्षक पहले सुरक्षित सीमा तय करें।
+8.  How a Telescope Works  दूरबीन कैसे काम करती है
+A telescope does two jobs: it gathers far more light than your eye (so faint things become visible) and it magnifies (so small things look bigger). The light-gathering comes from the big lens or mirror; the magnifying comes from the eyepiece.
+दूरबीन दो काम करती है: यह आपकी आँख से कहीं अधिक प्रकाश इकट्ठा करती है (जिससे धुँधली चीज़ें दिखने लगती हैं) और आवर्धन करती है (जिससे छोटी चीज़ें बड़ी दिखती हैं)। प्रकाश इकट्ठा करना बड़े लेंस/दर्पण से होता है; आवर्धन नेत्रिका (आइपीस) से।
+Two designs: lenses and mirrors  दो डिज़ाइन: लेंस और दर्पण
+A refractor uses a lens at the front to bend (refract) light to a focus. A reflector (the Newtonian, and the Dobsonian which is a Newtonian on a simple base) uses a curved mirror to reflect light to a focus, with a small flat mirror sending it out to the side.
+अपवर्ती (रिफ्रैक्टर) दूरबीन सामने लगे लेंस से प्रकाश को मोड़कर फोकस करती है। परावर्ती (रिफ्लेक्टर) — न्यूटोनियन, और डॉब्सोनियन जो सरल आधार पर रखी न्यूटोनियन ही है — घुमावदार दर्पण से प्रकाश परावर्तित करती है, और एक छोटा सपाट दर्पण उसे बग़ल में भेजता है।
+The parts you must know  जो भाग आपको जानने चाहिए
+Left: a Dobsonian (alt-azimuth). Right: an equatorial (EQ) set-up.   बाएँ: डॉब्सोनियन; दाएँ: विषुवतीय सेट-अप।
+Two kinds of mount  दो प्रकार के माउंट
+The mount is what holds and moves the telescope. An alt-azimuth mount moves up–down and left–right (simple, used by Dobsonians). An equatorial mount has one axis tilted to match Earth's spin, so a single slow motion can follow the stars — ideal for long-exposure photography.
+माउंट वही है जो दूरबीन को थामता और घुमाता है। अल्ट-एज़िमुथ माउंट ऊपर-नीचे और बाएँ-दाएँ घूमता है (सरल, डॉब्सोनियन में)। विषुवतीय माउंट का एक अक्ष पृथ्वी के घूर्णन से मेल खाता है, जिससे एक धीमी गति तारों का पीछा कर सकती है — लंबे एक्सपोज़र फ़ोटोग्राफ़ी के लिए आदर्श।
+Aperture, focal length and focal ratio  द्वारक, फोकस दूरी और फोकस अनुपात
+Aperture — width of the main mirror/lens (e.g. 8 inch = 200 mm). Bigger = brighter, sharper, sees fainter objects. This is the single most important number.  द्वारक — मुख्य दर्पण/लेंस की चौड़ाई (जैसे 8 इंच = 200 मिमी)। बड़ा = अधिक चमकीला, तीक्ष्ण, धुँधली वस्तुएँ दिखे। यह सबसे महत्वपूर्ण अंक है।
+Focal length — distance light travels inside to reach focus (e.g. 1200 mm). Longer = more natural magnification.  फोकस दूरी — फोकस तक प्रकाश की भीतरी यात्रा (जैसे 1200 मिमी)। लंबी = अधिक स्वाभाविक आवर्धन।
+Focal ratio (f/number) = focal length ÷ aperture. A 'fast' f/5 gives wide, bright views (good for galaxies); a 'slow' f/8–f/10 is great for the Moon and planets.  फोकस अनुपात (f/संख्या) = फोकस दूरी ÷ द्वारक। 'तेज़' f/5 चौड़े, चमकीले दृश्य देता है (गैलेक्सियों के लिए अच्छा); 'धीमा' f/8–f/10 चंद्रमा व ग्रहों के लिए बढ़िया।
+Magnification and eyepieces  आवर्धन और नेत्रिकाएँ
+You change magnification by swapping eyepieces. The rule is simple:
+आप नेत्रिका बदलकर आवर्धन बदलते हैं। नियम सरल है:
+Our eyepiece kit runs from 40 mm (wide, low power — best for finding things and big objects) down to 4 mm (very high power — only for the Moon and planets on steady nights). A 2× or 3× Barlow lens slots in to multiply the power of any eyepiece. The 2-inch adaptor lets us use the widest 2-inch eyepieces for the most sweeping views.
+हमारी नेत्रिका-किट 40 मिमी (चौड़ी, कम शक्ति — चीज़ें खोजने और बड़ी वस्तुओं के लिए) से लेकर 4 मिमी (बहुत अधिक शक्ति — केवल स्थिर रातों में चंद्रमा व ग्रहों के लिए) तक है। 2× या 3× बार्लो लेंस किसी भी नेत्रिका की शक्ति गुणा कर देता है। 2-इंच एडाप्टर हमें सबसे चौड़ी 2-इंच नेत्रिकाओं से व्यापक दृश्य देखने देता है।
+Finderscopes — the 'aiming sight'  खोजक — 'निशाना' उपकरण
+The main telescope sees a tiny patch of sky, so a small finderscope (or red-dot finder) mounted on top helps you aim. It must be aligned with the main scope first (see Chapter 10), or it points to the wrong place.
+मुख्य दूरबीन आकाश का बहुत छोटा हिस्सा देखती है, इसलिए ऊपर लगा छोटा खोजक (या रेड-डॉट फ़ाइंडर) निशाना लगाने में मदद करता है। इसे पहले मुख्य दूरबीन से संरेखित करना ज़रूरी है (अध्याय 10), वरना यह ग़लत जगह दिखाएगा।
+Binoculars — the underrated tool  बाइनाकुलर — कम आँका गया उपकरण
+Our large Celestron binoculars on a tripod are perfect for beginners: easy, both eyes open, wide views of star clusters, the Milky Way, the Moon and comets. A tripod stops the shaking that ruins hand-held views.
+तिपाई पर रखी हमारी बड़ी सेलेस्ट्रॉन बाइनाकुलर नए विद्यार्थियों के लिए आदर्श हैं: सरल, दोनों आँखें खुली, तारा-समूहों, आकाशगंगा, चंद्रमा और धूमकेतुओं के चौड़े दृश्य। तिपाई उस कंपन को रोकती है जो हाथ में पकड़ने पर दृश्य ख़राब करता है।
+Dark skies matter  अंधेरा आकाश मायने रखता है
+The darker your sky, the more you see. City lights ('light pollution') hide all but the brightest stars. Astronomers rate skies on the Bortle scale from 1 (perfectly dark) to 9 (bright city).
+आपका आकाश जितना अंधेरा, उतना अधिक दिखेगा। शहर की रोशनी ('प्रकाश प्रदूषण') सबसे चमकीले तारों के अलावा सब छिपा देती है। खगोलविद आकाश को बॉर्टल पैमाने पर 1 (पूर्ण अंधकार) से 9 (चमकीला शहर) तक आँकते हैं।
+Our home galaxy, the Milky Way, photographed from Vatsalya Campus (2020). That soft glowing band is the combined light of billions of distant stars in the galaxy's disc, seen edge-on. From a bright city it disappears entirely — which is exactly what the Bortle scale measures.  ·  हमारी अपनी आकाशगंगा (2020), वह हल्की चमकती पट्टी गैलेक्सी की चकती में अरबों दूर तारों का सम्मिलित प्रकाश है, किनारे से देखा गया। चमकीले शहर से यह पूरी तरह गायब हो जाती है — बॉर्टल पैमाना यही मापता है।
+9.  Collimation — Lining Up the Mirrors  कोलिमेशन — दर्पणों को सीध में लाना
+In a reflector (Newtonian/Dobsonian), the mirrors must point exactly at one another along a shared line. This alignment is called collimation. If it drifts even a little, stars look like fuzzy blobs instead of sharp points — especially at high power. Refractors and our smart telescope rarely need this.
+परावर्ती दूरबीन (न्यूटोनियन/डॉब्सोनियन) में, दर्पणों को एक साझा रेखा पर ठीक एक-दूसरे की ओर होना चाहिए। इस संरेखण को कोलिमेशन कहते हैं। यदि यह थोड़ा भी खिसके, तो तारे तीक्ष्ण बिंदुओं की जगह धुँधले धब्बे दिखते हैं — विशेषकर अधिक शक्ति पर। अपवर्ती दूरबीन व हमारी स्मार्ट दूरबीन को इसकी कम ही ज़रूरत होती है।
+Quick eyeball check  झटपट आँख से जाँच
+Remove the eyepiece and look straight down the empty focuser tube. You should see a neat set of circles all sharing the same centre — like a target. If the circles look pushed to one side, collimation is needed.
+नेत्रिका हटाएँ और खाली फोकसर नली में सीधे नीचे देखें। आपको एक-केंद्रित वृत्तों का साफ़ समूह दिखना चाहिए — निशाने जैसा। यदि वृत्त एक ओर खिसके दिखें, तो कोलिमेशन ज़रूरी है।
+Using the laser collimator (our kit)  लेज़र कोलिमेटर का उपयोग (हमारी किट)
+Do this with a teacher. Never look into the laser beam.
+इसे शिक्षक के साथ करें। लेज़र किरण में कभी न देखें।
+Place the telescope horizontally so nothing can fall. Put the laser collimator into the focuser where an eyepiece normally goes, and tighten gently.
+दूरबीन को क्षैतिज रखें ताकि कुछ गिरे नहीं। लेज़र कोलिमेटर को फोकसर में वहाँ लगाएँ जहाँ नेत्रिका लगती है, और हल्के से कसें।
+Switch the laser on. Its dot lands somewhere on the big primary mirror at the bottom. Look for the small ring or dot marked at the very centre of the primary (the 'centre spot').
+लेज़र चालू करें। इसका बिंदु नीचे बड़े मुख्य दर्पण पर कहीं पड़ता है। मुख्य दर्पण के बिल्कुल केंद्र पर बने छोटे छल्ले/बिंदु ('सेंटर स्पॉट') को देखें।
+Adjust the SECONDARY (small) mirror's three screws until the laser dot sits exactly on that centre spot.
+द्वितीयक (छोटे) दर्पण के तीन पेच तब तक समायोजित करें जब तक लेज़र बिंदु ठीक उस सेंटर स्पॉट पर न आ जाए।
+Now look at the laser's own angled target window. The beam returning from the primary makes a dot there. Adjust the PRIMARY mirror's three knobs (at the back) until that returning dot falls into the centre of the target.
+अब लेज़र की अपनी तिरछी खिड़की देखें। मुख्य दर्पण से लौटती किरण वहाँ एक बिंदु बनाती है। मुख्य दर्पण के पीछे के तीन घुंडी तब तक समायोजित करें जब तक लौटता बिंदु निशाने के केंद्र में न आ जाए।
+Switch the laser off, cap it, and put the eyepiece back. Done — your views will be noticeably sharper.
+लेज़र बंद करें, ढकें, और नेत्रिका वापस लगाएँ। हो गया — आपके दृश्य काफ़ी तीक्ष्ण होंगे।
+Memory aid: secondary first (aim the dot onto the centre spot), primary second (send the beam straight back).
+याद रखने का तरीका: पहले द्वितीयक (बिंदु को सेंटर स्पॉट पर लाएँ), फिर मुख्य (किरण को सीधे वापस भेजें)।
+10.  Aligning the Finderscope  खोजक को संरेखित करना
+A finderscope only helps if it points exactly where the main telescope does. Align it in DAYLIGHT — it is far easier than fumbling at night.
+खोजक तभी मदद करता है जब वह ठीक वहीं इशारा करे जहाँ मुख्य दूरबीन। इसे दिन के उजाले में संरेखित करें — रात में जूझने से कहीं आसान।
+In daytime, point the MAIN telescope at a fixed, distant object — a far building corner, tower or tree, at least 500 m away (never the Sun).
+दिन में मुख्य दूरबीन को किसी स्थिर, दूर की वस्तु पर करें — दूर की इमारत का कोना, मीनार या पेड़, कम से कम 500 मी दूर (सूर्य कभी नहीं)।
+Use a low-power (e.g. 25–40 mm) eyepiece. Centre that object exactly in the middle of the view and tighten the mount.
+कम-शक्ति (जैसे 25–40 मिमी) नेत्रिका का उपयोग करें। उस वस्तु को ठीक दृश्य के बीच में लाएँ और माउंट कसें।
+Without moving the telescope, look through the finderscope. Turn its small adjustment screws until the crosshair sits on the very same object.
+दूरबीन हिलाए बिना, खोजक में देखें। इसके छोटे पेच घुमाएँ जब तक क्रॉसहेयर ठीक उसी वस्तु पर न आ जाए।
+Check again through the main scope to be sure it is still centred. Re-tweak if needed.
+मुख्य दूरबीन से दोबारा जाँचें कि वस्तु अब भी केंद्र में है। ज़रूरत हो तो फिर समायोजित करें।
+At night, fine-tune on a bright star the same way. Now whatever you place on the crosshair appears in the eyepiece.
+रात में, उसी तरह किसी चमकीले तारे पर बारीक समायोजन करें। अब जो भी आप क्रॉसहेयर पर रखेंगे वह नेत्रिका में दिखेगा।
+PART THREE
+Your Telescopes — Step by Step
+भाग तीन — आपकी दूरबीनें, चरण-दर-चरण
+Vatsalya’s Educators with their telescopes.
+वात्सल्य के शिक्षक अपनी दूरबीनों के साथ।
+11.  The 16-inch GoTo Dobsonian (Sky-Watcher SynScan)  16-इंच गोटू डॉब्सोनियन (स्काई-वॉचर सिनस्कैन)
+This is our flagship: a 406 mm (16-inch) mirror gathering about 3,378 times more light than the human eye, on a computerised GoTo alt-azimuth base. Once aligned, you type in an object and it slews to it and tracks it automatically.
+यह हमारी प्रमुख दूरबीन है: 406 मिमी (16-इंच) दर्पण, जो मानव आँख से लगभग 3,378 गुना अधिक प्रकाश इकट्ठा करता है, एक कंप्यूटरीकृत गोटू अल्ट-एज़िमुथ आधार पर। एक बार संरेखित होने पर, आप वस्तु का नाम टाइप करते हैं और यह स्वयं उस तक घूमकर ट्रैक करती है।
+Our flagship under the stars: the 16-inch (406 mm) Sky-Watcher FlexTube GoTo Dobsonian. Its collapsible truss tube and computerised base find and track thousands of objects, gathering about 3,400 times more light than your eye.  ·  तारों के नीचे हमारी प्रमुख दूरबीन: 16-इंच (406 मिमी) स्काई-वॉचर फ़्लेक्सट्यूब गोटू डॉब्सोनियन। इसकी मुड़ने वाली ट्रस-नली और कंप्यूटरीकृत आधार हज़ारों वस्तुएँ खोजकर ट्रैक करते हैं, आपकी आंख से लगभग 3,400 गुना अधिक प्रकाश इकट्ठा करते हुए।
+A) Set up and 'home' position  क) सेट-अप और 'होम' स्थिति
+Place the rocker base on firm, level ground. Use a spirit level if available — a level base makes alignment far better.
+रॉकर आधार को मज़बूत, समतल ज़मीन पर रखें। उपलब्ध हो तो स्पिरिट लेवल का उपयोग करें — समतल आधार संरेखण बहुत बेहतर बनाता है।
+Lift the optical tube into its altitude bearings with help (it is heavy). Fit the eyepiece and the finder/red-dot. Balance the tube so it stays put when you let go.
+ऑप्टिकल नली को मदद से उसकी ऊँचाई-बेयरिंग में रखें (यह भारी है)। नेत्रिका और खोजक/रेड-डॉट लगाएँ। नली को संतुलित करें ताकि छोड़ने पर अपनी जगह रुकी रहे।
+Set the HOME position: tube horizontal (altitude 0°, pointing level) and aimed at true NORTH. This is the starting point the computer expects.
+होम स्थिति तय करें: नली क्षैतिज (ऊँचाई 0°, समतल) और सच्चे उत्तर की ओर। यही वह आरंभ-बिंदु है जिसकी कंप्यूटर अपेक्षा करता है।
+B) Power on and first-time set-up  ख) पावर और पहली बार की सेटिंग
+Connect power and switch on. The SynScan hand controller lights up. Press ENTER past the warning.
+पावर जोड़ें और चालू करें। सिनस्कैन हैंड-कंट्रोलर जल उठता है। चेतावनी के बाद ENTER दबाएँ।
+Enter your location as longitude and latitude (Jaipur ≈ 75°49′ E, 26°55′ N). Then set the time zone (+5:30 for India), today's date, and the current time in 24-hour format.
+अपना स्थान देशांतर व अक्षांश में डालें (जयपुर ≈ 75°49′ पूर्व, 26°55′ उत्तर)। फिर समय-क्षेत्र (भारत के लिए +5:30), आज की तारीख़, और वर्तमान समय 24-घंटे प्रारूप में डालें।
+Daylight Saving: choose NO (India does not use it). The handset is now ready to align.
+डेलाइट सेविंग: NO चुनें (भारत इसका उपयोग नहीं करता)। हैंडसेट अब संरेखण के लिए तैयार है।
+C) Align — Brightest Star method (easiest)  ग) संरेखण — सबसे चमकीला तारा विधि (सबसे आसान)
+Choose 'Brightest Star Align'. Pick the compass direction of a bright star you can see. The handset lists bright stars in that region.
+'Brightest Star Align' चुनें। किसी दिखने वाले चमकीले तारे की दिशा चुनें। हैंडसेट उस क्षेत्र के चमकीले तारे सूचीबद्ध करता है।
+Select the star. The scope slews near it. Use the arrow keys to centre it first in the finder, then exactly in the eyepiece, and press ENTER.
+तारा चुनें। दूरबीन उसके पास घूमती है। एरो-कुंजियों से उसे पहले खोजक में, फिर ठीक नेत्रिका में केंद्रित करें, और ENTER दबाएँ।
+The handset asks for a second star to improve accuracy. Repeat the centring. When done it shows 'Alignment Successful'.
+हैंडसेट सटीकता बढ़ाने के लिए दूसरा तारा माँगता है। केंद्रित करना दोहराएँ। पूरा होने पर 'Alignment Successful' दिखता है।
+D) Align — Two-Star method  घ) संरेखण — दो-तारा विधि
+If you can name two bright stars, choose 'Two-Star Align' and select them yourself from the list, centring each one in turn. This is quick when you know the sky.
+यदि आप दो चमकीले तारे पहचान सकते हैं, तो 'Two-Star Align' चुनें और सूची से स्वयं चुनें, बारी-बारी हर एक को केंद्रित करें। आकाश जानने पर यह तेज़ है।
+For best results pick two stars that are fairly far apart and not too high overhead.
+सर्वोत्तम परिणाम के लिए दो ऐसे तारे चुनें जो काफ़ी दूर-दूर हों और ठीक सिर के ऊपर न हों।
+E) Sharpen the aim, then explore  ङ) निशाना सुधारें, फिर खोजें
+Use PAE (Pointing Accuracy Enhancement) on a known star near your target to tighten the GoTo in that part of the sky.
+अपने लक्ष्य के पास किसी ज्ञात तारे पर PAE (पॉइंटिंग एक्यूरेसी एन्हांसमेंट) का उपयोग करें ताकि आकाश के उस भाग में गोटू और सटीक हो।
+Now press the object keys (planets, Messier, NGC, named stars) and the scope slews there and TRACKS automatically. Use lunar tracking rate for the Moon, sidereal for stars.
+अब वस्तु-कुंजियाँ (ग्रह, मेसियर, NGC, नामित तारे) दबाएँ और दूरबीन वहाँ घूमकर स्वतः ट्रैक करती है। चंद्रमा के लिए लूनर, तारों के लिए साइडरियल ट्रैकिंग दर रखें।
+'Freedom Find' lets you nudge the tube by hand and keep alignment — handy in a busy class. The SynScan Wi-Fi adapter also lets you drive the scope from the free SynScan app on a phone or tablet.
+'Freedom Find' आपको नली हाथ से हिलाने पर भी संरेखण बनाए रखने देता है — व्यस्त कक्षा में उपयोगी। सिनस्कैन वाई-फ़ाई एडाप्टर से आप फ़ोन/टैबलेट पर मुफ़्त सिनस्कैन ऐप से भी दूरबीन चला सकते हैं।
+F) Pack up  च) समेटना
+Slew back to home (or use 'Park'), switch off, cap the tube and eyepieces, and return the optical tube to its case with two people.
+होम पर लौटें (या 'Park' का उपयोग करें), बंद करें, नली व नेत्रिकाओं को ढकें, और ऑप्टिकल नली दो लोगों के साथ उसके डिब्बे में रखें।
+Coil cables loosely, keep the hand controller dry, and log any fault for the teacher.
+तारों को ढीला लपेटें, हैंड-कंट्रोलर सूखा रखें, और कोई ख़राबी शिक्षक के लिए दर्ज करें।
+12.  The Manual Dobsonians & Push-To Scopes  मैनुअल डॉब्सोनियन और पुश-टू दूरबीनें
+Our 8-inch Dobsonian, the 6-inch long-focal-length Dobsonian, and the small 3-inch alt-azimuth Newtonian have no motors. You point them by hand. This sounds harder but teaches the sky better than any computer — and there is nothing to align or charge.
+हमारी 8-इंच डॉब्सोनियन, 6-इंच लंबी-फोकस डॉब्सोनियन, और छोटी 3-इंच अल्ट-एज़िमुथ न्यूटोनियन में कोई मोटर नहीं। आप इन्हें हाथ से लक्ष्य करते हैं। यह कठिन लगता है पर किसी कंप्यूटर से बेहतर आकाश सिखाता है — और न संरेखण करना है, न चार्ज।
+One of our hand-guided Dobsonians, ready for a night's observing. With no motors to align or charge, a Dobsonian teaches you the real sky — you find each object yourself by star-hopping.  ·  हमारी हाथ से चलाई जाने वाली डॉब्सोनियन में से एक, रात के अवलोकन के लिए तैयार। न कोई मोटर संरेखित करनी, न चार्ज — डॉब्सोनियन आपको असली आकाश सिखाती है — आप हर वस्तु स्वयं स्टार-हॉपिंग से खोजते हैं।
+Pointing by 'star-hopping'  'स्टार-हॉपिंग' से लक्ष्य करना
+Set the Dob on level ground. Make sure the tube is balanced so it holds any angle without drifting.
+डॉब को समतल ज़मीन पर रखें। नली संतुलित करें ताकि वह बिना खिसके किसी भी कोण पर रुके।
+Align the finder in daylight (Chapter 10). Start with a low-power eyepiece (40 mm / 25 mm) for the widest view.
+दिन में खोजक संरेखित करें (अध्याय 10)। सबसे चौड़े दृश्य के लिए कम-शक्ति नेत्रिका (40 मिमी / 25 मिमी) से शुरू करें।
+Find a bright star or pattern you know, then 'hop' from star to star along a path on your sky map until you reach the target. Centre using the finder, confirm in the eyepiece.
+कोई जाना-पहचाना चमकीला तारा या आकृति खोजें, फिर अपने आकाश-नक्शे के मार्ग पर तारे-से-तारे 'हॉप' करते हुए लक्ष्य तक पहुँचें। खोजक से केंद्रित करें, नेत्रिका में पुष्टि करें।
+Because the Earth turns, objects slowly drift out of view. Gently nudge the tube every so often to keep them centred — this is manual tracking.
+पृथ्वी घूमने के कारण वस्तुएँ धीरे-धीरे दृश्य से बाहर खिसकती हैं। उन्हें केंद्रित रखने के लिए नली को बीच-बीच में हल्के से खिसकाएँ — यही मैनुअल ट्रैकिंग है।
+The little 3-inch alt-az Newtonian is the perfect 'first scope' for the youngest students — light, quick, and forgiving.
+छोटी 3-इंच अल्ट-एज़िमुथ न्यूटोनियन सबसे छोटे विद्यार्थियों के लिए आदर्श 'पहली दूरबीन' है — हल्की, तेज़ और सरल।
+13.  The 6-inch GoTo Newtonian on AVX Mount (Celestron)  AVX माउंट पर 6-इंच गोटू न्यूटोनियन (सेलेस्ट्रॉन)
+This is our best imaging telescope: a 150 mm Newtonian on a Celestron Advanced VX equatorial GoTo mount. Its single tracking axis follows the stars smoothly, which is exactly what long-exposure photography needs.
+यह हमारी सर्वश्रेष्ठ इमेजिंग दूरबीन है: सेलेस्ट्रॉन एडवांस्ड VX विषुवतीय गोटू माउंट पर 150 मिमी न्यूटोनियन। इसका एकल ट्रैकिंग अक्ष तारों का सहज पीछा करता है, जो लंबे एक्सपोज़र फ़ोटोग्राफ़ी के लिए ज़रूरी है।
+A) Tripod, rough polar alignment & balance  क) तिपाई, मोटा ध्रुवीय संरेखण व संतुलन
+Set the tripod on firm ground with one leg pointing roughly NORTH. Level it. Mount the AVX head and counterweight bar.
+तिपाई मज़बूत ज़मीन पर रखें, एक पैर लगभग उत्तर की ओर। समतल करें। AVX शीर्ष और संतुलन-भार छड़ लगाएँ।
+Set the mount's latitude scale to your latitude (Jaipur ≈ 27°). Point the polar axis at Polaris — for visual use this rough alignment is enough; for imaging we refine it later (step D).
+माउंट के अक्षांश-पैमाने को अपने अक्षांश पर सेट करें (जयपुर ≈ 27°)। ध्रुवीय अक्ष ध्रुव तारे की ओर करें — दृश्य उपयोग के लिए यह मोटा संरेखण काफ़ी है; इमेजिंग के लिए हम बाद में सुधारते हैं (चरण द)।
+Fit the tube. Balance it in BOTH axes: release the R.A. clutch — the tube should not swing; slide the counterweight until balanced. Then release the Dec. clutch and balance the tube fore-and-aft. Re-lock both clutches.
+नली लगाएँ। दोनों अक्षों में संतुलित करें: R.A. क्लच ढीला करें — नली झूलनी नहीं चाहिए; संतुलन-भार सरकाकर संतुलित करें। फिर Dec. क्लच ढीला कर नली को आगे-पीछे संतुलित करें। दोनों क्लच फिर कसें।
+B) Power up the NexStar+ hand control  ख) NexStar+ हैंड-कंट्रोल चालू करें
+Switch on. Enter location (or let it use GPS/time), date, time (24-hour), time zone +5:30, Daylight Saving = No — just like the SynScan.
+चालू करें। स्थान (या GPS/समय), तारीख़, समय (24-घंटे), समय-क्षेत्र +5:30, डेलाइट सेविंग = No डालें — सिनस्कैन की तरह।
+C) Align — choose a method  ग) संरेखण — विधि चुनें
+SkyAlign (easiest): point at ANY three bright stars (you need not name them), centring each. The computer works out the rest.
+SkyAlign (सबसे आसान): किसी भी तीन चमकीले तारों पर लक्ष्य करें (नाम जानना ज़रूरी नहीं), हर एक को केंद्रित करें। कंप्यूटर बाक़ी हल कर लेता है।
+Two-Star / One-Star Align: select named stars yourself — faster and a little more precise when you know the sky.
+Two-Star / One-Star Align: नामित तारे स्वयं चुनें — आकाश जानने पर तेज़ और थोड़ा अधिक सटीक।
+Solar System Align: align using the Moon or a bright planet — useful in twilight when few stars show.
+Solar System Align: चंद्रमा या किसी चमकीले ग्रह से संरेखण — गोधूलि में उपयोगी जब कम तारे दिखें।
+D) Refine polar alignment for imaging  घ) इमेजिंग के लिए ध्रुवीय संरेखण सुधारें
+After a star align, run All-Star Polar Alignment: pick a bright star (not Polaris). The mount shows how far off the pole it is; you turn the altitude and azimuth bolts to centre the star. Re-align afterwards. Now tracking is tight enough for long exposures.
+तारा-संरेखण के बाद, All-Star Polar Alignment चलाएँ: कोई चमकीला तारा चुनें (ध्रुव तारा नहीं)। माउंट दिखाता है कि वह ध्रुव से कितना दूर है; आप ऊँचाई और दिगंश बोल्ट घुमाकर तारे को केंद्रित करते हैं। बाद में फिर संरेखित करें। अब ट्रैकिंग लंबे एक्सपोज़र के लिए पर्याप्त सटीक है।
+E) Observe, image, and pack up  ङ) अवलोकन, इमेजिंग व समेटना
+Use the catalogue keys to GoTo planets, Messier and NGC objects; the mount tracks them. For imaging, attach the ZWO camera or DSLR at the focuser (Part 4).
+कैटलॉग-कुंजियों से ग्रहों, मेसियर व NGC वस्तुओं पर GoTo करें; माउंट उन्हें ट्रैक करता है। इमेजिंग के लिए, फोकसर पर ZWO कैमरा या DSLR लगाएँ (भाग 4)।
+To pack: slew to a safe position, switch off, remove the tube, then the counterweight, then the head. Never carry the tripod with the counterweight still high — it can swing.
+समेटने के लिए: सुरक्षित स्थिति में घुमाएँ, बंद करें, पहले नली हटाएँ, फिर संतुलन-भार, फिर शीर्ष। संतुलन-भार ऊपर रहते तिपाई कभी न उठाएँ — वह झूल सकता है।
+14.  The 5-inch 130EQ with Tracking Motor (Celestron)  ट्रैकिंग मोटर के साथ 5-इंच 130EQ (सेलेस्ट्रॉन)
+This 130 mm (5-inch) Newtonian sits on a German equatorial mount that you point by hand using two slow-motion control cables. A motor on the R.A. axis then tracks the sky so objects stay in view. (True GoTo is available only if a GoTo upgrade kit is fitted; otherwise you find objects yourself and let the motor track.)
+यह 130 मिमी (5-इंच) न्यूटोनियन एक जर्मन विषुवतीय माउंट पर है, जिसे आप दो स्लो-मोशन केबल से हाथ से लक्ष्य करते हैं। फिर R.A. अक्ष पर लगी मोटर आकाश को ट्रैक करती है ताकि वस्तुएँ दृश्य में बनी रहें। (सच्चा GoTo केवल तभी संभव है जब GoTo अपग्रेड किट लगी हो; अन्यथा आप वस्तुएँ स्वयं खोजते हैं और मोटर ट्रैक करती है।)
+A) Set up and polar align  क) सेट-अप और ध्रुवीय संरेखण
+Level the tripod with one leg toward North. Set the latitude scale to ≈ 27° (Jaipur) and point the polar axis at Polaris.
+तिपाई समतल करें, एक पैर उत्तर की ओर। अक्षांश-पैमाना ≈ 27° (जयपुर) पर सेट करें और ध्रुवीय अक्ष ध्रुव तारे की ओर करें।
+Fit the tube and counterweight; balance both axes (as in Chapter 13). A balanced mount lets the small motor track smoothly.
+नली व संतुलन-भार लगाएँ; दोनों अक्ष संतुलित करें (अध्याय 13 की तरह)। संतुलित माउंट से छोटी मोटर सहजता से ट्रैक करती है।
+B) Find, then track  ख) खोजें, फिर ट्रैक करें
+Align the finder (Chapter 10). Use the two slow-motion cables — one for R.A., one for Dec. — to point smoothly at your target. Find with low power first.
+खोजक संरेखित करें (अध्याय 10)। दो स्लो-मोशन केबल — एक R.A., एक Dec. — से अपने लक्ष्य पर सहजता से लक्ष्य करें। पहले कम शक्ति से खोजें।
+Switch on the R.A. motor drive. The object now stays centred on its own. Only small Dec. nudges are needed if polar alignment is slightly off.
+R.A. मोटर ड्राइव चालू करें। वस्तु अब स्वयं केंद्रित रहती है। यदि ध्रुवीय संरेखण थोड़ा हटा हो तो केवल छोटे Dec. खिसकाव की ज़रूरत होती है।
+To pack up: switch off the motor, remove tube then counterweight then head, and store cables tidily.
+समेटने के लिए: मोटर बंद करें, पहले नली फिर संतुलन-भार फिर शीर्ष हटाएँ, और केबल साफ़-सुथरे रखें।
+15.  The Meade 3-inch Motorised Refractor (AutoStar)  मीडे 3-इंच मोटरयुक्त अपवर्ती दूरबीन (ऑटोस्टार)
+This small refractor uses a lens (not mirrors), so it never needs collimation, and a motorised mount with an AutoStar-type hand controller that can GoTo and track. It is quick to set up and great for the Moon, planets and bright clusters.
+यह छोटी अपवर्ती दूरबीन लेंस का उपयोग करती है (दर्पण नहीं), इसलिए इसे कभी कोलिमेशन की ज़रूरत नहीं, और इसमें ऑटोस्टार-प्रकार हैंड-कंट्रोलर वाला मोटरयुक्त माउंट है जो GoTo व ट्रैक कर सकता है। यह जल्दी सेट होती है और चंद्रमा, ग्रहों व चमकीले समूहों के लिए बढ़िया है।
+A) Set up  क) सेट-अप
+Level the tripod. Fit the tube and the diagonal + eyepiece. If it is an alt-az AutoStar set-up, the home position is tube level and pointing North; switch on.
+तिपाई समतल करें। नली और डायगोनल + नेत्रिका लगाएँ। यदि यह अल्ट-एज़िमुथ ऑटोस्टार सेट-अप है, तो होम स्थिति नली समतल व उत्तर की ओर; चालू करें।
+On the handbox enter date, time (24-hour), time zone and location, exactly as for the other GoTo scopes. Daylight Saving = No.
+हैंडबॉक्स पर तारीख़, समय (24-घंटे), समय-क्षेत्र व स्थान डालें, बाक़ी GoTo दूरबीनों की तरह। डेलाइट सेविंग = No।
+B) Easy (Two-Star) alignment  ख) आसान (दो-तारा) संरेखण
+Choose 'Easy Align'. AutoStar automatically picks two bright alignment stars and slews near each. Centre each one in the eyepiece and press ENTER. It then reports a successful alignment.
+'Easy Align' चुनें। ऑटोस्टार स्वतः दो चमकीले संरेखण-तारे चुनता है और हर एक के पास घूमता है। हर एक को नेत्रिका में केंद्रित कर ENTER दबाएँ। फिर यह सफल संरेखण बताता है।
+Now use the handbox menus to GoTo planets, the Moon, and catalogue objects; the mount tracks them. A guided 'tonight's best' tour is often built in.
+अब हैंडबॉक्स मेन्यू से ग्रहों, चंद्रमा व कैटलॉग वस्तुओं पर GoTo करें; माउंट उन्हें ट्रैक करता है। अक्सर एक निर्देशित 'आज रात के सर्वोत्तम' टूर भी होता है।
+16.  The Unistellar eVscope Equinox 2 (Smart Telescope)  यूनिस्टेलर ईवीस्कोप इक्विनॉक्स 2 (स्मार्ट दूरबीन)
+This is a fully digital, plug-and-play telescope — the first of its kind in North India. It has no eyepiece to squint through; instead it builds a bright image on your phone or tablet and lets a whole group watch together. It is the easiest scope to use and a genuine scientific instrument.
+यह पूरी तरह डिजिटल, प्लग-एंड-प्ले दूरबीन है — उत्तर भारत में अपनी तरह की पहली। इसमें झाँकने के लिए नेत्रिका नहीं; बल्कि यह आपके फ़ोन/टैबलेट पर चमकीली छवि बनाती है और पूरे समूह को एक साथ देखने देती है। यह सबसे आसान दूरबीन और एक सच्चा वैज्ञानिक उपकरण है।
+A) Start observing in minutes  क) मिनटों में अवलोकन शुरू करें
+Set it on its tripod on firm ground with a clear view of the sky. Power on and open the Unistellar app on a phone; connect to the telescope's Wi-Fi. Allow location/GPS.
+इसे मज़बूत ज़मीन पर तिपाई पर रखें, आकाश का साफ़ दृश्य हो। चालू करें और फ़ोन पर यूनिस्टेलर ऐप खोलें; दूरबीन के वाई-फ़ाई से जुड़ें। स्थान/GPS की अनुमति दें।
+Tap to start. The telescope photographs the sky and recognises the star patterns by itself (autonomous field detection) — this replaces all manual alignment. No Polaris, no star-centring needed.
+शुरू करने के लिए टैप करें। दूरबीन आकाश की फ़ोटो लेकर स्वयं तारा-नमूने पहचान लेती है (स्वायत्त फ़ील्ड डिटेक्शन) — यह सारे मैनुअल संरेखण की जगह लेता है। न ध्रुव तारा, न तारा-केंद्रण।
+Focus once using the Bahtinov mask: place it over the front, point at a bright star, and turn the focus knob until the diffraction spikes form a neat symmetric pattern. Remove the mask.
+बाहतिनोव मास्क से एक बार फोकस करें: इसे सामने रखें, किसी चमकीले तारे पर करें, और फोकस घुंडी तब तक घुमाएँ जब तक विवर्तन-रेखाएँ साफ़ सममित आकृति न बनाएँ। मास्क हटाएँ।
+B) Enhanced Vision — seeing the unseen  ख) एन्हांस्ड विज़न — अदृश्य को देखना
+Choose a target in the app and it slews there. Turn on Enhanced Vision: the scope stacks many short exposures live, so a faint smudge slowly brightens into a galaxy or nebula with colour over seconds to minutes.
+ऐप में लक्ष्य चुनें और यह वहाँ घूमती है। एन्हांस्ड विज़न चालू करें: दूरबीन कई छोटे एक्सपोज़र को सजीव रूप में जोड़ती है, जिससे धुँधला धब्बा कुछ सेकंड-मिनट में रंग सहित गैलेक्सी या नीहारिका में बदल जाता है।
+A faint emission nebula captured with Enhanced Vision from Vatsalya observatory — a cloud of hydrogen gas glowing softly as young stars light it from within. Live-stacking many short exposures is what pulls such a delicate glow out of the dark.  ·  एन्हांस्ड विज़न से ली गई एक धुंधली उत्सर्जन नीहारिका — हाइड्रोजन गैस का बादल जो भीतर के युवा तारों के प्रकाश से हल्का चमकता है। कई छोटे एक्सपोज़र को लाइव-स्टैक करना ही ऐसी कोमल चमक को अंधेरे से उभारता है।
+Smart Light Pollution Reduction helps even under our city-edge skies. Anyone in the group can connect their own phone to watch and save the image.
+स्मार्ट लाइट पॉल्यूशन रिडक्शन हमारे शहर-किनारे के आकाश में भी मदद करता है। समूह का कोई भी सदस्य अपना फ़ोन जोड़कर देख व छवि सहेज सकता है।
+C) Real science — citizen science mode  ग) असली विज्ञान — सिटिज़न साइंस मोड
+Through the app, this telescope joins worldwide campaigns run with the SETI Institute: timing asteroid occultations, catching exoplanet transits, planetary-defence tracking of near-Earth asteroids, and observing comets or possible supernovae. You can export the raw data (FITS) for analysis. See Part 5.
+ऐप के माध्यम से यह दूरबीन SETI संस्थान के साथ चलने वाले विश्वव्यापी अभियानों में शामिल होती है: क्षुद्रग्रह-गोपन का समय मापना, बाह्यग्रह-पारगमन पकड़ना, निकट-पृथ्वी क्षुद्रग्रहों की ग्रह-रक्षा ट्रैकिंग, और धूमकेतु या संभावित सुपरनोवा देखना। आप विश्लेषण के लिए कच्चा डेटा (FITS) निर्यात कर सकते हैं। भाग 5 देखें।
+17.  Binoculars, the DSLR and Phone Holders  बाइनाकुलर, DSLR और फ़ोन-होल्डर
+Big binoculars on a tripod  तिपाई पर बड़ी बाइनाकुलर
+Mount the large Celestron binoculars on their tripod with the L-bracket. Set the spacing so both eyes see one circle, focus, and sweep slowly along the Milky Way. Best targets: the Moon, Pleiades, Orion's nebula, and big star fields.
+बड़ी सेलेस्ट्रॉन बाइनाकुलर को L-ब्रैकेट से तिपाई पर लगाएँ। दूरी ऐसी रखें कि दोनों आँखें एक ही वृत्त देखें, फोकस करें, और आकाशगंगा पर धीरे-धीरे घुमाएँ। सर्वोत्तम लक्ष्य: चंद्रमा, कृत्तिका (प्लीएडीज़), मृगशीर्ष की नीहारिका, और बड़े तारा-क्षेत्र।
+Phone holders — your first photos  फ़ोन-होल्डर — आपकी पहली तस्वीरें
+Clamp a phone holder over any eyepiece (called 'afocal' photography) to snap the Moon through any of our telescopes. Tap to focus on the Moon, lower the brightness, hold steady, and shoot. It is the quickest 'wow' result for new students.
+किसी भी नेत्रिका पर फ़ोन-होल्डर लगाएँ ('एफ़ोकल' फ़ोटोग्राफ़ी) और हमारी किसी भी दूरबीन से चंद्रमा की तस्वीर लें। चंद्रमा पर फोकस के लिए टैप करें, चमक कम करें, स्थिर रखें, और खींचें। नए विद्यार्थियों के लिए यह सबसे तेज़ 'वाह' परिणाम है।
+The Canon 1500D DSLR  कैनन 1500D DSLR
+Our DSLR can be used three ways: (1) afocal, on a phone-style bracket; (2) prime focus, where the camera body attaches directly to the focuser with a T-ring and adaptor, using the telescope as a giant lens — best for the Moon and deep-sky; (3) piggyback, riding on top of a tracking mount with its own lens for wide Milky Way and constellation shots. Details in Part 4.
+हमारा DSLR तीन तरीक़ों से इस्तेमाल हो सकता है: (1) एफ़ोकल, फ़ोन-शैली ब्रैकेट पर; (2) प्राइम फोकस, जहाँ कैमरा बॉडी T-रिंग व एडाप्टर से सीधे फोकसर पर लगती है, दूरबीन को विशाल लेंस की तरह उपयोग करते हुए — चंद्रमा व डीप-स्काई के लिए सर्वोत्तम; (3) पिगीबैक, अपने लेंस के साथ ट्रैकिंग माउंट पर सवार — चौड़े आकाशगंगा व नक्षत्र चित्रों के लिए। विवरण भाग 4 में।
+PART FOUR
+Astrophotography
+भाग चार — खगोल-फ़ोटोग्राफ़ी
+Pillars of Creation
+Credit:
+NASA, ESA, CSA, STScI, J. DePasquale (STScI), A. Pagan (STScI)
+Semi-opaque layers of blue and grey gas and dust start at the bottom left and rise toward the top right. There are three prominent pillars. The left pillar is the largest and widest. The peaks of the second and third pillars are set off in darker shades of blue outlines. Few red stars appear within the pillars. Some blue and white stars dot the overall scene.
+अर्ध-पारदर्शी नीली और धूसर गैस तथा धूल की परतें चित्र के निचले बाएँ भाग से शुरू होकर ऊपर दाएँ भाग की ओर उठती दिखाई देती हैं। इनमें तीन प्रमुख स्तंभ (पिलर) दिखाई देते हैं। बायाँ स्तंभ सबसे बड़ा और सबसे चौड़ा है। दूसरे और तीसरे स्तंभों की चोटियाँ गहरे नीले रंग की रूपरेखाओं से स्पष्ट उभरती हैं। स्तंभों के भीतर कुछ लाल तारे दिखाई देते हैं, जबकि पूरे दृश्य में नीले और श्वेत रंग के अनेक तारे बिखरे हुए हैं।
+18.  Two Roads in Astrophotography  खगोल-फ़ोटोग्राफ़ी के दो रास्ते
+Photographing the sky splits into two very different crafts. Knowing which road you are on tells you which scope, camera and software to use.
+आकाश की फ़ोटोग्राफ़ी दो बहुत अलग कलाओं में बँटती है। आप किस रास्ते पर हैं, यह जानना बताता है कि कौन-सी दूरबीन, कैमरा व सॉफ़्टवेयर इस्तेमाल करें।
+The ZWO ASI camera family  ZWO ASI कैमरा परिवार
+Our ZWO ASI cameras replace the eyepiece and connect to a laptop by USB. Small-sensor, high-speed models are made for planets; larger, cooled models are made for faint deep-sky objects. The camera does not look through anything by itself — the telescope is its lens.
+हमारे ZWO ASI कैमरे नेत्रिका की जगह लेते हैं और USB से लैपटॉप से जुड़ते हैं। छोटे-सेंसर, तेज़-गति मॉडल ग्रहों के लिए बने हैं; बड़े, ठंडे (कूल्ड) मॉडल धुँधली डीप-स्काई वस्तुओं के लिए। कैमरा स्वयं कुछ नहीं देखता — दूरबीन ही उसका लेंस है।
+Road A — Planetary (Moon, Sun, planets)  रास्ता क — ग्रहीय (चंद्रमा, सूर्य, ग्रह)
+Planets are bright but tiny, and our turbulent air blurs them moment to moment. The trick — called 'lucky imaging' — is to record a fast video of thousands of frames and let software keep only the sharpest ones.
+ग्रह चमकीले पर बहुत छोटे होते हैं, और हमारी अशांत हवा उन्हें पल-पल धुँधला करती है। तरकीब — 'लकी इमेजिंग' — यह है कि हज़ारों फ़्रेम का तेज़ वीडियो रिकॉर्ड करें और सॉफ़्टवेयर से केवल सबसे तीक्ष्ण रखें।
+Saturn's changing face: as it orbits the Sun over about 29 years, its rings tilt from wide-open to edge-on and back again.  ·  शनि का बदलता रूप: लगभग 29 वर्षों में सूर्य की परिक्रमा के दौरान उसके वलय पूरे खुले से किनारे तक और वापस झुकते हैं।
+Saturn and its rings, imaged from the observatory (Dec 2023). The rings are countless pieces of ice — from dust grains to boulders — in a band almost as wide as the Earth–Moon distance, yet only tens of metres thick.  ·  शनि और उसके वलय, वेधशाला से लिए गए (दिसंबर 2023)। वलय अनगिनत बर्फ़़-टुकड़े हैं — धूल के कण से लेकर बड़े पत्थर तक — एक पट्टी में जो लगभग पृथ्वी–चंद्रमा दूरी जितनी चौड़ी है, फिर भी केवल कुछ दसियों मीटर मोटी।
+Jupiter on a foggy night (Dec 2023). Even in poor seeing our telescope caught its dark cloud belts and the Great Red Spot — a storm wider than the whole Earth that has raged for centuries. The small dark dot is the shadow of one of its moons.  ·  कोहरे भरी रात में बृहस्पति (दिसंबर 2023)। ख़राब दृश्यता में भी हमारी दूरबीन ने इसकी गहरी बादल-पट्टियाँ और महान लाल धब्बा पकड़ा — पूरी पृथ्वी से बड़ा तूफ़ान जो सदियों से चल रहा है। छोटा काला बिंदु इसके किसी चंद्रमा की छाया है।
+CAPTURE in SharpCap: attach the ZWO camera, open SharpCap, and record a video (SER or AVI). Set exposure and gain so the planet is bright but not 'burnt out', use a small ROI (region) around the planet, and watch the histogram. Record 1–3 minutes.
+SharpCap में कैप्चर करें: ZWO कैमरा लगाएँ, SharpCap खोलें, और वीडियो (SER या AVI) रिकॉर्ड करें। एक्सपोज़र व गेन ऐसे रखें कि ग्रह चमकीला हो पर 'जल' न जाए, ग्रह के चारों ओर छोटा ROI (क्षेत्र) रखें, और हिस्टोग्राम देखें। 1–3 मिनट रिकॉर्ड करें।
+STACK in AutoStakkert!: load the video; the software aligns every frame and keeps the best percentage (say the sharpest 25%), adding them into one clean image.
+AutoStakkert! में स्टैक करें: वीडियो लोड करें; सॉफ़्टवेयर हर फ़्रेम को संरेखित कर सर्वोत्तम प्रतिशत (जैसे सबसे तीक्ष्ण 25%) रखता है, और उन्हें एक साफ़ छवि में जोड़ता है।
+SHARPEN in RegiStax or AstroSurface: use the 'wavelet' sliders to bring out fine detail — cloud belts on Jupiter, rings of Saturn, craters on the Moon. Go gently; too much makes it noisy.
+RegiStax या AstroSurface में तीक्ष्ण करें: बारीक विवरण उभारने के लिए 'वेवलेट' स्लाइडर का उपयोग करें — बृहस्पति की बादल-पट्टियाँ, शनि के छल्ले, चंद्रमा के क्रेटर। धीरे करें; ज़्यादा करने से छवि खुरदरी होती है।
+FINISH in GIMP or Photoshop: adjust brightness, contrast and colour balance, and save your final picture.
+GIMP या Photoshop में पूरा करें: चमक, कंट्रास्ट व रंग-संतुलन समायोजित करें, और अपनी अंतिम तस्वीर सहेजें।
+19.  Road B — Deep-Sky Imaging  रास्ता ख — डीप-स्काई इमेजिंग
+Galaxies and nebulae are huge but extremely faint. Instead of thousands of short frames, deep-sky imaging uses a few LONG exposures (30 seconds to several minutes each) on a tracking mount, then adds many of them together to overcome the grainy 'noise'. This needs our AVX equatorial mount, well polar-aligned (Chapter 13).
+गैलेक्सियाँ व नीहारिकाएँ विशाल पर अत्यंत धुँधली होती हैं। हज़ारों छोटे फ़्रेम की जगह, डीप-स्काई इमेजिंग एक ट्रैकिंग माउंट पर कुछ लंबे एक्सपोज़र (हर एक 30 सेकंड से कई मिनट) लेती है, फिर खुरदरे 'नॉइज़' को हराने के लिए उन्हें जोड़ती है। इसके लिए हमारा AVX विषुवतीय माउंट चाहिए, अच्छी तरह ध्रुवीय-संरेखित (अध्याय 13)।
+The Orion Nebula (M42), imaged from the observatory (Nov 2024) — a vast cloud of gas about 1,340 light-years away where new stars are being born right now. It is the brightest nebula in our sky and the perfect first deep-sky target.  ·  मृगशीर्ष (ओरायन) नीहारिका (M42), वेधशाला से ली गई (नवंबर 2024) — लगभग 1,340 प्रकाश-वर्ष दूर गैस का विशाल बादल जहाँ अभी नए तारे जन्म ले रहे हैं। यह हमारे आकाश की सबसे चमकीली नीहारिका और आदर्श पहला डीप-स्काई लक्ष्य है।
+The Hercules Cluster (M13), imaged from the observatory — a glittering ball of several hundred thousand ancient stars about 22,000 light-years away, bound together by gravity since our galaxy was young.  ·  हर्क्यूलिस समूह (M13), वेधशाला से लिया गया — कई लाख प्राचीन तारों का झिलमिलाता गोला, लगभग 22,000 प्रकाश-वर्ष दूर, जो हमारी गैलेक्सी के युवा होने से ही गुरुत्व से बंधे हैं।
+The frames you capture  जो फ़्रेम आप लेते हैं
+Lights — the actual long exposures of your target. Take many (10, 20, 50+).  लाइट्स — आपके लक्ष्य के असली लंबे एक्सपोज़र। कई लें (10, 20, 50+)।
+Darks — same exposure with the lens capped; record the sensor's heat speckles to subtract.  डार्क्स — लेंस ढककर उसी एक्सपोज़र पर; सेंसर के ताप-धब्बे रिकॉर्ड करें ताकि घटाए जा सकें।
+Flats — an evenly lit frame; record dust shadows and edge darkening to remove.  फ़्लैट्स — समान रूप से प्रकाशित फ़्रेम; धूल की छायाएँ व किनारे का अँधेरापन हटाने के लिए।
+Bias — the shortest possible frames; record the camera's base electronic pattern.  बायस — सबसे छोटे संभव फ़्रेम; कैमरे का आधारभूत इलेक्ट्रॉनिक पैटर्न।
+Stack and stretch  स्टैक और स्ट्रेच
+Load your lights and calibration frames into DeepSkyStacker or Siril. The software aligns the stars and combines everything into one deep, smooth master image.
+अपनी लाइट्स व कैलिब्रेशन फ़्रेम DeepSkyStacker या Siril में लोड करें। सॉफ़्टवेयर तारों को संरेखित कर सब कुछ एक गहरी, चिकनी मास्टर छवि में जोड़ता है।
+The raw stack looks dark. 'Stretch' it (raise the faint levels) in Siril or GIMP to reveal the nebula's glow and the galaxy's arms. Then balance the colour. Patience here is what separates a snapshot from a stunning image.
+कच्चा स्टैक अँधेरा दिखता है। Siril या GIMP में इसे 'स्ट्रेच' करें (धुँधले स्तर बढ़ाएँ) ताकि नीहारिका की चमक व गैलेक्सी की भुजाएँ उभरें। फिर रंग संतुलित करें। यहाँ धैर्य ही साधारण तस्वीर को शानदार छवि से अलग करता है।
+With the Canon 1500D you can do the same at 'prime focus' (camera on the focuser) for the Moon and brighter deep-sky objects, or 'piggyback' (camera with its own lens on the moving mount) for wide, beautiful Milky Way and constellation shots.
+कैनन 1500D से आप चंद्रमा व चमकीली डीप-स्काई वस्तुओं के लिए 'प्राइम फोकस' (कैमरा फोकसर पर) वही कर सकते हैं, या चौड़े, सुंदर आकाशगंगा व नक्षत्र चित्रों के लिए 'पिगीबैक' (कैमरा अपने लेंस के साथ चलते माउंट पर)।
+20.  What Is Plate Solving?  प्लेट सॉल्विंग क्या है?
+Plate solving is a clever trick where a computer looks at a photo of the sky and works out EXACTLY where the telescope is pointing — by matching the pattern of stars in the image to a huge star catalogue.
+प्लेट सॉल्विंग एक चतुर तरकीब है जिसमें कंप्यूटर आकाश की फ़ोटो देखकर ठीक-ठीक बताता है कि दूरबीन कहाँ इशारा कर रही है — छवि के तारों के नमूने को एक विशाल तारा-कैटलॉग से मिलाकर।
+What you need  आपको क्या चाहिए
+A camera on the telescope (our ZWO or the DSLR).  दूरबीन पर एक कैमरा (हमारा ZWO या DSLR)।
+A laptop running plate-solving software — built into SharpCap and NINA, or stand-alone tools like ASTAP and All-Sky Plate Solver.  प्लेट-सॉल्विंग सॉफ़्टवेयर वाला लैपटॉप — SharpCap व NINA में अंतर्निहित, या ASTAP और All-Sky Plate Solver जैसे अलग उपकरण।
+A star catalogue file (downloaded once).  एक तारा-कैटलॉग फ़ाइल (एक बार डाउनलोड)।
+Where it helps  यह कहाँ मदद करता है
+Fixing GoTo aim: if a slew lands slightly off, a plate-solve tells the mount its true position and re-centres the target perfectly.  GoTo निशाना सुधारना: यदि घुमाव थोड़ा हट जाए, तो प्लेट-सॉल्व माउंट को उसकी सच्ची स्थिति बताकर लक्ष्य को पूरी तरह केंद्रित कर देता है।
+Framing: line up a big nebula exactly the way you want before a long imaging run.  फ़्रेमिंग: लंबे इमेजिंग सत्र से पहले किसी बड़ी नीहारिका को ठीक मनचाहे ढंग से सजाएँ।
+Polar alignment: some software polar-aligns the EQ mount using plate solving instead of Polaris.  ध्रुवीय संरेखण: कुछ सॉफ़्टवेयर ध्रुव तारे की जगह प्लेट सॉल्विंग से EQ माउंट का ध्रुवीय संरेखण करते हैं।
+Identifying: confirm exactly which faint object you have captured.  पहचान: पुष्टि करें कि आपने ठीक कौन-सी धुँधली वस्तु खींची है।
+Our eVscope does this automatically every time it starts — that is its 'autonomous field detection'.
+हमारी ईवीस्कोप हर बार शुरू होते समय यह स्वतः करती है — यही उसका 'स्वायत्त फ़ील्ड डिटेक्शन' है।
+PART FIVE
+Real Science You Can Do
+भाग पाँच — असली विज्ञान जो आप कर सकते हैं
+21.  Citizen Science Projects  सिटिज़न साइंस परियोजनाएँ
