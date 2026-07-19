@@ -29,20 +29,35 @@ export const InstructorVoiceBox: React.FC<InstructorVoiceBoxProps> = ({ response
     prevSeverityRef.current = response.severity;
   }, [response]);
 
-  // Dragging logic
+  // Dragging logic — shared math for mouse and touch. Touch doesn't need
+  // window-level move/up listeners the way mouse does: once a touch begins
+  // on an element, its move/end events keep targeting that same element for
+  // the whole gesture (unlike mouse events, which retarget to whatever's
+  // currently under the cursor), so the touch handlers below are wired
+  // directly on the drag handles instead.
+  const updateDragPosition = (clientX: number, clientY: number) => {
+    const dx = clientX - dragStartPos.current.x;
+    const dy = clientY - dragStartPos.current.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) hasDraggedRef.current = true;
+
+    // Keep within window bounds (approximate sizing)
+    const newX = Math.max(0, Math.min(window.innerWidth - 300, boxStartPos.current.x + dx));
+    const newY = Math.max(0, Math.min(window.innerHeight - 100, boxStartPos.current.y + dy));
+
+    setPosition({ x: newX, y: newY });
+  };
+
+  const beginDrag = (clientX: number, clientY: number) => {
+    setIsDragging(true);
+    hasDraggedRef.current = false;
+    dragStartPos.current = { x: clientX, y: clientY };
+    boxStartPos.current = { ...position };
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-
-      const dx = e.clientX - dragStartPos.current.x;
-      const dy = e.clientY - dragStartPos.current.y;
-      if (Math.abs(dx) + Math.abs(dy) > 4) hasDraggedRef.current = true;
-
-      // Keep within window bounds (approximate sizing)
-      const newX = Math.max(0, Math.min(window.innerWidth - 300, boxStartPos.current.x + dx));
-      const newY = Math.max(0, Math.min(window.innerHeight - 100, boxStartPos.current.y + dy));
-
-      setPosition({ x: newX, y: newY });
+      updateDragPosition(e.clientX, e.clientY);
     };
 
     const handleMouseUp = () => {
@@ -61,11 +76,28 @@ export const InstructorVoiceBox: React.FC<InstructorVoiceBoxProps> = ({ response
   }, [isDragging]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    hasDraggedRef.current = false;
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-    boxStartPos.current = { ...position };
+    beginDrag(e.clientX, e.clientY);
   };
+
+  // ── Touch drag (Phase 36) ── preventDefault on start/move stops Safari
+  // from scrolling the page instead of moving the badge; it also suppresses
+  // the browser's synthetic click that would otherwise fire after a tap, so
+  // the minimized pill replicates its own tap-to-expand below instead of
+  // relying on that click.
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    e.preventDefault();
+    beginDrag(touch.clientX, touch.clientY);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    e.preventDefault();
+    updateDragPosition(touch.clientX, touch.clientY);
+  };
+  const handleTouchEnd = () => setIsDragging(false);
 
   if (!response) return null;
 
@@ -113,11 +145,23 @@ export const InstructorVoiceBox: React.FC<InstructorVoiceBoxProps> = ({ response
   // threshold suppresses the release-click so dragging never accidentally
   // re-expands it.
   if (isMinimized) {
+    // preventDefault in handleTouchStart suppresses the browser's synthetic
+    // click for touch, so a genuine tap (no drag) must expand here instead —
+    // mirrors the onClick's hasDraggedRef check below, for touch.
+    const handlePillTouchEnd = (e: React.TouchEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (!hasDraggedRef.current) setIsMinimized(false);
+    };
     return (
       <div
         style={{ left: position.x, top: position.y, position: 'fixed', zIndex: 9999 }}
         className={`pointer-events-auto ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handlePillTouchEnd}
+        onTouchCancel={handleTouchEnd}
         title="Drag to move · click to expand"
       >
         <button
@@ -148,15 +192,19 @@ export const InstructorVoiceBox: React.FC<InstructorVoiceBoxProps> = ({ response
       aria-live="assertive"
     >
       {/* Draggable Header */}
-      <div 
+      <div
         className="flex items-center justify-between p-2 border-b border-white/10 cursor-move bg-black/20 rounded-t-xl hover:bg-black/30 transition-colors"
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div className="flex items-center gap-2 text-[10px] uppercase font-mono tracking-widest opacity-60 ml-2">
           <GripHorizontal className="w-3 h-3" />
           <span>Instructor Panel</span>
         </div>
-        
+
         <div className="flex items-center gap-3 mr-2">
           <span className="text-[10px] uppercase font-mono tracking-widest opacity-60">Live</span>
           <div className="relative flex items-center">
@@ -167,6 +215,7 @@ export const InstructorVoiceBox: React.FC<InstructorVoiceBoxProps> = ({ response
           {response.severity !== 'critical' && (
             <button
               onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              onTouchStart={(e) => e.stopPropagation()} // don't let the header's drag swallow this tap
               className="p-1 rounded hover:bg-white/20 transition-colors opacity-80 hover:opacity-100 cursor-pointer"
               aria-label="Minimize instructor panel"
             >

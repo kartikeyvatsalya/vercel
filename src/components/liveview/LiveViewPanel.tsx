@@ -780,6 +780,24 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     },
     onPointerLeave: () => { slewDirRef.current = { dAlt: 0, dAz: 0 }; },
     onPointerCancel: () => { slewDirRef.current = { dAlt: 0, dAz: 0 }; },
+    // ── Touch fallback (Phase 36) ── real Touch listeners alongside the
+    // Pointer ones so a hold engages/releases immediately on iPadOS, and
+    // preventDefault stops Safari from reading the hold as a page-zoom/
+    // scroll gesture or firing a ghost click ~300ms after release. Setting
+    // the same ref value the pointer handlers already set is idempotent, so
+    // both firing for one touch is harmless.
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      slewDirRef.current = { dAlt, dAz };
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      e.preventDefault();
+      slewDirRef.current = { dAlt: 0, dAz: 0 };
+    },
+    onTouchCancel: (e: React.TouchEvent) => {
+      e.preventDefault();
+      slewDirRef.current = { dAlt: 0, dAz: 0 };
+    },
   });
 
   // ── 'track' mode: drag-to-slew the MAIN feed (ported from DobsonianTrainer) ──

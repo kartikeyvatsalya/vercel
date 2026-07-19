@@ -190,11 +190,18 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
     onDragChange(true);
     document.body.style.cursor = 'grabbing';
 
+    // Pin the drag to the pointer that started it (Phase 36) — on a
+    // multi-touch iPad a second stray contact (a resting palm, a second
+    // finger) fires its own pointermove on window and must not also steer
+    // this drag; a mouse only ever has one active pointerId, so this is a
+    // no-op on desktop.
+    const activePointerId = e.nativeEvent.pointerId;
     let lastX = e.nativeEvent.clientX;
     let lastY = e.nativeEvent.clientY;
     let hasSlippedClutch = false;
 
     const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== activePointerId) return;
       const dx = ev.clientX - lastX;
       const dy = ev.clientY - lastY;
       if (dx === 0 && dy === 0) return;
@@ -220,7 +227,8 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
       );
     };
 
-    const endDrag = () => {
+    const endDrag = (ev?: PointerEvent) => {
+      if (ev && ev.pointerId !== activePointerId) return;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', endDrag);
       window.removeEventListener('pointercancel', endDrag);
@@ -466,11 +474,14 @@ const SkyGazeControls: React.FC = () => {
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    // Pin the drag to the pointer that started it (Phase 36) — see the
+    // matching comment in useTubeDrag above.
+    const activePointerId = e.nativeEvent.pointerId;
     dragRef.current = { lastX: e.nativeEvent.clientX, lastY: e.nativeEvent.clientY };
     document.body.style.cursor = 'grabbing';
 
     const onMove = (ev: PointerEvent) => {
-      if (!dragRef.current) return;
+      if (!dragRef.current || ev.pointerId !== activePointerId) return;
       const dx = ev.clientX - dragRef.current.lastX;
       const dy = ev.clientY - dragRef.current.lastY;
       dragRef.current.lastX = ev.clientX;
@@ -483,7 +494,8 @@ const SkyGazeControls: React.FC = () => {
         Math.PI / 2 - 0.02
       );
     };
-    const endDrag = () => {
+    const endDrag = (ev?: PointerEvent) => {
+      if (ev && ev.pointerId !== activePointerId) return;
       dragRef.current = null;
       document.body.style.cursor = 'auto';
       window.removeEventListener('pointermove', onMove);
