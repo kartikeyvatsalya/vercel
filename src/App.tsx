@@ -29,6 +29,7 @@ import { CustomTelescopeModal } from './components/ui/CustomTelescopeModal';
 import { FieldLogbookModal } from './components/ui/FieldLogbookModal';
 import { SettingsModal } from './components/ui/SettingsModal';
 import { OnboardingTour } from './components/ui/OnboardingTour';
+import { MobileWarning } from './components/ui/MobileWarning';
 import { TextbookPanel } from './components/ui/TextbookPanel';
 import { ObservatoryScene } from './components/canvas/ObservatoryScene';
 
@@ -652,6 +653,7 @@ function App() {
   if (!assetsLoaded) {
     return (
       <div className="min-h-screen h-screen bg-slate-950 text-slate-100 font-sans flex flex-col items-center justify-center gap-6">
+        <MobileWarning />
         <div className="relative">
           <div className="w-20 h-20 border-4 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -672,11 +674,17 @@ function App() {
   }
 
   if (isInstructorMode) {
-    return <InstructorDashboard onExit={() => setIsInstructorMode(false)} />;
+    return (
+      <>
+        <MobileWarning />
+        <InstructorDashboard onExit={() => setIsInstructorMode(false)} />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen h-screen bg-slate-950 text-slate-100 font-sans flex flex-col relative overflow-hidden">
+      <MobileWarning />
       {/* ── Observatory 3D Background — fullscreen backdrop in Observatory mode.
           Split mode renders the scene in-flow inside the left pane instead, and
           Eyepiece mode unmounts the WebGL canvas entirely to save resources. ── */}
