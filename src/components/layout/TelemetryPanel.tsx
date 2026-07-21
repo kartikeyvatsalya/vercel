@@ -23,16 +23,16 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   const {
     activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
-    stepSimTimeHours, setTimeRate, toggleTrackingMotor, toggleVirtualNight,
+    stepSimTimeHours, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
   } = useTelescopeStore();
   const modeRules = SIM_MODE_RULES[simulationMode];
 
-  // Display name for the observing site (Phase 39) — derived by matching the
-  // store's observerLocation against the CITIES catalog, since the store
-  // itself only holds coordinates, not a place name.
-  const siteName = CITIES.find(
+  // Which catalog city (if any) matches the store's current observerLocation
+  // (Phase 40) — the store itself only holds coordinates, not a place name,
+  // so the dropdown's selected option is derived by matching against CITIES.
+  const activeCity = CITIES.find(
     (c) => c.latitude === observerLocation.latitude && c.longitude === observerLocation.longitude
-  )?.name ?? 'Custom Location';
+  );
 
   // Live altitude of the active target — surfaces below-horizon states (Phase 26 fix 4c)
   const activeTargetAlt = activeTarget
@@ -113,9 +113,26 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
         <InfoTip tip={t('tip.environment')} position="bottom"><span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
           <Clock className="w-2.5 h-2.5" /> {t('telemetry.environment')}
         </span></InfoTip>
-        <span className="text-slate-300 text-[10px] leading-tight">
-          {t('telemetry.location')} {siteName} ({Math.abs(observerLocation.latitude).toFixed(2)}°{observerLocation.latitude >= 0 ? 'N' : 'S'}, {Math.abs(observerLocation.longitude).toFixed(2)}°{observerLocation.longitude >= 0 ? 'E' : 'W'})
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-500 uppercase text-[9px] shrink-0">{t('telemetry.location')}</span>
+          <select
+            value={activeCity?.id ?? ''}
+            onChange={(e) => {
+              const city = CITIES.find((c) => c.id === e.target.value);
+              if (city) setObserverLocation({ latitude: city.latitude, longitude: city.longitude });
+            }}
+            aria-label="Observing location"
+            className="bg-slate-800/80 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200 text-[10px] font-mono cursor-pointer hover:bg-slate-700/80 focus:outline-none focus:ring-1 focus:ring-cyan-500/70 transition-colors"
+          >
+            {!activeCity && <option value="" disabled>Custom Location</option>}
+            {CITIES.map((city) => (
+              <option key={city.id} value={city.id}>{city.name}</option>
+            ))}
+          </select>
+          <span className="text-slate-400 text-[9px] font-mono leading-tight">
+            ({Math.abs(observerLocation.latitude).toFixed(2)}°{observerLocation.latitude >= 0 ? 'N' : 'S'}, {Math.abs(observerLocation.longitude).toFixed(2)}°{observerLocation.longitude >= 0 ? 'E' : 'W'})
+          </span>
+        </div>
         <span className="text-white text-[11px]">
           {new Date(simTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
           {' · '}

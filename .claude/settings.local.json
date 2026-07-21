@@ -26,7 +26,9 @@
       "Bash(git config *)",
       "Bash(git add *)",
       "Bash(echo \"Exit code: $?\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
