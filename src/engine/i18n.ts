@@ -98,6 +98,12 @@ const en = {
   'tour.skip': 'Skip',
   'tour.next': 'Next',
   'tour.finish': 'Finish',
+  'tour.simMode.title': 'Simulation Modes',
+  'tour.simMode.body':
+    "This sets the global difficulty. Fun keeps things simple — tracking stays locked and you're free to zoom in. Realistic behaves like a real, drifting telescope, where targets slip out of view and you must track them by hand. Easy sits in between.",
+  'tour.language.title': 'Language Option',
+  'tour.language.body':
+    'Switch between English and Hindi at any time using this toggle — every label in the app updates instantly.',
   'tour.dustcap.title': 'Remove the Dust Cap',
   'tour.dustcap.body':
     "Every telescope ships with a protective cap over the front opening. Click here to take it off first — with the cap on, no light can enter and the view stays completely black. It's the #1 reason beginners think their telescope is broken!",
@@ -272,6 +278,12 @@ const hi: Record<TranslationKey, string> = {
   'tour.skip': 'छोड़ें',
   'tour.next': 'अगला',
   'tour.finish': 'समाप्त करें',
+  'tour.simMode.title': 'सिमुलेशन मोड',
+  'tour.simMode.body':
+    "यह समग्र कठिनाई स्तर तय करता है। 'फन' मोड में चीज़ें सरल रहती हैं — ट्रैकिंग लॉक रहती है और आप बेझिझक ज़ूम कर सकते हैं। 'रियलिस्टिक' मोड एक असली, बहकते हुए टेलीस्कोप जैसा व्यवहार करता है, जहाँ लक्ष्य दृश्य से खिसक जाते हैं और आपको उन्हें हाथ से ट्रैक करना पड़ता है। 'ईज़ी' इन दोनों के बीच का विकल्प है।",
+  'tour.language.title': 'भाषा विकल्प',
+  'tour.language.body':
+    'इस टॉगल से आप कभी भी अंग्रेज़ी और हिंदी के बीच स्विच कर सकते हैं — ऐप के सभी लेबल तुरंत बदल जाते हैं।',
   'tour.dustcap.title': 'डस्ट कैप हटाएँ',
   'tour.dustcap.body':
     'हर टेलीस्कोप के आगे के हिस्से पर एक सुरक्षा कैप लगी होती है। सबसे पहले इसे यहाँ से हटाएँ — कैप लगी रहने पर कोई भी रोशनी अंदर नहीं जा सकती और दृश्य पूरी तरह काला रहता है। शुरुआती लोगों को कुछ न दिखने का यही सबसे बड़ा कारण है!',

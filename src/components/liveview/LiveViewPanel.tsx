@@ -97,6 +97,11 @@ const SUN_HAZARD_RADIUS_DEG = 4.0;
 
 // ── 'track' mode constants (ported from DobsonianTrainer) ──
 const TRACK_LOCK_DURATION_MS = 15_000;
+// 'TRACKING LOCKED' HUD text (Phase 40): held at full opacity, then fades
+// out over the remainder — it used to draw every single frame forever once
+// trackCompletedRef latched true, permanently covering the target.
+const TRACK_LOCKED_HUD_HOLD_MS = 3_000;
+const TRACK_LOCKED_HUD_DURATION_MS = 4_000;
 // Proportional to the original 400px-canvas reticle (30px radius = 7.5%).
 const TRACK_RETICLE_RADIUS_PX = MAIN_CANVAS_PX * 0.075;
 // Mechanical-imbalance droop, expressed as a fraction of the current field
@@ -123,6 +128,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   const trackDragRef = useRef({ active: false, lastX: 0, lastY: 0 });
   const trackLockTimerRef = useRef(0);
   const trackCompletedRef = useRef(false);
+  const trackCompletedAtRef = useRef<number | null>(null);
 
   // ── Slew D-Pad (Phase 29) ── Direction currently held, in mount-frame
   // sign convention (+dAlt = up, +dAz = clockwise/east). Applied inside the
@@ -387,7 +393,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           ? (SIDEREAL_DEG_PER_SEC * telescope.timeRate / mainTrueFovDeg) * MAIN_CANVAS_PX
           : 0;
         const skyVisiblyMoving = !telescope.isTrackingMotorOn && mainDriftPxPerSec > 2;
-        const isTrackEngaged = mode === 'track' && !!activeTarget && !trackCompletedRef.current;
+        // 'TRACKING LOCKED' HUD (Phase 40): keep the loop at full framerate for
+        // a few seconds after lock so the fade-out itself animates smoothly,
+        // then fall back to the idle redraw cadence like any other still frame.
+        const trackHudElapsedMs = trackCompletedAtRef.current !== null ? now - trackCompletedAtRef.current : Infinity;
+        const isTrackHudFading = trackCompletedRef.current && trackHudElapsedMs < TRACK_LOCKED_HUD_DURATION_MS;
+        const isTrackEngaged = mode === 'track' && !!activeTarget && (!trackCompletedRef.current || isTrackHudFading);
         const needsLiveRedraw =
           isDragging || pointingMoved || skyVisiblyMoving || evalResult.isAtmosphericBlurActive || evalResult.isAltDrooping || isTrackEngaged;
         const shouldDraw = needsLiveRedraw || (now - lastDrawTime) >= IDLE_REDRAW_INTERVAL_MS;
@@ -467,6 +478,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                     trackLockTimerRef.current += deltaTime;
                     if (trackLockTimerRef.current >= TRACK_LOCK_DURATION_MS) {
                       trackCompletedRef.current = true;
+                      trackCompletedAtRef.current = now;
                       progress.unlockAchievement('night_sky_navigator');
                       progress.completeModule('dobsonian_trainer');
                     }
@@ -491,7 +503,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   ctx.textAlign = 'center';
                   ctx.fillStyle = isInReticle ? '#00ff66' : 'rgba(255,255,255,0.4)';
                   ctx.fillText(isInReticle ? `${secondsLeft.toFixed(1)}s` : 'CENTRE TARGET', cx, cy + TRACK_RETICLE_RADIUS_PX + 24);
-                } else {
+                } else if (trackHudElapsedMs < TRACK_LOCKED_HUD_DURATION_MS) {
+                  const fadeAlpha = trackHudElapsedMs < TRACK_LOCKED_HUD_HOLD_MS
+                    ? 1
+                    : 1 - (trackHudElapsedMs - TRACK_LOCKED_HUD_HOLD_MS) / (TRACK_LOCKED_HUD_DURATION_MS - TRACK_LOCKED_HUD_HOLD_MS);
+                  ctx.save();
+                  ctx.globalAlpha = fadeAlpha;
                   ctx.font = 'bold 14px sans-serif';
                   ctx.textAlign = 'center';
                   ctx.shadowColor = '#00ff66';
@@ -501,6 +518,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   ctx.font = 'bold 10px sans-serif';
                   ctx.fillText('Night Sky Navigator 🏆', cx, cy - TRACK_RETICLE_RADIUS_PX - 4);
                   ctx.shadowBlur = 0;
+                  ctx.restore();
                 }
 
                 // Instructional hint

@@ -720,7 +720,7 @@ function App() {
         {/* Right: View Mode + Mission + About */}
         <div className="flex items-center gap-2">
           {/* Global Simulation Mode pill (Phase 26) */}
-          <div className="flex items-center gap-0.5 bg-slate-800/80 border border-slate-700 rounded-lg p-0.5" title={t('tip.simulationMode')}>
+          <div data-tour-id="tour-simulation-mode" className="flex items-center gap-0.5 bg-slate-800/80 border border-slate-700 rounded-lg p-0.5" title={t('tip.simulationMode')}>
             {([
               { id: 'fun', label: 'Fun', icon: <Sparkles className="w-3.5 h-3.5" /> },
               { id: 'easy', label: 'Easy', icon: <GraduationCap className="w-3.5 h-3.5" /> },
@@ -743,7 +743,7 @@ function App() {
           {/* Language Toggle (Phase 28) — right next to the Global Simulation
               Mode pill, per spec. Swaps instantly: setLanguage just flips a
               store field, no reload. */}
-          <div className="flex items-center gap-0.5 bg-slate-800/80 border border-emerald-700/60 rounded-lg p-0.5">
+          <div data-tour-id="tour-language" className="flex items-center gap-0.5 bg-slate-800/80 border border-emerald-700/60 rounded-lg p-0.5">
             {([
               { id: 'en', label: 'EN' },
               { id: 'hi', label: 'हिं' },
@@ -899,7 +899,7 @@ function App() {
               try { localStorage.setItem('tourPrompted', '1'); } catch { /* best effort */ }
               telescopeState.startTour();
             }}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors"
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 border border-green-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors"
           >
             <HelpCircle className="w-3.5 h-3.5" /> <span className="hidden xl:inline">{t('tour.startTour')}</span>
           </button>

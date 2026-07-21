@@ -35,6 +35,8 @@ interface TourStepConfig {
 }
 
 const TOUR_STEPS: TourStepConfig[] = [
+  { tourId: 'tour-simulation-mode', titleKey: 'tour.simMode.title', bodyKey: 'tour.simMode.body' },
+  { tourId: 'tour-language', titleKey: 'tour.language.title', bodyKey: 'tour.language.body' },
   { tourId: 'tour-dustcap', titleKey: 'tour.dustcap.title', bodyKey: 'tour.dustcap.body' },
   { tourId: 'tour-target', titleKey: 'tour.target.title', bodyKey: 'tour.target.body' },
   { tourId: 'tour-time', titleKey: 'tour.time.title', bodyKey: 'tour.time.body' },
