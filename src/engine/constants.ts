@@ -45,3 +45,27 @@ export const TELESCOPE_PROFILES_LIST = [
   TELESCOPE_PROFILES.refractor60,
   TELESCOPE_PROFILES.sct14,
 ];
+
+export interface ObservingCity {
+  id: string;
+  name: string;
+  /** Degrees, north-positive. */
+  latitude: number;
+  /** Degrees, east-positive (matches ephemerisMath.ts's convention). */
+  longitude: number;
+}
+
+/**
+ * A few major cities for the observing-location selector (Settings ›
+ * Observing Location). Jaipur's coordinates MUST exactly match
+ * useTelescopeStore's DEFAULT_OBSERVER_LOCATION (26.9124, 75.7873) — the
+ * app's default location and TelemetryPanel's displayed site name are both
+ * derived by matching the store's observerLocation against this list.
+ */
+export const CITIES: ObservingCity[] = [
+  { id: 'jaipur', name: 'Jaipur, India', latitude: 26.9124, longitude: 75.7873 },
+  { id: 'newyork', name: 'New York, USA', latitude: 40.7128, longitude: -74.006 },
+  { id: 'london', name: 'London, UK', latitude: 51.5074, longitude: -0.1278 },
+  { id: 'sydney', name: 'Sydney, Australia', latitude: -33.8688, longitude: 151.2093 },
+  { id: 'tokyo', name: 'Tokyo, Japan', latitude: 35.6762, longitude: 139.6503 },
+];

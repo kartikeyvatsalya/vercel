@@ -959,9 +959,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   };
 
   return (
-    <div data-tour-id="tour-canvases" className="flex flex-col md:flex-row gap-6 p-4 justify-center items-center h-full">
+    <div className="flex flex-col md:flex-row gap-6 p-4 justify-center items-center h-full">
       {/* Main Eyepiece Viewport */}
-      <div className="flex flex-col items-center">
+      <div data-tour-id="tour-main-eyepiece" className="flex flex-col items-center">
         <h3 className="text-white font-semibold mb-2 tracking-wide font-mono uppercase">{t('liveview.mainEyepiece')}</h3>
         <div className="relative">
           <canvas
@@ -1021,7 +1021,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
       </div>
 
       {/* Finderscope Viewport */}
-      <div className="flex flex-col items-center">
+      <div data-tour-id="tour-finderscope" className="flex flex-col items-center">
         <h3 className="text-white font-semibold mb-2 tracking-wide font-mono uppercase">{t('liveview.finderscope')}</h3>
         <div className="relative">
           <canvas

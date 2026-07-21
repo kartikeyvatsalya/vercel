@@ -14,11 +14,16 @@ import { X } from 'lucide-react';
  * its "Finish" button calls `endTour()` directly on the last step instead
  * of `advanceTour()`.
  *
- * The five steps point at DOM elements tagged `data-tour-id="..."` spread
- * across App.tsx (footer Target/Eyepiece selectors), TelemetryPanel.tsx
- * (Time Controls block, Motor toggle), and LiveViewPanel.tsx (the canvases
- * wrapper) — this component doesn't know or care which React tree they
- * live in, it just measures whatever matches the selector.
+ * The steps point at DOM elements tagged `data-tour-id="..."` spread across
+ * App.tsx (footer Dust Cap/Focuser/Target/Eyepiece controls), TelemetryPanel.tsx
+ * (Time Controls block, Motor toggle), and LiveViewPanel.tsx (the Finderscope
+ * and Main Eyepiece viewports) — this component doesn't know or care which
+ * React tree they live in, it just measures whatever matches the selector.
+ *
+ * Phase 38: expanded from five steps into a true beginner walkthrough — a
+ * beginner doesn't know a dust cap has to come off before ANYTHING is
+ * visible, and conflated the wide-aiming Finderscope with the high-power
+ * Main Eyepiece as "the two circles." Each now gets its own spotlighted step.
  */
 
 interface TourStepConfig {
@@ -30,11 +35,14 @@ interface TourStepConfig {
 }
 
 const TOUR_STEPS: TourStepConfig[] = [
+  { tourId: 'tour-dustcap', titleKey: 'tour.dustcap.title', bodyKey: 'tour.dustcap.body' },
   { tourId: 'tour-target', titleKey: 'tour.target.title', bodyKey: 'tour.target.body' },
   { tourId: 'tour-time', titleKey: 'tour.time.title', bodyKey: 'tour.time.body' },
   { tourId: 'tour-motor', titleKey: 'tour.motor.title', bodyKey: 'tour.motor.body' },
+  { tourId: 'tour-finderscope', titleKey: 'tour.finderscope.title', bodyKey: 'tour.finderscope.body', requiresCanvases: true },
+  { tourId: 'tour-main-eyepiece', titleKey: 'tour.mainEyepiece.title', bodyKey: 'tour.mainEyepiece.body', requiresCanvases: true },
   { tourId: 'tour-eyepiece', titleKey: 'tour.eyepiece.title', bodyKey: 'tour.eyepiece.body' },
-  { tourId: 'tour-canvases', titleKey: 'tour.canvases.title', bodyKey: 'tour.canvases.body', requiresCanvases: true },
+  { tourId: 'tour-focuser', titleKey: 'tour.focuser.title', bodyKey: 'tour.focuser.body' },
 ];
 
 // Recheck the spotlighted element's position on a light interval — footer
@@ -89,6 +97,10 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
   const isLastStep = tourStep >= TOUR_STEPS.length;
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
+  // Mobile/tablet safety (Phase 38): shrink to fit rather than overflow a
+  // narrow viewport — a fixed 320px card plus its 14px margins needs 348px,
+  // wider than some phones in portrait. Never wider than TOOLTIP_WIDTH_PX.
+  const tooltipWidth = Math.min(TOOLTIP_WIDTH_PX, viewportW - 28);
 
   let tooltipTop: number;
   let tooltipLeft: number;
@@ -96,12 +108,12 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
     const spaceBelow = viewportH - rect.bottom;
     const placeBelow = spaceBelow > 190 || rect.top < 190;
     tooltipTop = placeBelow ? rect.bottom + 14 : Math.max(14, rect.top - 174);
-    tooltipLeft = Math.min(Math.max(14, rect.left + rect.width / 2 - TOOLTIP_WIDTH_PX / 2), viewportW - TOOLTIP_WIDTH_PX - 14);
+    tooltipLeft = Math.min(Math.max(14, rect.left + rect.width / 2 - tooltipWidth / 2), viewportW - tooltipWidth - 14);
   } else {
     // Target element not found (yet) — center the tooltip so the tour never
     // silently vanishes, e.g. the one-frame gap before onRequestCanvasesVisible lands.
     tooltipTop = viewportH / 2 - 90;
-    tooltipLeft = viewportW / 2 - TOOLTIP_WIDTH_PX / 2;
+    tooltipLeft = viewportW / 2 - tooltipWidth / 2;
   }
 
   return (
@@ -124,7 +136,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
 
       <div
         className="absolute pointer-events-auto bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl p-4 flex flex-col gap-2.5 transition-all duration-300 ease-out"
-        style={{ top: tooltipTop, left: tooltipLeft, width: TOOLTIP_WIDTH_PX }}
+        style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
       >
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-400">

@@ -78,6 +78,9 @@ const CAST_IRON = { metalness: 0.72, roughness: 0.88, envMapIntensity: 0.35 } as
 const POWDER_COAT = { metalness: 0.35, roughness: 0.68, envMapIntensity: 0.5 } as const;
 /** Black-anodized fittings — focusers, finders, bezels, rear cells. */
 const ANODIZED_TRIM = { metalness: 0.85, roughness: 0.38, envMapIntensity: 0.7 } as const;
+/** Soft-touch rubberized grip — non-metallic and light-eating on purpose, so the
+    panning handle reads by touch-contrast against every glossy/metal surface around it. */
+const RUBBER_GRIP = { metalness: 0, roughness: 0.95, envMapIntensity: 0.15 } as const;
 /** Bare polished steel — the EQ counterweight shaft. */
 const POLISHED_STEEL = { metalness: 1, roughness: 0.18, envMapIntensity: 1 } as const;
 /** Varnished baltic-birch plywood — the Dobsonian rocker (a Dob's mount IS wood; the
@@ -309,6 +312,22 @@ const NewtonianTube: React.FC = () => (
       <cylinderGeometry args={[0.03, 0.03, 0.3, 10]} />
       <meshStandardMaterial color="#11131a" {...ANODIZED_TRIM} />
     </mesh>
+    {/* Panning handle (Phase 38): a grippy suitcase-style bar under the mid-tube —
+        a visible "grab here" affordance for the existing useTubeDrag physics, which
+        already fires on a pointer-down anywhere in this group. Purely additive: no
+        drag logic changes, it just gives the pointer somewhere obvious to land. */}
+    <mesh castShadow position={[-0.045, -0.17, 0.02]}>
+      <boxGeometry args={[0.02, 0.05, 0.02]} />
+      <meshStandardMaterial color="#14161a" {...ANODIZED_TRIM} />
+    </mesh>
+    <mesh castShadow position={[0.045, -0.17, 0.02]}>
+      <boxGeometry args={[0.02, 0.05, 0.02]} />
+      <meshStandardMaterial color="#14161a" {...ANODIZED_TRIM} />
+    </mesh>
+    <mesh castShadow position={[0, -0.2, 0.02]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.013, 0.013, 0.13, 12]} />
+      <meshStandardMaterial color="#1c1c1c" {...RUBBER_GRIP} />
+    </mesh>
   </group>
 );
 
@@ -342,6 +361,13 @@ const RefractorTube: React.FC = () => (
     <mesh position={[0, 0, 0.712]}>
       <torusGeometry args={[0.053, 0.006, 8, 24]} />
       <meshStandardMaterial color="#1b1f27" {...ANODIZED_TRIM} />
+    </mesh>
+    {/* Finderscope (Phase 38) — mid-tube, clear of the dew shield (z=0.75) and
+        the focuser/diagonal at the rear (z≤-0.68); matches the finder already
+        modeled on the Newtonian and SCT tubes. */}
+    <mesh castShadow position={[0, 0.075, 0.25]} rotation={[Math.PI / 2, 0, 0]}>
+      <cylinderGeometry args={[0.022, 0.022, 0.26, 10]} />
+      <meshStandardMaterial color="#11131a" {...ANODIZED_TRIM} />
     </mesh>
     {/* Focuser drawtube */}
     <mesh position={[0, 0, -0.68]} rotation={[Math.PI / 2, 0, 0]}>

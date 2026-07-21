@@ -5,12 +5,10 @@ import { missions as RANK_MISSIONS } from '../../data/missions';
 import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, getPerfectFocusPoint } from '../../engine/opticalMath';
 import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
+import { CITIES } from '../../engine/constants';
 import { useTranslation } from '../../engine/i18n';
 import { InfoTip } from '../ui/InfoTip';
 import { GraduationCap, Clock, Play, Moon, Sun } from 'lucide-react';
-
-/** Display name for the default observing site (coordinates come from the store). */
-const SITE_NAME = 'Jaipur, India';
 
 const TIME_RATES = [1, 10, 60];
 
@@ -28,6 +26,13 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     stepSimTimeHours, setTimeRate, toggleTrackingMotor, toggleVirtualNight,
   } = useTelescopeStore();
   const modeRules = SIM_MODE_RULES[simulationMode];
+
+  // Display name for the observing site (Phase 39) — derived by matching the
+  // store's observerLocation against the CITIES catalog, since the store
+  // itself only holds coordinates, not a place name.
+  const siteName = CITIES.find(
+    (c) => c.latitude === observerLocation.latitude && c.longitude === observerLocation.longitude
+  )?.name ?? 'Custom Location';
 
   // Live altitude of the active target — surfaces below-horizon states (Phase 26 fix 4c)
   const activeTargetAlt = activeTarget
@@ -109,7 +114,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
           <Clock className="w-2.5 h-2.5" /> {t('telemetry.environment')}
         </span></InfoTip>
         <span className="text-slate-300 text-[10px] leading-tight">
-          {t('telemetry.location')} {SITE_NAME} ({observerLocation.latitude.toFixed(2)}°N, {observerLocation.longitude.toFixed(2)}°E)
+          {t('telemetry.location')} {siteName} ({Math.abs(observerLocation.latitude).toFixed(2)}°{observerLocation.latitude >= 0 ? 'N' : 'S'}, {Math.abs(observerLocation.longitude).toFixed(2)}°{observerLocation.longitude >= 0 ? 'E' : 'W'})
         </span>
         <span className="text-white text-[11px]">
           {new Date(simTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}

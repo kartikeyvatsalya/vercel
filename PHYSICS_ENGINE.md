@@ -406,13 +406,13 @@ The symptoms were exactly what the math predicts: in Fun mode (×0) a locked tar
 
 ### 8.2 The fix: gentle the clock, not the sky
 
-The rendered offset of the locked target is
+The rendered offset of any body — the locked target, or any other catalog body physically in the field — is
 
 $$
-\Delta(t) = \text{position}_{target}\big(t'\big) - \text{pointing}(t)
+\Delta(t) = \text{position}_{body}\big(t'\big) - \text{pointing}(t)
 $$
 
-and the gentling moves into the *target's ephemeris clock* $t'$:
+and the gentling moves into a *shared ephemeris clock* $t'$:
 
 $$
 t' = t_{anchor} + (t - t_{anchor}) \cdot s
@@ -424,7 +424,7 @@ s = \begin{cases}
 \end{cases}
 $$
 
-Because `pointing` enters the offset **unscaled**, every manual slew pans the target 1:1 against the mount in both feeds, always. Because the *target position* is evaluated at a clock running at rate $s$, the sky's own rotation is slowed to $s$ × true rate for that body. The starfield always runs on the true clock — the honesty anchor of the whole scheme.
+Because `pointing` enters the offset **unscaled**, every manual slew pans a body 1:1 against the mount in both feeds, always. Because *every body's position* — starfield included — is evaluated at the SAME clock running at rate $s$, the sky's own rotation is slowed to $s$ × true rate for the celestial sphere as a whole (Phase 38). Earlier revisions ran the starfield on the true clock and only the locked target on $t'$, which gentled the target relative to empty space but not relative to the stars around it — see §8.4 for why that was replaced.
 
 When the tracking motor is on, gentling is bypassed ($t' = t$): the motor already cancels drift, and gentling a tracked clock would make the mount appear to drag the view off its own target.
 
@@ -437,13 +437,17 @@ The anchor $t_{anchor}$ is re-set at every event that changes the drift-fighting
 | Target lock (`setTarget`) | Fresh lock starts centered; gentling counts from this exact moment. |
 | Motor engage / disengage | Passive drift starts (or stops) *now*; gentle only what accumulates from here. |
 | ±1 Hour time steps | Deliberate time jumps must show their full, honest effect — the step lands un-gentled, then gentling resumes from the stepped-to moment. |
-| Target release (`clearTarget`) | The freed body switches from the gentled clock to the starfield's true clock; anchoring at release makes $t' = t$ at that instant. |
+| Target release (`clearTarget`) | No body switches clocks anymore (Phase 38 — every body reads the one shared gentled clock whether locked or not); the anchor reset here is harmless and simply keeps the continuity invariant fresh from this instant. |
 
 The continuity argument is one line: at any re-anchor moment, $t' = t_{anchor} + 0 \cdot s = t$ — the gentled and true clocks momentarily coincide, so the body is painted in the same place before and after the switch. Gentling changes only the *derivative* ($dt'/dt = s$), never the position at the switch instant. Bodies therefore never visibly jump when locking, unlocking, or toggling the motor.
 
-### 8.4 The honest tradeoff
+### 8.4 The honest tradeoff — and Phase 38's rigid sky
 
-Time-gentling is a pedagogy-over-physics compromise, confined and explicit: in Easy mode, a locked target drifts at 35% of the rate of the stars *behind it*. That relative motion is non-physical — but it is limited to the one locked body, it preserves every interactive behavior exactly (slews, finder divergence, tracking), and it is the difference between a 10-year-old completing the tracking lesson and giving up. Realistic mode sets $s = 1$ and the universe is whole again.
+Time-gentling is a pedagogy-over-physics compromise: in Easy mode, the sky drifts at 35% of its true rate so a beginner has time to react instead of losing the target immediately. That slowed rate is itself non-physical — but it is the difference between a 10-year-old completing the tracking lesson and giving up. Realistic mode sets $s = 1$ and the true sidereal rate returns.
+
+An earlier revision applied $t'$ to the locked target only, leaving the starfield on the true clock $t$. That halved the compromise in the wrong place: manual slews stayed honest and nothing ever jumped (§8.2–8.3 held), but the locked target now drifted at 35% of the rate of the *stars sitting right behind it* — non-physical relative motion between a body and the sky it's embedded in, which reads as the target visibly detaching from the celestial sphere rather than the whole sphere simply turning slower.
+
+Phase 38 fixes this by gentling the ENTIRE sky at once: the starfield, constellation lines, faint field stars, and every catalog body — locked or not — all read the same $t'$ (`skyRenderer.ts`'s `drawStarField`/`drawConstellationLines`/`drawFaintFieldStars`/`drawUniversalSkyBodies` all resolve `spec.targetSimTime ?? spec.simTime` instead of splitting on which body is locked). The celestial sphere is rigid at every drift rate — Easy mode makes the whole sphere turn more slowly, like a real sky filmed in slow motion, instead of singling out one body against a normal-speed backdrop. Every property §8.2–8.3 established still holds unchanged, because none of it ever depended on the target's clock differing from the sky's.
 
 ---
 
@@ -521,7 +525,7 @@ Honest engineering means knowing where the model ends. Each simplification below
 | No atmospheric refraction | Objects near the horizon render at geometric altitude (real refraction lifts them ~0.5° at the horizon) | Below-horizon culling uses a −1° grace band; refraction matters most in the last degree, where nobody observes anyway |
 | Circular, coplanar, edge-on Galilean orbits | No mutual events, no inclination wobble | Earth is within ~3° of Jupiter's equatorial plane — edge-on is the truth to first order |
 | GMST linear term only | ~0.0003°/decade sidereal error | Orders of magnitude below eyepiece resolution |
-| Time-gentled locked-target clock (Easy/Fun) | Locked target drifts slower than the starfield behind it | Explicit pedagogy tradeoff, §8.4; Realistic mode restores full physics |
+| Time-gentled whole-sky clock (Easy/Fun) | The entire celestial sphere turns slower than true sidereal rate, not just Earth's real rotation | Pedagogy-over-physics compromise, §8.4; Realistic mode ($s=1$) restores the true rate |
 | Terrestrial targets pinned at fixed Alt/Az | No parallax with observer location | They exist to teach finder alignment against something that *doesn't* move |
 
 ---

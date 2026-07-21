@@ -44,11 +44,14 @@ export interface OpticalViewSpec {
    */
   rotate180?: boolean;
   /**
-   * Drift-gentled ephemeris time for the LOCKED TARGET's sky position
-   * (Phase 33, see skyGeometry.getDriftGentledSimTime). The starfield always
-   * uses the true `simTime`; the target's own clock may run slower so Easy/
-   * Fun modes gentle passive drift — while the mount's raw pointing still
-   * maps 1:1 onto both feeds during any slew. Defaults to `simTime`.
+   * Drift-gentled ephemeris time for the WHOLE SKY's position — stars AND
+   * every catalog body alike (Phase 38; see skyGeometry.getDriftGentledSimTime).
+   * Easy/Fun modes slow this clock relative to `simTime` so passive drift is
+   * gentler with the motor off; the celestial sphere stays perfectly rigid
+   * because the starfield and every body all read this SAME clock (never a
+   * per-body one). The mount's raw pointing is untouched by any of this, so
+   * manual slews still map 1:1 onto both feeds during any drag. Defaults to
+   * `simTime` (no gentling) when a caller doesn't supply it.
    */
   targetSimTime?: number;
   /** Main-only "Digital Zoom" override (Fun mode); 1 = no zoom. */
@@ -107,7 +110,7 @@ function drawConstellationLines(
   offsetY: number,
   darkness: number
 ): void {
-  const { viewportPx, trueFovDeg, pointing, observer, simTime } = spec;
+  const { viewportPx, trueFovDeg, pointing, observer, simTime, targetSimTime } = spec;
   if (trueFovDeg <= 0) return;
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
@@ -115,7 +118,10 @@ function drawConstellationLines(
   // A touch looser than the star cull — a line can legitimately span
   // between one visible star and one just past the star-cull margin.
   const maxOffDeg = trueFovDeg * 0.85;
-  const lstHours = getLocalSiderealTime(getJulianDate(new Date(simTime)), observer.longitude);
+  // Phase 38: the same gentled clock as every other sky layer — see the
+  // "Real starfield" comment below for why this must be shared, not per-body.
+  const skySimTime = targetSimTime ?? simTime;
+  const lstHours = getLocalSiderealTime(getJulianDate(new Date(skySimTime)), observer.longitude);
 
   const project = (star: CatalogStar): { x: number; y: number } | null => {
     const pos = convertEquatorialToHorizontalLST(star.ra, star.dec, observer.latitude, lstHours);
@@ -190,7 +196,7 @@ function drawFaintFieldStars(
   offsetY: number,
   darkness: number
 ): void {
-  const { viewportPx, trueFovDeg, pointing, observer, simTime, role, aperture } = spec;
+  const { viewportPx, trueFovDeg, pointing, observer, simTime, targetSimTime, role, aperture } = spec;
   if (trueFovDeg <= 0) return;
   // Faint stars die first as the sky brightens: fully gone by late civil
   // twilight, full strength once past nautical dusk.
@@ -201,7 +207,12 @@ function drawFaintFieldStars(
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
   const maxOffDeg = trueFovDeg * 0.78;
-  const lstHours = getLocalSiderealTime(getJulianDate(new Date(simTime)), observer.longitude);
+  // Phase 38: gentled sky clock, shared with every other layer (see the
+  // "Real starfield" comment below) — the LST spin and the center-cell
+  // anchor just below must agree on the same instant, or the anchor drifts
+  // loose from the very stars it's supposed to be centered among.
+  const skySimTime = targetSimTime ?? simTime;
+  const lstHours = getLocalSiderealTime(getJulianDate(new Date(skySimTime)), observer.longitude);
   // Standard limiting-magnitude estimate Lm ≈ 7.5 + 5·log10(D/10mm):
   // the 30mm finder reaches ~9.9, a 200mm Dob ~14 — which stars survive
   // at all depends on the glass, exactly as at a real eyepiece.
@@ -213,7 +224,7 @@ function drawFaintFieldStars(
   const centerEq = convertHorizontalToRaDec(
     pointing.alt, pointing.az,
     observer.latitude, observer.longitude,
-    new Date(simTime)
+    new Date(skySimTime)
   );
   const centerRaDeg = centerEq.ra * 15;
   const centerDecDeg = centerEq.dec;
@@ -297,13 +308,17 @@ function daylightTargetVisibility(targetType: Target['type'], darkness: number):
   }
 }
 
-// ── Real starfield (Phase 29, Stellarium-lite) ─────────────────────
+// ── Real starfield (Phase 29, Stellarium-lite; rigid sky in Phase 38) ──
 // Replaces the old procedural random-hash stars: the ~150 brightest catalog
 // stars are projected through the SAME flat Alt/Az viewport mapping the
 // target uses, so constellations hold together during manual slews and
-// drift. Stars always move at the true sidereal rate relative to the mount,
-// anchored to the raw pointing — drift gentling only retards the LOCKED
-// TARGET's ephemeris clock (spec.targetSimTime), never the sky itself.
+// drift. The starfield and EVERY catalog body (drawUniversalSkyBodies) now
+// read the same gentled clock (spec.targetSimTime ?? spec.simTime) — the
+// celestial sphere is treated as one rigid object, so Easy/Fun mode's slowed
+// drift rate applies to it as a whole instead of letting a locked target lag
+// behind the stars around it (the old per-body clock produced exactly that
+// visible desync). Raw mount pointing is untouched by any of this, so manual
+// slews still pan honestly at 1:1 in both feeds.
 function drawStarField(
   ctx: CanvasRenderingContext2D,
   spec: OpticalViewSpec,
@@ -317,14 +332,15 @@ function drawStarField(
   // Anonymous telescopic field stars underneath the named catalog (Phase 33).
   drawFaintFieldStars(ctx, spec, offsetX, offsetY, darkness);
 
-  const { viewportPx, trueFovDeg, pointing, observer, simTime, role, aperture } = spec;
+  const { viewportPx, trueFovDeg, pointing, observer, simTime, targetSimTime, role, aperture } = spec;
   if (trueFovDeg <= 0) return;
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
   // Cull margin: half the canvas diagonal plus a little slack for halos.
   const maxOffDeg = trueFovDeg * 0.78;
-  const lstHours = getLocalSiderealTime(getJulianDate(new Date(simTime)), observer.longitude);
+  const skySimTime = targetSimTime ?? simTime;
+  const lstHours = getLocalSiderealTime(getJulianDate(new Date(skySimTime)), observer.longitude);
   // Small apertures gather less light — stars dim slightly in the main
   // eyepiece of a 60mm scope. The 6×30 finder keeps its bright wide view.
   const apertureFactor = role === 'finder'
@@ -437,12 +453,16 @@ function drawUniversalSkyBodies(
 
   for (const body of bodies) {
     const isLockedTarget = target?.id === body.id;
-    // The locked target keeps its drift-gentled ephemeris clock (Phase 33);
-    // every FREE body rides the same true clock as the starfield, so a
-    // manual slew streaks it across the field in rigid formation with the
-    // stars. (useTelescopeStore.clearTarget re-anchors the gentled clock on
-    // release, so a body switching clocks never visibly jumps.)
-    const bodySimTime = isLockedTarget ? targetSimTime : simTime;
+    // Phase 38: EVERY body — locked target and free bodies alike — reads
+    // the same gentled clock as the starfield (targetSimTime, resolved
+    // above). The old per-body split (locked target gentled, everything
+    // else on true time) let a locked target visibly lag the stars around
+    // it whenever the motor was off; a manual slew still streaks any body
+    // across the field in rigid formation with the stars, because gentling
+    // only slows the celestial sphere's own rotation, never the raw
+    // mount-pointing math above. (useTelescopeStore.clearTarget re-anchors
+    // driftAnchorSimTime on release, so a body losing its lock never jumps.)
+    const bodySimTime = targetSimTime;
 
     // ── Cull 1: daylight washout ── Bodies dimmer than the day sky simply
     // aren't there to draw (Virtual Night restores them via darkness = 1).

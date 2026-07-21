@@ -1226,7 +1226,7 @@ function App() {
         <div className="p-3 flex flex-col md:flex-row justify-between items-center gap-4">
 
           {/* Focuser Knob — Available in all modules */}
-          <div className="flex flex-col items-center w-full md:w-64 lg:w-72 shrink-0">
+          <div data-tour-id="tour-focuser" className="flex flex-col items-center w-full md:w-64 lg:w-72 shrink-0">
             <label className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1.5 flex justify-between w-full">
               <span>{t('footer.focuserKnob')}</span>
               <span className={Math.abs(telescopeState.focuserPosition - getPerfectFocusPoint(telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive)) <= modeRules.focusToleranceUnits ? 'text-emerald-400' : 'text-amber-400'}>
@@ -1283,6 +1283,7 @@ function App() {
             </div>
 
             <button
+              data-tour-id="tour-dustcap"
               onClick={() => {
                 telescopeState.toggleDustCap();
                 if (telescopeState.isDustCapOn) {

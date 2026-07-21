@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { SIM_MODE_RULES, type SimulationMode } from '../../engine/simulationModes';
-import { Settings, X, Cpu, Activity, Gauge } from 'lucide-react';
+import { CITIES } from '../../engine/constants';
+import { Settings, X, Cpu, Activity, Gauge, MapPin } from 'lucide-react';
 
 
 export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -50,6 +51,36 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                       {rules.label} {isActive && '✓'}
                     </p>
                     <p className="text-xs text-slate-400 leading-relaxed">{rules.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ── Observing Location (Phase 39) ── */}
+          <section className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <MapPin className="w-4 h-4" /> Observing Location
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {CITIES.map((city) => {
+                const isActive =
+                  telescopeState.observerLocation.latitude === city.latitude &&
+                  telescopeState.observerLocation.longitude === city.longitude;
+                return (
+                  <button
+                    key={city.id}
+                    onClick={() => telescopeState.setObserverLocation({ latitude: city.latitude, longitude: city.longitude })}
+                    className={`text-left p-3 rounded-xl border transition-colors ${
+                      isActive
+                        ? 'bg-cyan-950/40 border-cyan-500/60 text-cyan-300'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-500 text-slate-300'
+                    }`}
+                  >
+                    <p className="font-semibold text-sm">{city.name} {isActive && '✓'}</p>
+                    <p className="text-xs opacity-70">
+                      {Math.abs(city.latitude).toFixed(2)}°{city.latitude >= 0 ? 'N' : 'S'}, {Math.abs(city.longitude).toFixed(2)}°{city.longitude >= 0 ? 'E' : 'W'}
+                    </p>
                   </button>
                 );
               })}

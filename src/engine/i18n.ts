@@ -97,6 +97,9 @@ const en = {
   'tour.skip': 'Skip',
   'tour.next': 'Next',
   'tour.finish': 'Finish',
+  'tour.dustcap.title': 'Remove the Dust Cap',
+  'tour.dustcap.body':
+    "Every telescope ships with a protective cap over the front opening. Click here to take it off first — with the cap on, no light can enter and the view stays completely black. It's the #1 reason beginners think their telescope is broken!",
   'tour.target.title': 'Choose Your Target',
   'tour.target.body':
     'Pick what to observe here — the Moon, Saturn, the Orion Nebula, and more. Selecting one automatically slews the telescope toward it.',
@@ -106,12 +109,18 @@ const en = {
   'tour.motor.title': 'Sidereal Tracking Motor',
   'tour.motor.body':
     "Earth's rotation constantly drifts targets out of view. Turn the Motor ON to have the mount automatically follow the sky, like a real tracking mount.",
+  'tour.finderscope.title': 'The Finderscope',
+  'tour.finderscope.body':
+    'This small circle is the Finderscope: a low-power, wide-angle "gun sight" bolted to the main tube. Its wide field makes it easy to spot a target and roughly aim the telescope at it.',
+  'tour.mainEyepiece.title': 'The Main Eyepiece',
+  'tour.mainEyepiece.body':
+    "This large circle is the Main Eyepiece — the telescope's real, high-power view. Once the Finderscope has you roughly on target, this is where you'll see the actual detail: craters, rings, and clouds of dust and gas.",
   'tour.eyepiece.title': 'Eyepiece Selector',
   'tour.eyepiece.body':
     'Swap eyepieces here to change magnification. A 32mm eyepiece shows a wide view; a 4mm eyepiece zooms in close but shows less sky at once.',
-  'tour.canvases.title': 'Your Live View',
-  'tour.canvases.body':
-    'These two circles are your eyes on the sky: the large Main Eyepiece and the small Finderscope used for aiming. Everything you do updates both together.',
+  'tour.focuser.title': 'The Focuser Knob',
+  'tour.focuser.body':
+    'Turn this knob to slide the eyepiece in and out until the image snaps into focus. Watch for the green marker — it shows exactly where perfect focus lies for your current eyepiece.',
   // First-visit prompt toast (Phase 33)
   'tour.promptTitle': 'New to the simulator?',
   'tour.promptBody': 'Take the 2-minute guided tour and learn the controls.',
@@ -261,6 +270,9 @@ const hi: Record<TranslationKey, string> = {
   'tour.skip': 'छोड़ें',
   'tour.next': 'अगला',
   'tour.finish': 'समाप्त करें',
+  'tour.dustcap.title': 'डस्ट कैप हटाएँ',
+  'tour.dustcap.body':
+    'हर टेलीस्कोप के आगे के हिस्से पर एक सुरक्षा कैप लगी होती है। सबसे पहले इसे यहाँ से हटाएँ — कैप लगी रहने पर कोई भी रोशनी अंदर नहीं जा सकती और दृश्य पूरी तरह काला रहता है। शुरुआती लोगों को कुछ न दिखने का यही सबसे बड़ा कारण है!',
   'tour.target.title': 'अपना लक्ष्य चुनें',
   'tour.target.body':
     'यहाँ से तय करें कि क्या देखना है — चंद्रमा, शनि, ओरायन नेबुला, और भी बहुत कुछ। लक्ष्य चुनते ही टेलीस्कोप अपने आप उसकी ओर मुड़ जाता है।',
@@ -270,12 +282,18 @@ const hi: Record<TranslationKey, string> = {
   'tour.motor.title': 'नाक्षत्रिक ट्रैकिंग मोटर',
   'tour.motor.body':
     'पृथ्वी का घूर्णन लक्ष्य को लगातार दृश्य से बाहर खिसकाता रहता है। मोटर को चालू करें ताकि माउंट असली ट्रैकिंग माउंट की तरह अपने आप आकाश का पीछा करे।',
+  'tour.finderscope.title': 'फाइंडरस्कोप',
+  'tour.finderscope.body':
+    'यह छोटा वृत्त फाइंडरस्कोप है: मुख्य ट्यूब पर लगा कम-आवर्धन, चौड़े कोण का "गन-साइट"। इसका चौड़ा क्षेत्र किसी लक्ष्य को ढूँढना और टेलीस्कोप को मोटे तौर पर उस पर लक्षित करना आसान बना देता है।',
+  'tour.mainEyepiece.title': 'मुख्य आईपीस',
+  'tour.mainEyepiece.body':
+    'यह बड़ा वृत्त मुख्य आईपीस है — टेलीस्कोप का असली, उच्च-आवर्धन वाला दृश्य। एक बार फाइंडरस्कोप से मोटा निशाना लग जाए, तो यहीं असली विवरण दिखता है: गड्ढे, वलय, और धूल-गैस के बादल।',
   'tour.eyepiece.title': 'आईपीस चयनकर्ता',
   'tour.eyepiece.body':
     'आवर्धन बदलने के लिए यहाँ आईपीस बदलें। 32mm आईपीस चौड़ा दृश्य दिखाता है; 4mm आईपीस पास से ज़ूम करता है पर एक साथ कम आकाश दिखाता है।',
-  'tour.canvases.title': 'आपका लाइव व्यू',
-  'tour.canvases.body':
-    'ये दोनों वृत्त आकाश में आपकी आँखें हैं: बड़ा मुख्य आईपीस और छोटा फाइंडरस्कोप जो निशाना साधने के लिए है। आप जो भी करें, दोनों साथ अपडेट होते हैं।',
+  'tour.focuser.title': 'फ़ोकसर नॉब',
+  'tour.focuser.body':
+    'छवि को स्पष्ट होने तक आईपीस को अंदर-बाहर खिसकाने के लिए इस नॉब को घुमाएँ। हरे निशान पर ध्यान दें — यह आपके मौजूदा आईपीस के लिए सटीक फ़ोकस बिंदु दिखाता है।',
   // First-visit prompt toast (Phase 33)
   'tour.promptTitle': 'सिम्युलेटर में नए हैं?',
   'tour.promptBody': '2 मिनट का गाइडेड टूर लें और नियंत्रण सीखें।',

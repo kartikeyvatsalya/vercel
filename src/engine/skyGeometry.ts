@@ -113,6 +113,11 @@ export function projectSkyOffsetPx(
  *   • Motor OFF: time flows at driftScale from `driftAnchorSimTime` — the
  *     store re-anchors it on target locks, motor toggles, and ±1 Hour steps
  *     (deliberate time jumps should show their full, honest effect).
+ *
+ * Phase 38: skyRenderer.ts feeds this SAME gentled value to the entire
+ * celestial sphere — starfield, field stars, and every catalog body, not
+ * just the one locked target — so a gentled sky drifts as one rigid whole
+ * instead of the target visibly lagging the stars around it.
  */
 export function getDriftGentledSimTime(
   simTime: number,
