@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Billboard } from '@react-three/drei';
-import { Orbit, Eye, Telescope as TelescopeIcon } from 'lucide-react';
+import { Orbit, Eye } from 'lucide-react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { convertHorizontalToEquatorial, convertEquatorialToHorizontal, getJulianDate, getLocalSiderealTime } from '../../engine/ephemerisMath';
 import { TERRESTRIAL_POINTING, getBodyEquatorial } from '../../engine/skyGeometry';
@@ -1034,10 +1034,15 @@ const ObservatoryLighting: React.FC = () => (
 );
 
 // ─── Camera Mode Toggle (P27.6) — HTML overlay, outside the Canvas ────
+// Phase 39: the 'throughScope' ("Eyepiece") camera was removed from this
+// toggle — its rendered view was redundant with the dedicated 2D Main
+// Eyepiece feed and left users staring at a blank frame in the split/2D
+// layouts. The camera itself (ThroughScopeCamera + the rig conditionals)
+// is left intact but simply unreachable from the UI, so it can be re-exposed
+// later without reconstructing the rig plumbing.
 const CAMERA_MODE_META: { id: CameraMode; label: string; icon: React.ReactNode }[] = [
   { id: 'orbit', label: 'Orbit', icon: <Orbit className="w-3.5 h-3.5" /> },
   { id: 'skyGaze', label: 'Sky Gaze', icon: <Eye className="w-3.5 h-3.5" /> },
-  { id: 'throughScope', label: 'Eyepiece', icon: <TelescopeIcon className="w-3.5 h-3.5" /> },
 ];
 
 const CameraModeToggle: React.FC<{ cameraMode: CameraMode; onChange: (mode: CameraMode) => void }> = ({ cameraMode, onChange }) => (

@@ -196,6 +196,8 @@ interface TelescopeState {
   adjustFinderscope: (deltaAlt: number, deltaAz: number) => void;
   syncSimTime: () => void;
   stepSimTimeHours: (hours: number) => void;
+  /** Snap the simulation clock back to the real-world present moment. */
+  resetSimTimeToNow: () => void;
   setTimeRate: (rate: number) => void;
   toggleVirtualNight: () => void;
   startTour: () => void;
@@ -401,6 +403,22 @@ export const useTelescopeStore = create<TelescopeState>()(
         if (get().activeTarget?.id === 'jupiter') {
           useProgressStore.getState().unlockAchievement('jovian_observer');
         }
+      },
+      // ── Present Time (Phase 39) ── Snap the clock back to the real "now."
+      // Same discontinuity discipline as stepSimTimeHours: re-anchor the smooth
+      // time engine, re-anchor the drift-gentling clock so passive drift counts
+      // from this instant, and re-derive the mount's pointing if the motor is
+      // tracking. Playback rate is left untouched — "now" answers WHEN, not how
+      // fast time flows.
+      resetSimTimeToNow: () => {
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        const newTime = Date.now();
+        reanchorTimeEngine(newTime);
+        set({
+          simTime: newTime,
+          driftAnchorSimTime: newTime,
+          ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, newTime),
+        });
       },
       setTimeRate: (rate) => {
         // Re-anchor at the current smooth moment so a rate change scales the

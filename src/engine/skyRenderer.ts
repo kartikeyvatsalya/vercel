@@ -395,6 +395,20 @@ const BODY_DEPTH_RANK: Record<string, number> = {
 };
 const DEFAULT_DEPTH_RANK = 5; // unknown celestial bodies: above the Moon, behind scenery
 
+// ── Starfield occlusion set (Phase 39) ─────────────────────────────
+// Opaque, roughly circular disks that must BLOCK the stars drawn behind
+// them: without this, aperture dimming (a small scope draws the body at
+// reduced alpha) or daylight washout let the already-painted starfield
+// bleed straight through the Moon/planet ("ghost moon"). Deliberately
+// excludes:
+//   • m42 — a real emission nebula IS translucent; stars genuinely show
+//     through it, so occluding behind it would be physically wrong.
+//   • sun — culled below the horizon whenever the sky is dark enough to
+//     draw stars at all, so it is never co-visible with the starfield.
+//   • spire — a terrestrial tower (non-circular) only ever seen against a
+//     daytime sky, where no starfield is drawn.
+const STARFIELD_OCCLUDING_BODIES = new Set(['moon', 'saturn', 'jupiter']);
+
 /**
  * Angular radius (deg) of a body's full RENDER footprint, for FOV culling.
  * Jupiter's footprint is dominated by the Galilean moons, not the disk:
@@ -430,7 +444,7 @@ function drawUniversalSkyBodies(
 ): void {
   const {
     role, viewportPx, trueFovDeg, pointing, digitalZoom, evalResult, aperture,
-    target, skyBodies, assets, observer, simTime, now, isAltAzMount,
+    target, skyBodies, assets, observer, simTime, now, isAltAzMount, sunAltDeg,
   } = spec;
   if (trueFovDeg <= 0 || skyBodies.length === 0) return;
   const targetSimTime = spec.targetSimTime ?? simTime;
@@ -446,6 +460,11 @@ function drawUniversalSkyBodies(
   const apertureAlpha = isFinder
     ? 1
     : Math.max(0.25, Math.min(1.0, getApertureBrightnessMultiplier(aperture)));
+  // Sky background color for the Phase 39 star-occlusion disks (see the draw
+  // loop below) — the SAME value renderOpticalView fills the backdrop with, so
+  // an occlusion disk is invisible except that it erases the stars an opaque,
+  // dimmed body must block from showing through it.
+  const occlusionColor = skyColorForSunAlt(sunAltDeg);
 
   const bodies = [...skyBodies].sort(
     (a, b) => (BODY_DEPTH_RANK[a.id] ?? DEFAULT_DEPTH_RANK) - (BODY_DEPTH_RANK[b.id] ?? DEFAULT_DEPTH_RANK)
@@ -493,6 +512,23 @@ function drawUniversalSkyBodies(
     const targetSize = evalResult.isDefocused && !isFinder
       ? baseSize + evalResult.defocusAmount * 0.5
       : baseSize;
+
+    // ── STARFIELD OCCLUSION (Phase 39) ── An opaque body must BLOCK the
+    // stars behind it. The starfield is painted before any body, so drawing
+    // the Moon/planet at reduced alpha (aperture dimming on a small scope, or
+    // daylight washout) used to let those stars bleed straight through it —
+    // the "ghost moon." Punch a solid, fully-opaque disk of the sky's own
+    // background color at the glyph's exact radius FIRST, so the dimmed body
+    // then composits over clean sky instead of over stars. Main feed only
+    // (the finder applies no aperture dimming); a circle is rotation-
+    // invariant, so this sits cleanly outside the parallactic transform.
+    if (!isFinder && STARFIELD_OCCLUDING_BODIES.has(body.id)) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = occlusionColor;
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, targetSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // ── APERTURE BRIGHTNESS (main feed only) × DAYLIGHT WASHOUT (both) ──
     ctx.globalAlpha = apertureAlpha * daylightVis;

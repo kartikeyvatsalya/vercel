@@ -23,7 +23,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   const {
     activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
-    stepSimTimeHours, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
+    stepSimTimeHours, resetSimTimeToNow, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
   } = useTelescopeStore();
   const modeRules = SIM_MODE_RULES[simulationMode];
 
@@ -150,6 +150,13 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
             className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-200 text-[9px] font-bold uppercase"
           >
             {t('telemetry.plusHour')}
+          </button>
+          {/* Present Time (Phase 39) — snap the clock back to the real "now." */}
+          <button
+            onClick={() => resetSimTimeToNow()}
+            className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-200 text-[9px] font-bold uppercase"
+          >
+            {t('telemetry.now')}
           </button>
           <button
             onClick={() => setTimeRate(TIME_RATES[(TIME_RATES.indexOf(timeRate) + 1) % TIME_RATES.length])}
