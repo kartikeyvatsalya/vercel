@@ -8,7 +8,7 @@ import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { CITIES } from '../../engine/constants';
 import { useTranslation } from '../../engine/i18n';
 import { InfoTip } from '../ui/InfoTip';
-import { GraduationCap, Clock, Play, Moon, Sun } from 'lucide-react';
+import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair } from 'lucide-react';
 
 const TIME_RATES = [1, 10, 60];
 
@@ -24,6 +24,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
     stepSimTimeHours, resetSimTimeToNow, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
+    setTarget,
   } = useTelescopeStore();
   const modeRules = SIM_MODE_RULES[simulationMode];
 
@@ -75,9 +76,23 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     }`}>
       <h3 className="text-slate-300 font-bold mb-2 uppercase tracking-wider text-[10px]">{t('telemetry.heading')}</h3>
       <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col">
-          <span className="text-slate-500 uppercase text-[9px]">{t('common.target')}</span>
-          <span className={activeTarget ? 'text-white truncate' : 'text-amber-400 truncate'}>
+        <button
+          type="button"
+          disabled={!activeTarget}
+          onClick={() => activeTarget && setTarget(activeTarget.id)}
+          title={activeTarget ? t('tip.recenterTarget') : undefined}
+          aria-label={activeTarget ? t('tip.recenterTarget') : undefined}
+          className={`group flex flex-col items-start text-left rounded px-1 py-0.5 -mx-1 -my-0.5 transition-colors ${
+            activeTarget ? 'hover:bg-slate-800/80 cursor-pointer' : 'cursor-default'
+          }`}
+        >
+          <span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
+            {t('common.target')}
+            {activeTarget && (
+              <Crosshair className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 text-cyan-400 transition-opacity" />
+            )}
+          </span>
+          <span className={`truncate ${activeTarget ? 'text-white group-hover:text-cyan-300 transition-colors' : 'text-amber-400'}`}>
             {activeTarget?.name ?? t('common.manualSlew')}
           </span>
           {activeTargetAlt !== null && (
@@ -85,7 +100,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
               {activeTargetAlt.toFixed(0)}°{activeTargetAlt < 0 ? ` · ${t('common.belowHorizon')}` : ` ${t('common.altitude')}`}
             </span>
           )}
-        </div>
+        </button>
         <div className="flex flex-col">
           <span className="text-slate-500 uppercase text-[9px]">{t('telemetry.telescope')}</span>
           <span className="text-white truncate">{activeProfile.name}</span>
@@ -157,6 +172,21 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
             className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-200 text-[9px] font-bold uppercase"
           >
             {t('telemetry.now')}
+          </button>
+          {/* Pause/Play (Phase 41) — a hard freeze (timeRate 0), distinct from
+              the ×N speed cycle below: pausing stops the sky outright rather
+              than just slowing it to 1×. */}
+          <button
+            onClick={() => setTimeRate(timeRate === 0 ? 1 : 0)}
+            title={t('tip.pausePlay')}
+            className={`px-1.5 py-0.5 border rounded text-[9px] font-bold uppercase flex items-center gap-0.5 ${
+              timeRate === 0
+                ? 'bg-amber-900/60 border-amber-500 text-amber-300'
+                : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-200'
+            }`}
+          >
+            {timeRate === 0 ? <Play className="w-2.5 h-2.5" /> : <Pause className="w-2.5 h-2.5" />}
+            {timeRate === 0 ? t('telemetry.play') : t('telemetry.pause')}
           </button>
           <button
             onClick={() => setTimeRate(TIME_RATES[(TIME_RATES.indexOf(timeRate) + 1) % TIME_RATES.length])}

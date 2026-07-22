@@ -981,7 +981,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
       {/* Main Eyepiece Viewport */}
       <div data-tour-id="tour-main-eyepiece" className="flex flex-col items-center">
         <h3 className="text-white font-semibold mb-2 tracking-wide font-mono uppercase">{t('liveview.mainEyepiece')}</h3>
-        <div className="relative">
+        <div className="flex flex-col items-center">
           <canvas
             ref={mainCanvasRef}
             width={MAIN_CANVAS_PX}
@@ -993,11 +993,14 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
             onPointerLeave={mode === 'track' ? handleTrackPointerUp : undefined}
           />
 
-          {/* ── Slew D-Pad (Phase 29) — hold to drive the mount; both feeds
-              (and the 3D tube) shift together since they share pointingAlt/Az. */}
+          {/* ── Slew D-Pad (Phase 29; repositioned Phase 41) — hold to drive
+              the mount; both feeds (and the 3D tube) shift together since
+              they share pointingAlt/Az. Sits below the eyepiece circle now
+              instead of overlapping its bottom-right corner, so the optical
+              center is never obstructed. */}
           <div
             title={t('tip.slewPad')}
-            className="absolute right-0 bottom-0 grid grid-cols-3 grid-rows-3 gap-0.5 bg-slate-900/85 border border-slate-700 rounded-xl p-1 shadow-xl backdrop-blur-sm"
+            className="mt-2 grid grid-cols-3 grid-rows-3 gap-0.5 bg-slate-900/85 border border-slate-700 rounded-xl p-1 shadow-xl backdrop-blur-sm"
           >
             <div />
             <button

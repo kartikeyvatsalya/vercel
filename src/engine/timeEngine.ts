@@ -40,7 +40,11 @@ export function getSmoothSimTime(nowRealMs: number = performance.now()): number 
 export function reanchorTimeEngine(simMs: number, newRate?: number): void {
   anchorSimMs = simMs;
   anchorRealMs = performance.now();
-  if (newRate !== undefined) rate = Math.max(1, newRate);
+  // Floor of 0 (not 1): Phase 41's Pause button needs a genuine rate=0 to
+  // freeze the clock. getSmoothSimTime()'s (now − anchor) × rate formula
+  // multiplies by rate rather than dividing, so 0 is safe — it just zeroes
+  // the elapsed-time term instead of causing a divide-by-zero.
+  if (newRate !== undefined) rate = Math.max(0, newRate);
 }
 
 export function getTimeEngineRate(): number {

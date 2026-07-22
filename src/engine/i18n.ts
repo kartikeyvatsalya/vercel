@@ -41,6 +41,8 @@ const en = {
   'telemetry.minusHour': '−1 Hour',
   'telemetry.plusHour': '+1 Hour',
   'telemetry.now': 'Now',
+  'telemetry.pause': 'Pause',
+  'telemetry.play': 'Play',
   'telemetry.motor': 'Motor:',
   'telemetry.onTarget': 'On Target',
   'telemetry.yesWithId': 'YES ({id})',
@@ -91,6 +93,8 @@ const en = {
     'Forces a night-dark sky no matter where the Sun really is, so you can explore the stars in the daytime. Purely visual — the simulation clock keeps running normally.',
   'tip.slewPad':
     'Manual slew controls: hold to nudge the mount in altitude and azimuth. The main eyepiece and finderscope shift together — both are bolted to the same tube!',
+  'tip.pausePlay': 'Freeze the simulation clock in place, or resume normal playback.',
+  'tip.recenterTarget': "Click to snap the mount's pointing back onto the target's exact current position.",
 
   // ── tour.* — OnboardingTour.tsx (Phase 30) ──
   'tour.startTour': 'Start Tour',
@@ -98,6 +102,9 @@ const en = {
   'tour.skip': 'Skip',
   'tour.next': 'Next',
   'tour.finish': 'Finish',
+  'tour.welcome.title': 'Welcome to BRAHMAND',
+  'tour.welcome.body':
+    "This simulator is designed to teach you how to operate a physical telescope, understand its optics, and navigate the night sky. Let's learn the controls.",
   'tour.simMode.title': 'Simulation Modes',
   'tour.simMode.body':
     "This sets the global difficulty. Fun keeps things simple — tracking stays locked and you're free to zoom in. Realistic behaves like a real, drifting telescope, where targets slip out of view and you must track them by hand. Easy sits in between.",
@@ -221,6 +228,8 @@ const hi: Record<TranslationKey, string> = {
   'telemetry.minusHour': '−1 घंटा',
   'telemetry.plusHour': '+1 घंटा',
   'telemetry.now': 'अभी',
+  'telemetry.pause': 'पॉज़',
+  'telemetry.play': 'प्ले',
   'telemetry.motor': 'मोटर:',
   'telemetry.onTarget': 'लक्ष्य पर',
   'telemetry.yesWithId': 'हाँ ({id})',
@@ -271,6 +280,8 @@ const hi: Record<TranslationKey, string> = {
     'सूर्य वास्तव में कहीं भी हो, आकाश को रात जैसा गहरा कर देता है — ताकि आप दिन में भी तारों को देख सकें। यह केवल दृश्य प्रभाव है — सिमुलेशन घड़ी सामान्य रूप से चलती रहती है।',
   'tip.slewPad':
     'मैनुअल स्लीव नियंत्रण: माउंट को ऊँचाई और दिगंश में घुमाने के लिए दबाए रखें। मुख्य आईपीस और फाइंडरस्कोप साथ-साथ खिसकते हैं — दोनों एक ही ट्यूब पर कसे हैं!',
+  'tip.pausePlay': 'सिमुलेशन घड़ी को वहीं रोक दें, या सामान्य प्लेबैक फिर से शुरू करें।',
+  'tip.recenterTarget': 'माउंट की दिशा को लक्ष्य की ठीक वर्तमान स्थिति पर वापस लाने के लिए क्लिक करें।',
 
   // ── tour.* ──
   'tour.startTour': 'टूर शुरू करें',
@@ -278,6 +289,9 @@ const hi: Record<TranslationKey, string> = {
   'tour.skip': 'छोड़ें',
   'tour.next': 'अगला',
   'tour.finish': 'समाप्त करें',
+  'tour.welcome.title': 'BRAHMAND में आपका स्वागत है',
+  'tour.welcome.body':
+    'यह सिम्युलेटर आपको एक वास्तविक टेलीस्कोप चलाना, उसकी प्रकाशिकी को समझना, और रात के आकाश में राह खोजना सिखाने के लिए बनाया गया है। आइए नियंत्रण सीखें।',
   'tour.simMode.title': 'सिमुलेशन मोड',
   'tour.simMode.body':
     "यह समग्र कठिनाई स्तर तय करता है। 'फन' मोड में चीज़ें सरल रहती हैं — ट्रैकिंग लॉक रहती है और आप बेझिझक ज़ूम कर सकते हैं। 'रियलिस्टिक' मोड एक असली, बहकते हुए टेलीस्कोप जैसा व्यवहार करता है, जहाँ लक्ष्य दृश्य से खिसक जाते हैं और आपको उन्हें हाथ से ट्रैक करना पड़ता है। 'ईज़ी' इन दोनों के बीच का विकल्प है।",

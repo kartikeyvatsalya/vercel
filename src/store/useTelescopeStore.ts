@@ -423,7 +423,9 @@ export const useTelescopeStore = create<TelescopeState>()(
       setTimeRate: (rate) => {
         // Re-anchor at the current smooth moment so a rate change scales the
         // clock FROM NOW instead of retroactively re-slope-ing the past.
-        const clamped = Math.max(1, rate);
+        // Floor of 0 (not 1): Phase 41's Pause button passes 0 to freeze
+        // the clock — see the matching floor in engine/timeEngine.ts.
+        const clamped = Math.max(0, rate);
         reanchorTimeEngine(getSmoothSimTime(), clamped);
         set({ timeRate: clamped });
         // Accelerated playback on Jupiter counts the same as stepping (above);

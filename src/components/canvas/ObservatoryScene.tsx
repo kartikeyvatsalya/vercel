@@ -83,6 +83,8 @@ const ANODIZED_TRIM = { metalness: 0.85, roughness: 0.38, envMapIntensity: 0.7 }
 const RUBBER_GRIP = { metalness: 0, roughness: 0.95, envMapIntensity: 0.15 } as const;
 /** Bare polished steel — the EQ counterweight shaft. */
 const POLISHED_STEEL = { metalness: 1, roughness: 0.18, envMapIntensity: 1 } as const;
+/** Matte black injection-molded plastic — the dust cap (Phase 41). */
+const DUST_CAP_PLASTIC = { metalness: 0.05, roughness: 0.85, envMapIntensity: 0.25 } as const;
 /** Varnished baltic-birch plywood — the Dobsonian rocker (a Dob's mount IS wood; the
     cast-iron/powder-coat briefs apply to the metal mounts and the Dob's ground board). */
 const PLYWOOD = { metalness: 0, roughness: 0.62, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 0.3 } as const;
@@ -256,6 +258,30 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
   return { onPointerDown, onPointerOver, onPointerOut };
 }
 
+// ─── Dust Cap: tactile click-to-remove affordance (Phase 41) ────
+// The cap mesh (added per-OTA below) only renders while isDustCapOn is true —
+// the same flag the footer button and the optical rules engine already gate
+// on — so clicking it is exactly equivalent to clicking "Dust Cap: ON" in the
+// footer. Every handler stops propagation first so the click/hover doesn't
+// also reach the tube-drag group sitting behind it (see useTubeDrag above).
+function useDustCapHandlers() {
+  const toggleDustCap = useTelescopeStore((s) => s.toggleDustCap);
+  return {
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      toggleDustCap();
+    },
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      document.body.style.cursor = 'pointer';
+    },
+    onPointerOut: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      document.body.style.cursor = 'auto';
+    },
+  };
+}
+
 // ─── Shared Alt-Az pointing loop (Dobsonian + fork rigs) ─────────
 function useAltAzPointing(
   azimuthRef: React.RefObject<THREE.Group | null>,
@@ -291,12 +317,22 @@ function useAltAzPointing(
 
 /** Fat Newtonian tube: shared by the Dobsonian rig and 'Newtonian EQ'.
     Phase 32: lacquered carbon-fiber wrap (procedural twill) + anodized fittings. */
-const NewtonianTube: React.FC = () => (
+const NewtonianTube: React.FC = () => {
+  const isDustCapOn = useTelescopeStore((s) => s.isDustCapOn);
+  const dustCapHandlers = useDustCapHandlers();
+  return (
   <group>
     <mesh castShadow position={[0, 0, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.16, 0.16, 1.15, 24]} />
       <meshPhysicalMaterial color="#ffffff" map={getCarbonFiberTexture()} {...CARBON_WEAVE} />
     </mesh>
+    {/* Dust cap: slips over the open front end (z≈0.725); click to remove. */}
+    {isDustCapOn && (
+      <mesh castShadow position={[0, 0, 0.735]} rotation={[Math.PI / 2, 0, 0]} {...dustCapHandlers}>
+        <cylinderGeometry args={[0.17, 0.17, 0.02, 24]} />
+        <meshStandardMaterial color="#161616" {...DUST_CAP_PLASTIC} />
+      </mesh>
+    )}
     {/* Mirror-cell end cap */}
     <mesh castShadow position={[0, 0, -0.44]} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.165, 0.165, 0.07, 24]} />
@@ -329,12 +365,16 @@ const NewtonianTube: React.FC = () => (
       <meshStandardMaterial color="#1c1c1c" {...RUBBER_GRIP} />
     </mesh>
   </group>
-);
+  );
+};
 
 /** Long, slim refractor: pearl-white lacquered tube, dew shield, rear focuser +
     diagonal. Phase 32: a real multicoated objective lens (transmissive glass over
     a dark interior baffle) sits at the tube's front, recessed in the dew shield. */
-const RefractorTube: React.FC = () => (
+const RefractorTube: React.FC = () => {
+  const isDustCapOn = useTelescopeStore((s) => s.isDustCapOn);
+  const dustCapHandlers = useDustCapHandlers();
+  return (
   <group>
     <mesh castShadow position={[0, 0, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.055, 0.055, 1.3, 20]} />
@@ -345,6 +385,13 @@ const RefractorTube: React.FC = () => (
       <cylinderGeometry args={[0.075, 0.075, 0.28, 20]} />
       <meshStandardMaterial color="#232a3a" {...POWDER_COAT} />
     </mesh>
+    {/* Dust cap: slips over the dew shield's front opening (z≈0.89); click to remove. */}
+    {isDustCapOn && (
+      <mesh castShadow position={[0, 0, 0.9]} rotation={[Math.PI / 2, 0, 0]} {...dustCapHandlers}>
+        <cylinderGeometry args={[0.08, 0.08, 0.02, 20]} />
+        <meshStandardMaterial color="#161616" {...DUST_CAP_PLASTIC} />
+      </mesh>
+    )}
     {/* Interior baffle behind the objective — what you actually see through the
         glass is a blackened tube, not the white end cap of the tube cylinder. */}
     <mesh position={[0, 0, 0.695]} rotation={[Math.PI / 2, 0, 0]}>
@@ -380,7 +427,8 @@ const RefractorTube: React.FC = () => (
       <meshStandardMaterial color="#1b1f27" {...ANODIZED_TRIM} />
     </mesh>
   </group>
-);
+  );
+};
 
 /** Short rear-cell SCT barrel: classic glossy-orange lacquer, tapered back.
     Phase 32: the fake solid "corrector ring" front cap became a real optical
@@ -389,12 +437,22 @@ const RefractorTube: React.FC = () => (
     the blackened innards and the secondary's obstruction dot, exactly like
     looking into a real SCT. All of it sits at z ≤ 0.29, safely behind the
     through-scope camera at z=1.05 (see the Phase 29 bugfix note below). */
-const SCTBarrel: React.FC = () => (
+const SCTBarrel: React.FC = () => {
+  const isDustCapOn = useTelescopeStore((s) => s.isDustCapOn);
+  const dustCapHandlers = useDustCapHandlers();
+  return (
   <group>
     <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.17, 0.17, 0.52, 24]} />
       <meshPhysicalMaterial color="#d9782d" {...TUBE_GLOSS} />
     </mesh>
+    {/* Dust cap: slips over the corrector plate (z≈0.285); click to remove. */}
+    {isDustCapOn && (
+      <mesh castShadow position={[0, 0, 0.3]} rotation={[Math.PI / 2, 0, 0]} {...dustCapHandlers}>
+        <cylinderGeometry args={[0.175, 0.175, 0.02, 24]} />
+        <meshStandardMaterial color="#161616" {...DUST_CAP_PLASTIC} />
+      </mesh>
+    )}
     {/* Interior baffle — the dark scene the corrector transmits. */}
     <mesh position={[0, 0, 0.22]} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.168, 0.168, 0.02, 24]} />
@@ -431,7 +489,8 @@ const SCTBarrel: React.FC = () => (
       <meshStandardMaterial color="#11131a" {...ANODIZED_TRIM} />
     </mesh>
   </group>
-);
+  );
+};
 
 /** Picks the OTA silhouette for a profile type. */
 const OpticalTube: React.FC<{ kind: OtaKind }> = ({ kind }) => {

@@ -35,6 +35,11 @@ interface TourStepConfig {
 }
 
 const TOUR_STEPS: TourStepConfig[] = [
+  // Step 0 (Phase 41): a pure intro — `tour-welcome` deliberately matches no
+  // data-tour-id in the DOM, so `rect` stays null and the tour renders it as
+  // a centered, un-spotlighted card (see the `!rect` branches below) instead
+  // of pointing at any one control.
+  { tourId: 'tour-welcome', titleKey: 'tour.welcome.title', bodyKey: 'tour.welcome.body' },
   { tourId: 'tour-simulation-mode', titleKey: 'tour.simMode.title', bodyKey: 'tour.simMode.body' },
   { tourId: 'tour-language', titleKey: 'tour.language.title', bodyKey: 'tour.language.body' },
   { tourId: 'tour-dustcap', titleKey: 'tour.dustcap.title', bodyKey: 'tour.dustcap.body' },
