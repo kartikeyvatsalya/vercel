@@ -215,13 +215,26 @@ export interface MoonRenderOptions {
 }
 
 /**
- * Sun-driven terminator shadow (Phase 42). Geometry is built in a local frame
- * with the lit side toward +x; the caller's `brightLimbRad` rotation then aims
- * that toward the real Sun. The terminator is the classic disk-limb semicircle
- * joined to a half-ellipse whose x-radius `b = R·(1 − 2·illum)` sweeps from +R
- * (new) through 0 (quarter, a straight line) to −R (full), the anticlockwise
- * flag flipping the ellipse's bulge from the lit side (crescent) to the dark
- * side (gibbous). Clipped to the disk so it can never spill past the limb.
+ * Sun-driven terminator shadow (Phase 42; rewritten Phase 42.5). Geometry is
+ * built in a local frame with the lit side toward +x; the caller's
+ * `brightLimbRad` rotation then aims that toward the real Sun.
+ *
+ * No `globalCompositeOperation` tricks: this is a single ordinary path —
+ * an `arc()` for the true limb (always a plain circular half, since that
+ * edge is the Moon's actual silhouette) joined by ONE cubic
+ * `bezierCurveTo()` standing in for the terminator ellipse's arc, filled
+ * once with a flat dark overlay. The bezier's control points sit at the
+ * standard 4/3 tangent-offset distance used to approximate a circular/
+ * elliptical arc with a single cubic — accurate enough that the terminator
+ * reads as a sharp, smooth curve, not an approximation artifact.
+ *   b = R·(1 − 2·illum): the terminator's signed half-width at the disk's
+ *   equator. +R at new (bulges fully into the lit +x side — almost all
+ *   shadow), 0 at quarter (a dead-straight vertical line), −R at full
+ *   (bulges back to the limb — vanishingly thin shadow).
+ * Explicitly clipped to the true disk first: the bezier is an
+ * approximation and can overshoot the circular limb by a hair at its
+ * widest bulge, and this guarantees the shadow can never spill past the
+ * Moon's silhouette onto the sky behind it.
  */
 function drawLunarPhaseShadow(
   ctx: CanvasRenderingContext2D,
@@ -231,33 +244,31 @@ function drawLunarPhaseShadow(
   illum: number,
   brightLimbRad: number
 ): void {
-  if (illum >= 0.985) return; // effectively full — no visible shadow
+  if (illum >= 0.985) return; // effectively full — no visible shadow to draw
 
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(brightLimbRad);
+
   ctx.beginPath();
   ctx.arc(0, 0, R, 0, Math.PI * 2);
   ctx.clip();
 
-  // Near-black earthshine tint, not pure black, so the shadowed limb reads as
-  // a faintly-lit sphere instead of a hole punched in the sky.
-  ctx.fillStyle = 'rgba(4, 6, 14, 0.84)';
-
-  if (illum <= 0.015) {
-    // New moon: the whole disk is in shadow.
-    ctx.beginPath();
-    ctx.arc(0, 0, R, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    return;
-  }
-
-  const b = R * (1 - 2 * illum);
   ctx.beginPath();
-  ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // dark (left) limb semicircle
-  ctx.ellipse(0, 0, Math.abs(b), R, 0, Math.PI / 2, -Math.PI / 2, b > 0); // terminator
-  ctx.closePath();
+  if (illum <= 0.015) {
+    // New moon: the entire disk is unlit.
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+  } else {
+    const b = R * (1 - 2 * illum);
+    const k = (4 / 3) * b;
+    ctx.moveTo(0, -R); // top of the disk
+    ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // true limb: top → dark (−x) side → bottom
+    ctx.bezierCurveTo(k, R, k, -R, 0, -R); // terminator: bottom back to top
+    ctx.closePath();
+  }
+  // Near-black earthshine tint, not pure black, so the shadowed limb reads
+  // as a faintly-lit sphere instead of a hole punched in the sky.
+  ctx.fillStyle = 'rgba(10, 10, 15, 0.9)';
   ctx.fill();
   ctx.restore();
 }

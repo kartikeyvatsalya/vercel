@@ -1,7 +1,7 @@
 import { getTargetRenderScale, getApertureBrightnessMultiplier } from './opticalMath';
 import { computeSkyOffsetDeg, projectSkyOffsetPx, wrap180, getBodyEquatorial } from './skyGeometry';
 import { drawMoon, drawSaturn, drawSun, drawSpire, drawM42, drawJupiter, type JovianMoonSprite } from './targetGlyphs';
-import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarPhase } from './ephemerisMath';
+import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarIlluminatedFraction, getSunEquatorial } from './ephemerisMath';
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
 import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
 import type { Target } from '../types';
@@ -605,21 +605,34 @@ function drawUniversalSkyBodies(
     } else if (body.id === 'jupiter') {
       drawJupiter(ctx, targetX, targetY, targetSize, assets, jovianMoons);
     } else if (body.id === 'moon') {
-      // ── Lunar phase + parallactic surface rotation + halo (Phase 42) ──
-      // getLunarPhase pulls the live Sun ephemeris itself; bodyEq is the
-      // Moon's own RA/Dec. brightLimbUpAngleDeg is the lit-limb tilt measured
-      // clockwise from screen-up — convert it to the canvas rotation that
-      // aims drawMoon's local +x (its lit side) at the Sun:
-      //   rotate(a) sends (1,0) → (cos a, sin a), and (sin θ, −cos θ) is the
-      //   screen vector θ clockwise from up, so a = atan2(−cos θ, sin θ).
-      const phase = bodyEq
-        ? getLunarPhase(bodyEq.ra, bodyEq.dec, observer.latitude, observer.longitude, new Date(bodySimTime))
-        : { illuminatedFraction: 1, brightLimbUpAngleDeg: 0 };
-      const theta = (phase.brightLimbUpAngleDeg * Math.PI) / 180;
-      const brightLimbRad = Math.atan2(-Math.cos(theta), Math.sin(theta));
+      // ── Lunar phase + parallactic surface rotation + halo (Phase 42.5) ──
+      // Illuminated fraction comes from the Sun–Moon angular separation
+      // (frame-independent — see getLunarIlluminatedFraction). The
+      // terminator's DIRECTION is computed directly from both bodies' real
+      // Alt/Az, in the exact same (Δaz, −Δalt)→screen convention
+      // projectSkyOffsetPx uses for every other body in this file — no
+      // separate equatorial position-angle formula to keep in sync with it.
+      // Adding parallacticAngleRad on top (the SAME rotation the texture
+      // itself gets, in drawMoon) keeps the shadow rigidly attached to the
+      // disk as it field-rotates: the terminator is a property of the
+      // Moon's own rotated surface, not an independent overlay, so it must
+      // track the texture's spin exactly rather than counter-rotate against it.
+      let illuminatedFraction = 1;
+      let brightLimbRad = parallacticAngleRad;
+      if (bodyEq) {
+        const bodyDate = new Date(bodySimTime);
+        illuminatedFraction = getLunarIlluminatedFraction(bodyEq.ra, bodyEq.dec, bodyDate);
+        const lstHours = getLocalSiderealTime(getJulianDate(bodyDate), observer.longitude);
+        const moonAltAz = convertEquatorialToHorizontalLST(bodyEq.ra, bodyEq.dec, observer.latitude, lstHours);
+        const sunEq = getSunEquatorial(getJulianDate(bodyDate));
+        const sunAltAz = convertEquatorialToHorizontalLST(sunEq.ra, sunEq.dec, observer.latitude, lstHours);
+        const dAlt = sunAltAz.altitude - moonAltAz.altitude;
+        const dAz = wrap180(sunAltAz.azimuth - moonAltAz.azimuth);
+        brightLimbRad = Math.atan2(-dAlt, dAz) + parallacticAngleRad;
+      }
       drawMoon(ctx, targetX, targetY, targetSize, assets, {
         parallacticRad: parallacticAngleRad,
-        illuminatedFraction: phase.illuminatedFraction,
+        illuminatedFraction,
         brightLimbRad,
       });
     } else if (body.id === 'm42') {
