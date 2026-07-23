@@ -89,11 +89,23 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
           <span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
             {t('common.target')}
             {activeTarget && (
-              <Crosshair className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 text-cyan-400 transition-opacity" />
+              // Always visible (Phase 42): the hover-only affordance was
+              // undiscoverable for beginners and invisible on touchscreens.
+              <Crosshair className="w-2.5 h-2.5 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
             )}
           </span>
-          <span className={`truncate ${activeTarget ? 'text-white group-hover:text-cyan-300 transition-colors' : 'text-amber-400'}`}>
-            {activeTarget?.name ?? t('common.manualSlew')}
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className={`truncate ${activeTarget ? 'text-white group-hover:text-cyan-300 transition-colors' : 'text-amber-400'}`}>
+              {activeTarget?.name ?? t('common.manualSlew')}
+            </span>
+            {activeTarget && (
+              // Persistent text label so the tap target reads as an action,
+              // not just a readout — visible without hover, on touch and mouse.
+              <span className="shrink-0 px-1 py-px rounded bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[7px] font-bold uppercase tracking-wider leading-none flex items-center gap-0.5">
+                <Crosshair className="w-2 h-2" />
+                {t('telemetry.recenter')}
+              </span>
+            )}
           </span>
           {activeTargetAlt !== null && (
             <span className={`text-[9px] font-mono ${activeTargetAlt < 0 ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>

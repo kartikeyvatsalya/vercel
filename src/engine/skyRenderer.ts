@@ -1,7 +1,7 @@
 import { getTargetRenderScale, getApertureBrightnessMultiplier } from './opticalMath';
 import { computeSkyOffsetDeg, projectSkyOffsetPx, wrap180, getBodyEquatorial } from './skyGeometry';
 import { drawMoon, drawSaturn, drawSun, drawSpire, drawM42, drawJupiter, type JovianMoonSprite } from './targetGlyphs';
-import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions } from './ephemerisMath';
+import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarPhase } from './ephemerisMath';
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
 import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
 import type { Target } from '../types';
@@ -95,6 +95,23 @@ export interface OpticalViewSpec {
    */
   isAltAzMount: boolean;
 }
+
+// ── Star tint → RGB (Phase 42) ─────────────────────────────────────
+// The radial-gradient star draw below needs rgba() stops (an opaque core
+// fading to a transparent glow), but STAR_TINT holds hex strings. Parse each
+// spectral class once at module load — there are only seven — so the per-star
+// per-frame path just interpolates the cached channels into template strings.
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+const STAR_TINT_RGB: Record<string, { r: number; g: number; b: number }> = Object.fromEntries(
+  Object.entries(STAR_TINT).map(([spec, hex]) => [spec, hexToRgb(hex)])
+);
 
 // ── Constellation Lines (Phase 30) ─────────────────────────────────
 // Faint asterism lines, drawn BEFORE the star points so the dots layer
@@ -362,17 +379,24 @@ function drawStarField(
     const y = centerY + offsetY - dAlt * pxPerDeg;
     const radius = starRadiusPx(star.mag);
 
-    ctx.fillStyle = STAR_TINT[star.spec];
-    // First-magnitude stars get a soft halo (two cheap arcs, no shadowBlur).
-    if (star.mag < 0.8) {
-      ctx.globalAlpha = alpha * 0.22;
-      ctx.beginPath();
-      ctx.arc(x, y, radius * 2.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // ── Diffuse radial-gradient star (Phase 42) ── Replaces the old hard
+    // arc + separate halo pair. A single radial gradient models what a real
+    // point source looks like through atmosphere and glass: a bright, nearly
+    // white core that bleeds out through its spectral tint into a soft,
+    // fully-transparent glow — no hard-edged disk. The glow reaches farther
+    // for the showpiece first-magnitude stars (Sirius, Vega) so they visibly
+    // bloom, riding on top of the exponential core radius from starRadiusPx.
+    const { r, g, b } = STAR_TINT_RGB[star.spec];
+    const glowRadius = radius * (star.mag < 0.8 ? 3.6 : 2.8);
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');            // white-hot pinpoint core
+    grad.addColorStop(0.26, `rgba(${r},${g},${b},0.95)`);  // tinted core
+    grad.addColorStop(0.55, `rgba(${r},${g},${b},0.25)`);  // mid atmospheric glow
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);        // fades fully to sky
     ctx.globalAlpha = alpha;
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -544,7 +568,12 @@ function drawUniversalSkyBodies(
     const parallacticAngleRad = isAltAzMount && bodyEq
       ? (getParallacticAngleDeg(bodyEq.ra, bodyEq.dec, observer.latitude, observer.longitude, new Date(bodySimTime)) * Math.PI) / 180
       : 0;
-    if (parallacticAngleRad !== 0) {
+    // The Moon opts out of this shared body-spin wrapper (Phase 42): it runs
+    // its OWN parallactic rotation on just the surface texture inside drawMoon,
+    // because its Sun-driven phase terminator must be oriented toward the Sun
+    // independently of how far that surface has field-rotated.
+    const applyFieldSpin = parallacticAngleRad !== 0 && body.id !== 'moon';
+    if (applyFieldSpin) {
       ctx.save();
       ctx.translate(targetX, targetY);
       ctx.rotate(parallacticAngleRad);
@@ -576,7 +605,23 @@ function drawUniversalSkyBodies(
     } else if (body.id === 'jupiter') {
       drawJupiter(ctx, targetX, targetY, targetSize, assets, jovianMoons);
     } else if (body.id === 'moon') {
-      drawMoon(ctx, targetX, targetY, targetSize, assets);
+      // ── Lunar phase + parallactic surface rotation + halo (Phase 42) ──
+      // getLunarPhase pulls the live Sun ephemeris itself; bodyEq is the
+      // Moon's own RA/Dec. brightLimbUpAngleDeg is the lit-limb tilt measured
+      // clockwise from screen-up — convert it to the canvas rotation that
+      // aims drawMoon's local +x (its lit side) at the Sun:
+      //   rotate(a) sends (1,0) → (cos a, sin a), and (sin θ, −cos θ) is the
+      //   screen vector θ clockwise from up, so a = atan2(−cos θ, sin θ).
+      const phase = bodyEq
+        ? getLunarPhase(bodyEq.ra, bodyEq.dec, observer.latitude, observer.longitude, new Date(bodySimTime))
+        : { illuminatedFraction: 1, brightLimbUpAngleDeg: 0 };
+      const theta = (phase.brightLimbUpAngleDeg * Math.PI) / 180;
+      const brightLimbRad = Math.atan2(-Math.cos(theta), Math.sin(theta));
+      drawMoon(ctx, targetX, targetY, targetSize, assets, {
+        parallacticRad: parallacticAngleRad,
+        illuminatedFraction: phase.illuminatedFraction,
+        brightLimbRad,
+      });
     } else if (body.id === 'm42') {
       ctx.save();
       ctx.translate(targetX, targetY);
@@ -597,7 +642,7 @@ function drawUniversalSkyBodies(
       ctx.fill();
     }
 
-    if (parallacticAngleRad !== 0) {
+    if (applyFieldSpin) {
       ctx.restore();
     }
 

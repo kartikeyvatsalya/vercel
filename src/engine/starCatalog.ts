@@ -37,9 +37,24 @@ export const STAR_TINT: Record<SpectralClass, string> = {
   M: '#ffb27d',
 };
 
-/** On-screen dot radius (px) for a magnitude — brighter stars draw bigger. */
+/**
+ * On-screen core radius (px) for a magnitude (Phase 42 — logarithmic bloom).
+ * ─────────────────────────────────────────────────────────────────
+ * Magnitude is already a logarithmic measure of flux (each +1 mag ≈ ×0.4
+ * the light), and a star's rendered "size" in any real optic is its Airy
+ * disk + atmospheric bloom, which grows with the LOG of its brightness —
+ * so a linear `k − 0.35·mag` ramp made a −1.5-mag Sirius look barely larger
+ * than a 3rd-mag filler star. Here the radius follows the fourth root of the
+ * linear flux, r ∝ flux^0.25 = 10^(−0.1·mag): each magnitude step now scales
+ * the star by a constant factor (×0.794), so brightness differences read as
+ * the exponential size differences the eye actually sees at the eyepiece.
+ * Anchored so a 0-mag star (Vega) ≈ 2.0px and clamped to a sane pinpoint
+ * range; the diffuse glow around the core is layered on separately in the
+ * renderer via a radial gradient.
+ */
 export function starRadiusPx(mag: number): number {
-  return Math.max(0.7, Math.min(3.4, 2.6 - 0.35 * mag));
+  const bloom = Math.pow(10, -0.1 * mag); // ∝ flux^0.25 — exponential in magnitude
+  return Math.max(0.6, Math.min(5.5, 2.0 * bloom));
 }
 
 export const STAR_CATALOG: CatalogStar[] = [

@@ -194,6 +194,65 @@ export function getParallacticAngleDeg(
   return radToDeg(Math.atan2(y, x));
 }
 
+/**
+ * Lunar phase geometry (Phase 42) — the sunlit fraction of the Moon's disk
+ * and the on-screen tilt of its bright limb, from the Sun's and Moon's
+ * equatorial positions.
+ *
+ * `illuminatedFraction`: derived from the geocentric Sun–Moon elongation ψ
+ * (cos ψ from the spherical law of cosines). Treating the Sun as effectively
+ * at infinity (phase angle i ≈ 180° − ψ), the standard k = (1 + cos i)/2
+ * reduces to k = (1 − cos ψ)/2 — 0 at new (bodies together in the sky), 1 at
+ * full (opposite), 0.5 at the quarters. Only the Sun's RA/Dec advances with
+ * simTime here (the Moon's catalog RA/Dec is a fixed snapshot), so the phase
+ * cycles as the Sun laps the Moon — slower than a true synodic month, but a
+ * faithful teaching model of WHY the Moon shows phases at all.
+ *
+ * `brightLimbUpAngleDeg`: the position angle of the midpoint of the bright
+ * limb (Meeus, Astronomical Algorithms ch. 48 — measured from the north
+ * celestial pole toward the east), rotated into the observer's horizon frame
+ * by subtracting the parallactic angle. The result is the tilt of the lit
+ * edge measured clockwise from straight up (the zenith) as it appears in the
+ * eyepiece; the renderer turns it into the direction the lit limb points on
+ * the canvas so the terminator always faces the real Sun.
+ */
+export function getLunarPhase(
+  moonRaHours: number,
+  moonDecDeg: number,
+  latDeg: number,
+  lonDeg: number,
+  time: Date
+): { illuminatedFraction: number; brightLimbUpAngleDeg: number } {
+  const jd = getJulianDate(time);
+  const sun = getSunEquatorial(jd);
+  const raS = degToRad(sun.ra * 15);
+  const decS = degToRad(sun.dec);
+  const raM = degToRad(moonRaHours * 15);
+  const decM = degToRad(moonDecDeg);
+  const dRa = raS - raM;
+
+  const cosPsi = clamp(
+    Math.sin(decS) * Math.sin(decM) + Math.cos(decS) * Math.cos(decM) * Math.cos(dRa),
+    -1,
+    1
+  );
+  const illuminatedFraction = (1 - cosPsi) / 2;
+
+  // Position angle of the bright limb, from the NCP toward the east (Meeus 48.5).
+  const chi = Math.atan2(
+    Math.cos(decS) * Math.sin(dRa),
+    Math.sin(decS) * Math.cos(decM) - Math.cos(decS) * Math.sin(decM) * Math.cos(dRa)
+  );
+  // Rotate that equatorial position angle into the eyepiece's horizon frame:
+  // the zenith sits at the parallactic angle from the NCP, so the limb's tilt
+  // measured from "up" is χ − q.
+  const q = degToRad(getParallacticAngleDeg(moonRaHours, moonDecDeg, latDeg, lonDeg, time));
+  return {
+    illuminatedFraction,
+    brightLimbUpAngleDeg: radToDeg(chi - q),
+  };
+}
+
 // ── The Galilean Moons (Phase 32) ──────────────────────────────────
 // Simplified circular-orbit ephemeris for Io, Europa, Ganymede, and
 // Callisto. Each moon's mean orbital longitude advances uniformly at

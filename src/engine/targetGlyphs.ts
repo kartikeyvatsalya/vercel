@@ -145,13 +145,11 @@ function getMoonSprite(radiusPx: number, tex: LoadedTexture): BakedGlyphSprite |
   return getGlyphSprite(`moon|${r}`, r, side, side, (cctx) => {
     const c = r + SPRITE_PAD_PX;
     cctx.drawImage(tex, c - r, c - r, r * 2, r * 2);
-    // Terminator overlay — identical ramp to the old live-path draw.
-    const termGrad = cctx.createLinearGradient(c - r, 0, c + r, 0);
-    termGrad.addColorStop(0, 'rgba(0,0,0,0.75)');
-    termGrad.addColorStop(0.42, 'rgba(0,0,0,0.55)');
-    termGrad.addColorStop(0.58, 'rgba(0,0,0,0)');
-    cctx.fillStyle = termGrad;
-    cctx.fillRect(c - r, c - r, r * 2, r * 2);
+    // Phase 42: the fixed left-to-right terminator gradient that used to be
+    // baked in here is gone — the real, Sun-driven phase shadow is now drawn
+    // live on top of this clean full-disk sprite by drawLunarPhaseShadow, and
+    // the surface texture is field-rotated by the parallactic angle at blit
+    // time, so a baked-in shadow would fight both.
     applyFeatheredDiskMask(cctx, c, c, r, 1);
     return true;
   });
@@ -202,14 +200,108 @@ function getSaturnSprite(radiusPx: number, tex: LoadedTexture): BakedGlyphSprite
   });
 }
 
-export function drawMoon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, assets: LoadedAssets | null): void {
+/**
+ * Live lunar rendering parameters (Phase 42), all computed per-frame in
+ * skyRenderer from the real ephemeris. Optional so the fallback/other callers
+ * still get a plain, upright full Moon.
+ */
+export interface MoonRenderOptions {
+  /** Parallactic field rotation (rad) applied to the surface texture only. */
+  parallacticRad: number;
+  /** Sunlit fraction of the disk: 0 = new, 0.5 = quarter, 1 = full. */
+  illuminatedFraction: number;
+  /** Canvas rotation (rad) that points the lit limb (+x local) toward the Sun. */
+  brightLimbRad: number;
+}
+
+/**
+ * Sun-driven terminator shadow (Phase 42). Geometry is built in a local frame
+ * with the lit side toward +x; the caller's `brightLimbRad` rotation then aims
+ * that toward the real Sun. The terminator is the classic disk-limb semicircle
+ * joined to a half-ellipse whose x-radius `b = R·(1 − 2·illum)` sweeps from +R
+ * (new) through 0 (quarter, a straight line) to −R (full), the anticlockwise
+ * flag flipping the ellipse's bulge from the lit side (crescent) to the dark
+ * side (gibbous). Clipped to the disk so it can never spill past the limb.
+ */
+function drawLunarPhaseShadow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  R: number,
+  illum: number,
+  brightLimbRad: number
+): void {
+  if (illum >= 0.985) return; // effectively full — no visible shadow
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(brightLimbRad);
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, Math.PI * 2);
+  ctx.clip();
+
+  // Near-black earthshine tint, not pure black, so the shadowed limb reads as
+  // a faintly-lit sphere instead of a hole punched in the sky.
+  ctx.fillStyle = 'rgba(4, 6, 14, 0.84)';
+
+  if (illum <= 0.015) {
+    // New moon: the whole disk is in shadow.
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  const b = R * (1 - 2 * illum);
+  ctx.beginPath();
+  ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // dark (left) limb semicircle
+  ctx.ellipse(0, 0, Math.abs(b), R, 0, Math.PI / 2, -Math.PI / 2, b > 0); // terminator
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawMoon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  assets: LoadedAssets | null,
+  options?: MoonRenderOptions
+): void {
+  const { parallacticRad = 0, illuminatedFraction = 1, brightLimbRad = 0 } = options ?? {};
+
+  // ── Atmospheric glow (Phase 42) ── A soft halo bleeding past the limb so
+  // the Moon melts into the sky instead of ending at a hard digital edge; it
+  // widens/brightens toward full. Rides the caller's globalAlpha, so it already
+  // dims correctly in a bright/daylit sky.
+  const haloAlpha = 0.24 * (0.45 + 0.55 * illuminatedFraction);
+  const haloR = size * 2.15;
+  const halo = ctx.createRadialGradient(x, y, size * 0.82, x, y, haloR);
+  halo.addColorStop(0, `rgba(226, 231, 242, ${haloAlpha})`);
+  halo.addColorStop(0.5, `rgba(208, 217, 236, ${haloAlpha * 0.32})`);
+  halo.addColorStop(1, 'rgba(208, 217, 236, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(x, y, haloR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Surface disk, field-rotated by the parallactic angle (Phase 42) ──
+  // The Moon's surface "up" spins by the parallactic angle as it tracks across
+  // the sky on an Alt-Az mount, so Tycho and the maria end up correctly
+  // oriented at any hour angle instead of frozen upright.
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(parallacticRad);
+  ctx.translate(-x, -y);
   const moonImg = assets?.moon;
   const sprite = isTextureReady(moonImg) ? getMoonSprite(size, moonImg) : null;
   if (sprite) {
     // High-res texture, pre-baked with a feathered limb (Phase 34).
     blitGlyphSprite(ctx, sprite, x, y, size);
   } else {
-    // Procedural fallback
+    // Procedural fallback — a plain grey disk with a few maria.
     ctx.beginPath();
     ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fillStyle = '#cccccc';
@@ -218,15 +310,11 @@ export function drawMoon(ctx: CanvasRenderingContext2D, x: number, y: number, si
     ctx.beginPath(); ctx.arc(x - size * 0.3, y - size * 0.4, size * 0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + size * 0.4, y - size * 0.1, size * 0.25, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + size * 0.1, y + size * 0.3, size * 0.4, 0, Math.PI * 2); ctx.fill();
-    const termGrad = ctx.createLinearGradient(x - size, 0, x + size, 0);
-    termGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
-    termGrad.addColorStop(0.4, 'rgba(0,0,0,0.6)');
-    termGrad.addColorStop(0.6, 'rgba(0,0,0,0)');
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fillStyle = termGrad;
-    ctx.fill();
   }
+  ctx.restore();
+
+  // ── Sun-driven phase terminator (Phase 42), on top of the upright disk ──
+  drawLunarPhaseShadow(ctx, x, y, size, illuminatedFraction, brightLimbRad);
 }
 
 export function drawSaturn(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, assets: LoadedAssets | null): void {
