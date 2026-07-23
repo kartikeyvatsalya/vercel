@@ -216,35 +216,44 @@ export interface MoonRenderOptions {
 
 /**
  * Sun-driven terminator shadow (Phase 42; rewritten Phase 42.5; contrast
- * pass Phase 42.7; converted to an erase Phase 44). Geometry is built in a
- * local frame with the lit side toward +x; the caller's `brightLimbRad`
- * rotation then aims that toward the real Sun.
+ * pass Phase 42.7; converted to an erase Phase 44; feathered Phase 45).
+ * Geometry is built in a local frame with the lit side toward +x; the
+ * caller's `brightLimbRad` rotation then aims that toward the real Sun.
  *
  * Phase 44 daytime-realism fix: a flat dark overlay read as a grey sticker
- * against a blue daytime sky instead of true shadow. This function now
- * ERASES the unlit portion from an off-screen canvas that holds ONLY the
- * Moon disk (see drawMoon) via `globalCompositeOperation = 'destination-out'`
- * — once that canvas is composited onto the real sky, the erased pixels let
- * the true background (blue by day, black by night) show through instead of
- * any painted color. No stroke: the erased boundary IS the terminator, so a
- * traced line is no longer needed to make it legible.
+ * against a blue daytime sky instead of true shadow. This function ERASES
+ * the unlit portion from an off-screen canvas that holds ONLY the Moon disk
+ * (see drawMoon) via `globalCompositeOperation = 'destination-out'` — once
+ * that canvas is composited onto the real sky, the erased pixels let the
+ * true background (blue by day, black by night) show through instead of any
+ * painted color. No stroke: the erased boundary IS the terminator.
+ *
+ * Phase 45: the erase shape is now filled through a `blur()` canvas filter,
+ * not a crisp path. `destination-out` keys off the source shape's ALPHA, so
+ * blurring it turns a hard 1px antialiased cutoff into a soft few-pixel
+ * ramp from fully-erased to fully-opaque — the terminator reads as a
+ * gradual day/night fade (atmosphere + optical softness) rather than a cut
+ * digital line. The blur scales with the disk radius (a fixed px blur would
+ * be invisible on a huge zoomed disk and would mush a tiny finder disk into
+ * nothing) and is clamped so it never gets excessive at extreme zoom.
  *
  * A single ordinary path — an `arc()` for the true limb (always a plain
  * circular half, since that edge is the Moon's actual silhouette) joined by
  * ONE cubic `bezierCurveTo()` standing in for the terminator ellipse's arc —
  * filled once with opaque black (alpha 1 = full erasure under
- * destination-out). The bezier's control points sit at the standard 4/3
- * tangent-offset distance used to approximate a circular/elliptical arc with
- * a single cubic — accurate enough that the terminator reads as a sharp,
- * smooth curve, not an approximation artifact.
+ * destination-out, before the blur softens that edge). The bezier's control
+ * points sit at the standard 4/3 tangent-offset distance used to
+ * approximate a circular/elliptical arc with a single cubic — accurate
+ * enough that the terminator reads as a sharp, smooth curve, not an
+ * approximation artifact.
  *   b = R·(1 − 2·illum): the terminator's signed half-width at the disk's
  *   equator. +R at new (bulges fully into the lit +x side — almost all of
  *   the disk erases), 0 at quarter (a dead-straight vertical line), −R at
  *   full (bulges back to the limb — vanishingly thin erasure).
  * Explicitly clipped to the true disk first: the bezier is an approximation
  * and can overshoot the circular limb by a hair at its widest bulge, and
- * this guarantees the erasure can never eat into canvas pixels beyond the
- * Moon's own silhouette.
+ * this guarantees the erasure (blurred spread included) can never eat into
+ * canvas pixels beyond the Moon's own silhouette.
  */
 function eraseLunarPhaseShadow(
   octx: CanvasRenderingContext2D,
@@ -259,11 +268,13 @@ function eraseLunarPhaseShadow(
   octx.save();
   octx.translate(cx, cy);
   octx.rotate(brightLimbRad);
-  octx.globalCompositeOperation = 'destination-out';
 
   octx.beginPath();
   octx.arc(0, 0, R, 0, Math.PI * 2);
   octx.clip();
+
+  octx.globalCompositeOperation = 'destination-out';
+  octx.filter = `blur(${Math.max(1, Math.min(6, R * 0.05))}px)`;
 
   octx.beginPath();
   if (illum <= 0.015) {
@@ -280,7 +291,7 @@ function eraseLunarPhaseShadow(
   octx.fillStyle = 'rgba(0, 0, 0, 1)';
   octx.fill();
 
-  octx.restore();
+  octx.restore(); // also resets globalCompositeOperation and filter
 }
 
 export function drawMoon(
@@ -308,14 +319,15 @@ export function drawMoon(
   ctx.arc(x, y, haloR, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Disk + phase, composited off-screen (Phase 44) ──
+  // ── Disk + phase, composited off-screen (Phase 44; feathered Phase 45) ──
   // The disk (texture or fallback) is painted onto a transparent off-screen
   // canvas sized to the disk, field-rotated by the parallactic angle exactly
   // as before (Tycho and the maria stay correctly oriented at any hour
-  // angle). The unlit portion is then ERASED from that canvas — see
+  // angle). The unlit portion is then softly ERASED from that canvas — see
   // eraseLunarPhaseShadow — so blitting the result onto the real sky reveals
   // the TRUE background (blue by day, black by night) behind the night side,
-  // instead of a painted-on grey overlay.
+  // through a feathered edge, instead of a painted-on grey overlay with a
+  // hard boundary.
   const pad = 4; // headroom for the sprite's own feather/antialiasing bleed
   const half = size + pad;
   const off = document.createElement('canvas');

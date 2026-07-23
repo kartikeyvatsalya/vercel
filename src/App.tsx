@@ -30,6 +30,7 @@ import { CustomTelescopeModal } from './components/ui/CustomTelescopeModal';
 import { FieldLogbookModal } from './components/ui/FieldLogbookModal';
 import { SettingsModal } from './components/ui/SettingsModal';
 import { OnboardingTour } from './components/ui/OnboardingTour';
+import { IntroMascot } from './components/ui/IntroMascot';
 import { MobileWarning } from './components/ui/MobileWarning';
 import { TextbookPanel } from './components/ui/TextbookPanel';
 import { ObservatoryScene } from './components/canvas/ObservatoryScene';
@@ -1144,6 +1145,12 @@ function App() {
           </div>
         );
       })()}
+
+      {/* Welcome mascot (Phase 45) — a one-shot cartoon telescope that runs
+          across the bottom of the screen and up to the Start Tour button on
+          first mount, then fades away. Purely decorative; never renders again
+          this session. */}
+      <IntroMascot targetRef={startTourBtnRef} />
 
       {/* Slew-to-Target Toast — connects the footer's target switch to the 3D mount's physical movement */}
       {slewToast && (

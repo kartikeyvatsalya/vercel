@@ -9,7 +9,7 @@ import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { CITIES } from '../../engine/constants';
 import { useTranslation } from '../../engine/i18n';
 import { InfoTip } from '../ui/InfoTip';
-import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair } from 'lucide-react';
+import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair, CalendarClock } from 'lucide-react';
 
 const TIME_RATES = [1, 10, 60];
 
@@ -194,22 +194,36 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
         </div>
         {/* Time Machine (Phase 44) — a native datetime-local picker in place
             of the old static clock text, so the student can jump the whole
-            sky to any date/time, any century, not just ±1 Hour. */}
-        <input
-          type="datetime-local"
-          step="1"
-          value={timeDraft}
-          onFocus={() => { isEditingTimeRef.current = true; }}
-          onBlur={() => { isEditingTimeRef.current = false; }}
-          onChange={(e) => {
-            setTimeDraft(e.target.value);
-            if (!e.target.value) return;
-            const newTime = new Date(e.target.value).getTime();
-            if (!Number.isNaN(newTime)) setSimTime(newTime);
-          }}
-          aria-label="Simulation date and time"
-          className="bg-transparent text-cyan-400 text-[11px] font-mono border-none outline-none focus:outline-none focus:ring-1 focus:ring-cyan-500/70 rounded px-0.5 -mx-0.5 cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:invert"
-        />
+            sky to any date/time, any century, not just ±1 Hour. Phase 45:
+            it looked like inert readout text with no clickable affordance,
+            so a beginner never discovered it — a Calendar glyph, a hover
+            highlight, and an explicit tooltip now mark it as interactive. */}
+        <div
+          className="group relative inline-flex w-fit items-center gap-1 rounded px-1 py-0.5 -mx-1 -my-0.5 transition-colors hover:bg-slate-800/70 focus-within:bg-slate-800/70"
+        >
+          <CalendarClock className="w-3 h-3 shrink-0 text-cyan-500/70 group-hover:text-cyan-300 transition-colors" />
+          <input
+            type="datetime-local"
+            step="1"
+            value={timeDraft}
+            onFocus={() => { isEditingTimeRef.current = true; }}
+            onBlur={() => { isEditingTimeRef.current = false; }}
+            onChange={(e) => {
+              setTimeDraft(e.target.value);
+              if (!e.target.value) return;
+              const newTime = new Date(e.target.value).getTime();
+              if (!Number.isNaN(newTime)) setSimTime(newTime);
+            }}
+            aria-label="Simulation date and time — click to time travel"
+            className="bg-transparent text-cyan-400 group-hover:text-cyan-300 text-[11px] font-mono border-none outline-none focus:outline-none focus:ring-1 focus:ring-cyan-500/70 rounded cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:invert transition-colors"
+          />
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-0 top-full mt-1 z-[9999] w-max max-w-[200px] rounded-lg border border-slate-600 bg-slate-950/95 px-2.5 py-1.5 text-left text-[10px] font-normal normal-case tracking-normal leading-relaxed text-slate-200 shadow-2xl opacity-0 transition-opacity duration-150 delay-150 group-hover:opacity-100 group-focus-within:opacity-100"
+          >
+            Click to Time Travel — change the date or time
+          </span>
+        </div>
         <div className="flex gap-1 flex-wrap">
           <button
             onClick={() => handleStep(-1)}

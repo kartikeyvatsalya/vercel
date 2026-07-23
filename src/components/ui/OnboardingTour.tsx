@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useTranslation, type TranslationKey } from '../../engine/i18n';
 import { X } from 'lucide-react';
@@ -57,7 +57,19 @@ const TOUR_STEPS: TourStepConfig[] = [
 // ways a single mount-time measurement or resize listener alone would miss.
 const REMEASURE_INTERVAL_MS = 400;
 const TOOLTIP_WIDTH_PX = 320;
+// Step 0 (Phase 45): a deliberately bigger, bolder first impression — capped
+// at Tailwind's `max-w-xl` (36rem) rather than the regular card's 320px.
+const WELCOME_TOOLTIP_WIDTH_PX = 576;
 const SPOTLIGHT_PAD_PX = 8;
+// Phase 45: explicit floor gap between the tooltip card and the spotlighted
+// element, on top of using the card's REAL measured height (not a guess) to
+// decide where "outside the target" actually is — see the overlap-bug note
+// on tooltipHeight below.
+const TOOLTIP_TARGET_GAP_PX = 15;
+// Best-effort card height before the first real measurement lands (mount,
+// or the instant a step's content changes) — only used for one frame each
+// time, since useLayoutEffect corrects it before the browser paints.
+const FALLBACK_TOOLTIP_HEIGHT_PX = 190;
 
 interface OnboardingTourProps {
   /** False only in pure Observatory view, where the 2D feeds are unmounted. */
@@ -72,8 +84,11 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
   const endTour = useTelescopeStore((s) => s.endTour);
   const { t } = useTranslation();
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [tooltipHeight, setTooltipHeight] = useState(FALLBACK_TOOLTIP_HEIGHT_PX);
 
   const config = tourStep > 0 ? TOUR_STEPS[tourStep - 1] : null;
+  const isWelcomeStep = tourStep === 1;
 
   useEffect(() => {
     if (config?.requiresCanvases && !areCanvasesVisible) {
@@ -99,6 +114,21 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
     };
   }, [config]);
 
+  // Phase 45: measure the card's REAL rendered height whenever its content
+  // changes (a new step's title/body, or the welcome step's much-bigger
+  // fonts). The old "above the target" placement subtracted a hard-coded
+  // 174px guess — whenever a step's actual wrapped text ran taller than
+  // that (longer body copy, or a narrow viewport wrapping more lines), the
+  // card's real bottom edge landed BELOW rect.top and covered the very
+  // button it was explaining (the reported Finderscope/Dust Cap overlap).
+  // useLayoutEffect fires after the DOM paints new content but before the
+  // browser shows it, so the corrected height applies with no visible flash.
+  useLayoutEffect(() => {
+    if (tooltipRef.current) {
+      setTooltipHeight(tooltipRef.current.getBoundingClientRect().height);
+    }
+  }, [config, isWelcomeStep]);
+
   if (!config) return null;
 
   const isLastStep = tourStep >= TOUR_STEPS.length;
@@ -106,20 +136,27 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
   const viewportH = window.innerHeight;
   // Mobile/tablet safety (Phase 38): shrink to fit rather than overflow a
   // narrow viewport — a fixed 320px card plus its 14px margins needs 348px,
-  // wider than some phones in portrait. Never wider than TOOLTIP_WIDTH_PX.
-  const tooltipWidth = Math.min(TOOLTIP_WIDTH_PX, viewportW - 28);
+  // wider than some phones in portrait. Never wider than TOOLTIP_WIDTH_PX
+  // (or the deliberately bigger WELCOME_TOOLTIP_WIDTH_PX for step 0).
+  const tooltipWidth = Math.min(isWelcomeStep ? WELCOME_TOOLTIP_WIDTH_PX : TOOLTIP_WIDTH_PX, viewportW - 28);
 
   let tooltipTop: number;
   let tooltipLeft: number;
   if (rect) {
     const spaceBelow = viewportH - rect.bottom;
-    const placeBelow = spaceBelow > 190 || rect.top < 190;
-    tooltipTop = placeBelow ? rect.bottom + 14 : Math.max(14, rect.top - 174);
+    const roomNeeded = tooltipHeight + TOOLTIP_TARGET_GAP_PX;
+    const placeBelow = spaceBelow > roomNeeded || rect.top < roomNeeded;
+    // Phase 45: both branches now float a full TOOLTIP_TARGET_GAP_PX outside
+    // the spotlighted element, sized off the card's ACTUAL measured height
+    // rather than a guess — the card can never overlap its own target.
+    tooltipTop = placeBelow
+      ? rect.bottom + TOOLTIP_TARGET_GAP_PX
+      : Math.max(TOOLTIP_TARGET_GAP_PX, rect.top - tooltipHeight - TOOLTIP_TARGET_GAP_PX);
     tooltipLeft = Math.min(Math.max(14, rect.left + rect.width / 2 - tooltipWidth / 2), viewportW - tooltipWidth - 14);
   } else {
     // Target element not found (yet) — center the tooltip so the tour never
     // silently vanishes, e.g. the one-frame gap before onRequestCanvasesVisible lands.
-    tooltipTop = viewportH / 2 - 90;
+    tooltipTop = viewportH / 2 - tooltipHeight / 2;
     tooltipLeft = viewportW / 2 - tooltipWidth / 2;
   }
 
@@ -142,7 +179,10 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
       )}
 
       <div
-        className="absolute pointer-events-auto bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl p-4 flex flex-col gap-2.5 transition-all duration-300 ease-out"
+        ref={tooltipRef}
+        className={`absolute pointer-events-auto bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl flex flex-col gap-2.5 transition-all duration-300 ease-out ${
+          isWelcomeStep ? 'p-6' : 'p-4'
+        }`}
         style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
       >
         <div className="flex items-center justify-between">
@@ -153,8 +193,15 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-        <h3 className="text-sm font-bold text-white">{t(config.titleKey)}</h3>
-        <p className="text-xs text-slate-300 leading-relaxed">{t(config.bodyKey)}</p>
+        {/* Step 0 (Phase 45): dramatically bigger type so the welcome card
+            commands attention as a real first impression, not just another
+            spotlighted tip. */}
+        <h3 className={isWelcomeStep ? 'text-2xl font-bold text-white' : 'text-sm font-bold text-white'}>
+          {t(config.titleKey)}
+        </h3>
+        <p className={isWelcomeStep ? 'text-lg text-slate-300 leading-relaxed' : 'text-xs text-slate-300 leading-relaxed'}>
+          {t(config.bodyKey)}
+        </p>
         <div className="flex items-center justify-between mt-1">
           <button
             onClick={endTour}
