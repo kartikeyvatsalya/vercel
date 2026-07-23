@@ -167,6 +167,72 @@ export function getSunAltitudeDeg(latDeg: number, lonDeg: number, timeMs: number
 }
 
 /**
+ * Low-precision lunar ephemeris (Phase 42.8) — the Moon's geocentric RA/Dec
+ * at a simulated epoch-ms, so the Moon ORBITS for real instead of sitting at
+ * a static catalog snapshot (which made real-world phase math impossible:
+ * the terminator could never match the calendar).
+ *
+ * Algorithm: the standard low-precision series from the Astronomical
+ * Almanac ("Low-precision formulae for geocentric coordinates of the
+ * Moon"), the same family of truncated ELP terms Meeus presents. Ecliptic
+ * longitude λ carries the mean longitude plus the six largest periodic
+ * terms (evection, yearly equation, variation, …); latitude β carries the
+ * four largest. Stated accuracy ≈ 0.3° in λ and 0.2° in β for decades
+ * around J2000 — a fraction of the Moon's own 0.5° disk, far below this
+ * simulator's eyepiece pixel scale, and easily good enough for phase math
+ * (a 0.3° position error shifts the illuminated fraction by well under 1%).
+ *
+ * The ecliptic → equatorial conversion uses the same obliquity model as
+ * getSunEquatorial above, so Sun–Moon elongation (the phase driver) is
+ * internally consistent between the two bodies.
+ * @returns ra in hours [0, 24), dec in degrees
+ */
+export function getMoonEquatorial(simTimeMs: number): { ra: number; dec: number } {
+  const jd = getJulianDate(new Date(simTimeMs));
+  const T = (jd - 2451545.0) / 36525; // Julian centuries since J2000.0
+
+  // Geocentric ecliptic longitude (degrees): mean longitude + principal
+  // periodic terms. Argument angles are in degrees.
+  const lambdaDeg =
+    218.32 + 481267.883 * T
+    + 6.29 * Math.sin(degToRad(134.9 + 477198.85 * T))   // principal elliptic term
+    - 1.27 * Math.sin(degToRad(259.2 - 413335.38 * T))   // evection
+    + 0.66 * Math.sin(degToRad(235.7 + 890534.23 * T))   // variation
+    + 0.21 * Math.sin(degToRad(269.9 + 954397.70 * T))   // second elliptic term
+    - 0.19 * Math.sin(degToRad(357.5 + 35999.05 * T))    // yearly equation
+    - 0.11 * Math.sin(degToRad(186.6 + 966404.05 * T));  // parallactic inequality family
+
+  // Geocentric ecliptic latitude (degrees): principal inclination terms.
+  const betaDeg =
+    5.13 * Math.sin(degToRad(93.3 + 483202.03 * T))
+    + 0.28 * Math.sin(degToRad(228.2 + 960400.87 * T))
+    - 0.28 * Math.sin(degToRad(318.3 + 6003.18 * T))
+    - 0.17 * Math.sin(degToRad(217.6 - 407332.20 * T));
+
+  const lambda = degToRad(normalizeDegrees(lambdaDeg));
+  const beta = degToRad(betaDeg);
+  // Same obliquity model as getSunEquatorial (n = days since J2000).
+  const obliquityRad = degToRad(23.439 - 0.0000004 * (jd - 2451545.0));
+
+  // Ecliptic → equatorial (standard rotation about the vernal equinox).
+  const sinDec = clamp(
+    Math.sin(beta) * Math.cos(obliquityRad) +
+      Math.cos(beta) * Math.sin(obliquityRad) * Math.sin(lambda),
+    -1,
+    1
+  );
+  const raRad = Math.atan2(
+    Math.sin(lambda) * Math.cos(obliquityRad) - Math.tan(beta) * Math.sin(obliquityRad),
+    Math.cos(lambda)
+  );
+
+  return {
+    ra: normalizeDegrees(radToDeg(raRad)) / 15,
+    dec: radToDeg(Math.asin(sinDec)),
+  };
+}
+
+/**
  * Parallactic angle (Phase 30) — the angle at the target between the
  * direction to the zenith and the direction to the celestial pole. On an
  * Alt-Az mount (no equatorial derotator), this is exactly how far the
@@ -200,11 +266,10 @@ export function getParallacticAngleDeg(
  * via the spherical law of cosines on both bodies' RA/Dec). Treating the Sun
  * as effectively at infinity (phase angle i ≈ 180° − ψ), the standard
  * k = (1 + cos i)/2 reduces to k = (1 − cos ψ)/2 — 0 at new (bodies together
- * in the sky), 1 at full (opposite), 0.5 at the quarters. Only the Sun's
- * RA/Dec advances with simTime here (the Moon's catalog RA/Dec is a fixed
- * snapshot), so the phase cycles as the Sun laps the Moon — slower than a
- * true synodic month, but a faithful teaching model of WHY the Moon shows
- * phases at all.
+ * in the sky), 1 at full (opposite), 0.5 at the quarters. Since Phase 42.8
+ * the caller passes the Moon's LIVE RA/Dec from getMoonEquatorial (resolved
+ * through skyGeometry.getBodyEquatorial), so the phase cycles on the true
+ * ~29.5-day synodic month and matches the real-world calendar.
  *
  * This is deliberately frame-independent (a dot product of unit vectors
  * doesn't care about equatorial vs. horizontal coordinates). The terminator's

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from './store/useTelescopeStore';
 import { TARGETS } from './data/bookContent';
 import { convertEquatorialToHorizontal } from './engine/ephemerisMath';
+import { getBodyEquatorial } from './engine/skyGeometry';
 import type { Target, ModuleId } from './types';
 import { SIM_MODE_RULES, type SimulationMode } from './engine/simulationModes';
 import { useTranslation, type TranslationKey } from './engine/i18n';
@@ -577,12 +578,17 @@ function App() {
 
 
   // ── Target selection via dropup, with live horizon awareness (Phase 25) ──
+  // Phase 42.8: coordinates resolve through getBodyEquatorial so the Sun and
+  // the now-orbiting Moon read their LIVE ephemeris positions here too —
+  // otherwise the dropup's "Below Horizon" chip could disagree with where the
+  // renderer actually draws them.
   const getTargetAltitudeNow = (target: Target): number | null => {
     if (target.type === 'terrestrial') return TERRESTRIAL_POINTING.alt; // ground-anchored, always up
-    if (target.ra === undefined || target.dec === undefined) return null;
     const { observerLocation, simTime } = telescopeState;
+    const eq = getBodyEquatorial(target, simTime);
+    if (!eq) return null;
     return convertEquatorialToHorizontal(
-      target.ra, target.dec,
+      eq.ra, eq.dec,
       observerLocation.latitude, observerLocation.longitude,
       new Date(simTime)
     ).altitude;
@@ -635,10 +641,12 @@ function App() {
     let targetBit = '';
     if (s.activeTarget) {
       const target = s.activeTarget;
+      // Phase 42.8: resolve through getBodyEquatorial (live Sun/Moon ephemeris).
+      const eq = target.type === 'terrestrial' ? null : getBodyEquatorial(target, s.simTime);
       const alt = target.type === 'terrestrial'
         ? TERRESTRIAL_POINTING.alt
-        : target.ra !== undefined && target.dec !== undefined
-          ? convertEquatorialToHorizontal(target.ra, target.dec, s.observerLocation.latitude, s.observerLocation.longitude, new Date(s.simTime)).altitude
+        : eq
+          ? convertEquatorialToHorizontal(eq.ra, eq.dec, s.observerLocation.latitude, s.observerLocation.longitude, new Date(s.simTime)).altitude
           : null;
       if (alt !== null) targetBit = ` · ${target.name} now at ${alt.toFixed(0)}°`;
     }

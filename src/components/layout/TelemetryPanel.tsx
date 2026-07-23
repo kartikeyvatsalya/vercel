@@ -4,6 +4,7 @@ import { useMissionStore } from '../../engine/missionEngine';
 import { missions as RANK_MISSIONS } from '../../data/missions';
 import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, getPerfectFocusPoint } from '../../engine/opticalMath';
 import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
+import { getBodyEquatorial } from '../../engine/skyGeometry';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { CITIES } from '../../engine/constants';
 import { useTranslation } from '../../engine/i18n';
@@ -35,13 +36,19 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     (c) => c.latitude === observerLocation.latitude && c.longitude === observerLocation.longitude
   );
 
-  // Live altitude of the active target — surfaces below-horizon states (Phase 26 fix 4c)
+  // Live altitude of the active target — surfaces below-horizon states (Phase
+  // 26 fix 4c). Phase 42.8: coordinates resolve through getBodyEquatorial so
+  // the Sun and the orbiting Moon report their LIVE ephemeris altitude here,
+  // matching where the renderer actually draws them.
+  const activeTargetEq = activeTarget && activeTarget.type !== 'terrestrial'
+    ? getBodyEquatorial(activeTarget, simTime)
+    : null;
   const activeTargetAlt = activeTarget
     ? activeTarget.type === 'terrestrial'
       ? TERRESTRIAL_POINTING.alt
-      : activeTarget.ra !== undefined && activeTarget.dec !== undefined
+      : activeTargetEq
         ? convertEquatorialToHorizontal(
-            activeTarget.ra, activeTarget.dec,
+            activeTargetEq.ra, activeTargetEq.dec,
             observerLocation.latitude, observerLocation.longitude,
             new Date(simTime)
           ).altitude

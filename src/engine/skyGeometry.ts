@@ -1,4 +1,4 @@
-import { convertEquatorialToHorizontal, getSunEquatorial, getJulianDate } from './ephemerisMath';
+import { convertEquatorialToHorizontal, getSunEquatorial, getMoonEquatorial, getJulianDate } from './ephemerisMath';
 import type { Target } from '../types';
 
 /**
@@ -23,19 +23,28 @@ export const TERRESTRIAL_POINTING = { alt: 45, az: 180 };
 export const wrap180 = (deg: number): number => ((deg + 180) % 360 + 360) % 360 - 180;
 
 /**
- * ── Universal body ephemeris resolution (Phase 35) ──
+ * ── Universal body ephemeris resolution (Phase 35; Moon live in 42.8) ──
  * The single authority for "where is this catalog body on the celestial
  * sphere at simTime." Every celestial body is a static catalog snapshot
- * except the Sun: the daylight engine already drives the sky's brightness
- * from the LIVE low-precision solar ephemeris (getSunEquatorial), so the
- * Sun's rendered/slewed-to position must come from the same source —
- * otherwise stepping simTime a few days could draw a sun glyph above the
- * horizon of a sky whose brightness says the sun has set.
+ * except the Sun and the Moon:
+ *   • Sun — the daylight engine already drives the sky's brightness from
+ *     the LIVE low-precision solar ephemeris (getSunEquatorial), so the
+ *     Sun's rendered/slewed-to position must come from the same source —
+ *     otherwise stepping simTime a few days could draw a sun glyph above
+ *     the horizon of a sky whose brightness says the sun has set.
+ *   • Moon (Phase 42.8) — a static snapshot made real-calendar phase math
+ *     impossible (the Moon moves ~13°/day; its terminator is set by the
+ *     live Sun–Moon elongation), so it now rides getMoonEquatorial's
+ *     low-precision lunar series. Because every consumer — GoTo slews,
+ *     the 3D dome billboard, both 2D feeds, the phase renderer, telemetry
+ *     altitude — resolves through THIS function, the whole app agrees on
+ *     the orbiting Moon by construction.
  * Returns null for bodies with no equatorial anchor (terrestrial targets).
  */
 export function getBodyEquatorial(target: Target, simTimeMs: number): { ra: number; dec: number } | null {
   if (target.type === 'terrestrial') return null;
   if (target.id === 'sun') return getSunEquatorial(getJulianDate(new Date(simTimeMs)));
+  if (target.id === 'moon') return getMoonEquatorial(simTimeMs);
   if (target.ra === undefined || target.dec === undefined) return null;
   return { ra: target.ra, dec: target.dec };
 }

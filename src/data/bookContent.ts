@@ -15,8 +15,11 @@ export const TARGETS: Record<string, Target> = {
     seasonVisibility: ['spring', 'summer', 'autumn', 'winter'],
     bestMagnification: 100, // Good for craters along the terminator
     difficulty: 'Beginner',
-    // The Moon moves ~13°/day, so a single RA/Dec is only a snapshot,
-    // not a live ephemeris — accurate lunar tracking needs orbital elements.
+    // Phase 42.8: the Moon now ORBITS — skyGeometry.getBodyEquatorial
+    // intercepts id 'moon' and resolves the live low-precision lunar
+    // ephemeris (ephemerisMath.getMoonEquatorial) instead of these values.
+    // They remain only as a legacy snapshot/fallback shape for the Target
+    // type; nothing renders from them anymore.
     ra: 10.0,
     dec: 15.0,
   },

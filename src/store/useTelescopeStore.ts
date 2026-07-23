@@ -52,7 +52,8 @@ const DEFAULT_OBSERVER_LOCATION: ObserverLocation = { latitude: 26.9124, longitu
 function computePointing(target: Target, observer: ObserverLocation, time: Date): { altitude: number; azimuth: number } {
   // Terrestrial targets live on the horizontal grid — fixed Alt/Az, no
   // ephemeris. Celestial coordinates resolve through getBodyEquatorial
-  // (Phase 35): the Sun follows the LIVE solar ephemeris, so a GoTo slew
+  // (Phase 35): the Sun follows the LIVE solar ephemeris — and since Phase
+  // 42.8 the Moon follows its live lunar ephemeris too — so a GoTo slew
   // lands exactly where the universal sky renderer draws it.
   const eq = getBodyEquatorial(target, time.getTime());
   if (!eq) {
