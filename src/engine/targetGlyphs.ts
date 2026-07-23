@@ -215,9 +215,10 @@ export interface MoonRenderOptions {
 }
 
 /**
- * Sun-driven terminator shadow (Phase 42; rewritten Phase 42.5). Geometry is
- * built in a local frame with the lit side toward +x; the caller's
- * `brightLimbRad` rotation then aims that toward the real Sun.
+ * Sun-driven terminator shadow (Phase 42; rewritten Phase 42.5; contrast
+ * pass Phase 42.7). Geometry is built in a local frame with the lit side
+ * toward +x; the caller's `brightLimbRad` rotation then aims that toward
+ * the real Sun.
  *
  * No `globalCompositeOperation` tricks: this is a single ordinary path —
  * an `arc()` for the true limb (always a plain circular half, since that
@@ -235,6 +236,15 @@ export interface MoonRenderOptions {
  * approximation and can overshoot the circular limb by a hair at its
  * widest bulge, and this guarantees the shadow can never spill past the
  * Moon's silhouette onto the sky behind it.
+ *
+ * Phase 42.7: a near-new or near-full Moon's shadow/lit region is a razor-
+ * thin sliver — correct illuminated-fraction math, but easy to perceive as
+ * "no visible phase at all" against a dark sky where the fill's own color
+ * has little to contrast against. Two changes address that without
+ * touching the geometry above: the fill is darker/more opaque, and a
+ * dedicated bright stroke traces JUST the terminator curve (not the true
+ * limb) — a thin bright line always marks exactly where day meets night,
+ * independent of how small the shadow's fill AREA happens to be.
  */
 function drawLunarPhaseShadow(
   ctx: CanvasRenderingContext2D,
@@ -256,20 +266,37 @@ function drawLunarPhaseShadow(
 
   ctx.beginPath();
   if (illum <= 0.015) {
-    // New moon: the entire disk is unlit.
+    // New moon: the entire disk is unlit. No terminator line to draw either
+    // — there's no partial boundary, the whole disk is night.
     ctx.arc(0, 0, R, 0, Math.PI * 2);
-  } else {
-    const b = R * (1 - 2 * illum);
-    const k = (4 / 3) * b;
-    ctx.moveTo(0, -R); // top of the disk
-    ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // true limb: top → dark (−x) side → bottom
-    ctx.bezierCurveTo(k, R, k, -R, 0, -R); // terminator: bottom back to top
-    ctx.closePath();
+    ctx.fillStyle = 'rgba(8, 8, 12, 0.94)';
+    ctx.fill();
+    ctx.restore();
+    return;
   }
-  // Near-black earthshine tint, not pure black, so the shadowed limb reads
-  // as a faintly-lit sphere instead of a hole punched in the sky.
-  ctx.fillStyle = 'rgba(10, 10, 15, 0.9)';
+  const b = R * (1 - 2 * illum);
+  const k = (4 / 3) * b;
+  ctx.moveTo(0, -R); // top of the disk
+  ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // true limb: top → dark (−x) side → bottom
+  ctx.bezierCurveTo(k, R, k, -R, 0, -R); // terminator: bottom back to top
+  ctx.closePath();
+  // Darker/more opaque than the Phase 42.5 fill for stronger contrast against
+  // both the lit texture and a dark sky background.
+  ctx.fillStyle = 'rgba(8, 8, 12, 0.94)';
   ctx.fill();
+
+  // Bright terminator line (Phase 42.7): re-traces ONLY the day/night
+  // boundary curve just filled above (not the true limb) and strokes it.
+  // A razor-thin crescent/gibbous fill can be only a pixel or two wide and
+  // easy to miss at a glance; this line marks exactly where the terminator
+  // is regardless of how little fill area survives around it.
+  ctx.beginPath();
+  ctx.moveTo(0, R);
+  ctx.bezierCurveTo(k, R, k, -R, 0, -R);
+  ctx.strokeStyle = 'rgba(255, 249, 232, 0.8)';
+  ctx.lineWidth = Math.max(1.5, R * 0.035);
+  ctx.stroke();
+
   ctx.restore();
 }
 
