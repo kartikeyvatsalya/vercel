@@ -199,6 +199,8 @@ interface TelescopeState {
   stepSimTimeHours: (hours: number) => void;
   /** Snap the simulation clock back to the real-world present moment. */
   resetSimTimeToNow: () => void;
+  /** Jump the simulation clock straight to an arbitrary epoch-ms moment (Phase 44 Time Machine). */
+  setSimTime: (ms: number) => void;
   setTimeRate: (rate: number) => void;
   toggleVirtualNight: () => void;
   startTour: () => void;
@@ -419,6 +421,21 @@ export const useTelescopeStore = create<TelescopeState>()(
           simTime: newTime,
           driftAnchorSimTime: newTime,
           ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, newTime),
+        });
+      },
+      // ── Time Machine (Phase 44) ── Jump straight to an arbitrary moment
+      // (e.g. a different century) picked via the telemetry panel's
+      // datetime-local input. Same discontinuity discipline as the ±1 Hour
+      // steps and "Now" above: re-anchor the smooth clock, re-anchor the
+      // drift-gentling clock, and re-derive the mount's pointing if the
+      // sidereal motor is tracking.
+      setSimTime: (ms) => {
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        reanchorTimeEngine(ms);
+        set({
+          simTime: ms,
+          driftAnchorSimTime: ms,
+          ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, ms),
         });
       },
       setTimeRate: (rate) => {

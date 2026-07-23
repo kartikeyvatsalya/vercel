@@ -146,10 +146,10 @@ function getMoonSprite(radiusPx: number, tex: LoadedTexture): BakedGlyphSprite |
     const c = r + SPRITE_PAD_PX;
     cctx.drawImage(tex, c - r, c - r, r * 2, r * 2);
     // Phase 42: the fixed left-to-right terminator gradient that used to be
-    // baked in here is gone — the real, Sun-driven phase shadow is now drawn
-    // live on top of this clean full-disk sprite by drawLunarPhaseShadow, and
-    // the surface texture is field-rotated by the parallactic angle at blit
-    // time, so a baked-in shadow would fight both.
+    // baked in here is gone — the real, Sun-driven phase shadow is now
+    // erased live from this clean full-disk sprite by eraseLunarPhaseShadow
+    // (Phase 44), and the surface texture is field-rotated by the
+    // parallactic angle at blit time, so a baked-in shadow would fight both.
     applyFeatheredDiskMask(cctx, c, c, r, 1);
     return true;
   });
@@ -216,88 +216,71 @@ export interface MoonRenderOptions {
 
 /**
  * Sun-driven terminator shadow (Phase 42; rewritten Phase 42.5; contrast
- * pass Phase 42.7). Geometry is built in a local frame with the lit side
- * toward +x; the caller's `brightLimbRad` rotation then aims that toward
- * the real Sun.
+ * pass Phase 42.7; converted to an erase Phase 44). Geometry is built in a
+ * local frame with the lit side toward +x; the caller's `brightLimbRad`
+ * rotation then aims that toward the real Sun.
  *
- * No `globalCompositeOperation` tricks: this is a single ordinary path —
- * an `arc()` for the true limb (always a plain circular half, since that
- * edge is the Moon's actual silhouette) joined by ONE cubic
- * `bezierCurveTo()` standing in for the terminator ellipse's arc, filled
- * once with a flat dark overlay. The bezier's control points sit at the
- * standard 4/3 tangent-offset distance used to approximate a circular/
- * elliptical arc with a single cubic — accurate enough that the terminator
- * reads as a sharp, smooth curve, not an approximation artifact.
+ * Phase 44 daytime-realism fix: a flat dark overlay read as a grey sticker
+ * against a blue daytime sky instead of true shadow. This function now
+ * ERASES the unlit portion from an off-screen canvas that holds ONLY the
+ * Moon disk (see drawMoon) via `globalCompositeOperation = 'destination-out'`
+ * — once that canvas is composited onto the real sky, the erased pixels let
+ * the true background (blue by day, black by night) show through instead of
+ * any painted color. No stroke: the erased boundary IS the terminator, so a
+ * traced line is no longer needed to make it legible.
+ *
+ * A single ordinary path — an `arc()` for the true limb (always a plain
+ * circular half, since that edge is the Moon's actual silhouette) joined by
+ * ONE cubic `bezierCurveTo()` standing in for the terminator ellipse's arc —
+ * filled once with opaque black (alpha 1 = full erasure under
+ * destination-out). The bezier's control points sit at the standard 4/3
+ * tangent-offset distance used to approximate a circular/elliptical arc with
+ * a single cubic — accurate enough that the terminator reads as a sharp,
+ * smooth curve, not an approximation artifact.
  *   b = R·(1 − 2·illum): the terminator's signed half-width at the disk's
- *   equator. +R at new (bulges fully into the lit +x side — almost all
- *   shadow), 0 at quarter (a dead-straight vertical line), −R at full
- *   (bulges back to the limb — vanishingly thin shadow).
- * Explicitly clipped to the true disk first: the bezier is an
- * approximation and can overshoot the circular limb by a hair at its
- * widest bulge, and this guarantees the shadow can never spill past the
- * Moon's silhouette onto the sky behind it.
- *
- * Phase 42.7: a near-new or near-full Moon's shadow/lit region is a razor-
- * thin sliver — correct illuminated-fraction math, but easy to perceive as
- * "no visible phase at all" against a dark sky where the fill's own color
- * has little to contrast against. Two changes address that without
- * touching the geometry above: the fill is darker/more opaque, and a
- * dedicated bright stroke traces JUST the terminator curve (not the true
- * limb) — a thin bright line always marks exactly where day meets night,
- * independent of how small the shadow's fill AREA happens to be.
+ *   equator. +R at new (bulges fully into the lit +x side — almost all of
+ *   the disk erases), 0 at quarter (a dead-straight vertical line), −R at
+ *   full (bulges back to the limb — vanishingly thin erasure).
+ * Explicitly clipped to the true disk first: the bezier is an approximation
+ * and can overshoot the circular limb by a hair at its widest bulge, and
+ * this guarantees the erasure can never eat into canvas pixels beyond the
+ * Moon's own silhouette.
  */
-function drawLunarPhaseShadow(
-  ctx: CanvasRenderingContext2D,
+function eraseLunarPhaseShadow(
+  octx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   R: number,
   illum: number,
   brightLimbRad: number
 ): void {
-  if (illum >= 0.985) return; // effectively full — no visible shadow to draw
+  if (illum >= 0.985) return; // effectively full — nothing to erase
 
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(brightLimbRad);
+  octx.save();
+  octx.translate(cx, cy);
+  octx.rotate(brightLimbRad);
+  octx.globalCompositeOperation = 'destination-out';
 
-  ctx.beginPath();
-  ctx.arc(0, 0, R, 0, Math.PI * 2);
-  ctx.clip();
+  octx.beginPath();
+  octx.arc(0, 0, R, 0, Math.PI * 2);
+  octx.clip();
 
-  ctx.beginPath();
+  octx.beginPath();
   if (illum <= 0.015) {
-    // New moon: the entire disk is unlit. No terminator line to draw either
-    // — there's no partial boundary, the whole disk is night.
-    ctx.arc(0, 0, R, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(8, 8, 12, 0.94)';
-    ctx.fill();
-    ctx.restore();
-    return;
+    // New moon: the entire disk is unlit — erase it outright.
+    octx.arc(0, 0, R, 0, Math.PI * 2);
+  } else {
+    const b = R * (1 - 2 * illum);
+    const k = (4 / 3) * b;
+    octx.moveTo(0, -R); // top of the disk
+    octx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // true limb: top → dark (−x) side → bottom
+    octx.bezierCurveTo(k, R, k, -R, 0, -R); // terminator: bottom back to top
+    octx.closePath();
   }
-  const b = R * (1 - 2 * illum);
-  const k = (4 / 3) * b;
-  ctx.moveTo(0, -R); // top of the disk
-  ctx.arc(0, 0, R, -Math.PI / 2, Math.PI / 2, true); // true limb: top → dark (−x) side → bottom
-  ctx.bezierCurveTo(k, R, k, -R, 0, -R); // terminator: bottom back to top
-  ctx.closePath();
-  // Darker/more opaque than the Phase 42.5 fill for stronger contrast against
-  // both the lit texture and a dark sky background.
-  ctx.fillStyle = 'rgba(8, 8, 12, 0.94)';
-  ctx.fill();
+  octx.fillStyle = 'rgba(0, 0, 0, 1)';
+  octx.fill();
 
-  // Bright terminator line (Phase 42.7): re-traces ONLY the day/night
-  // boundary curve just filled above (not the true limb) and strokes it.
-  // A razor-thin crescent/gibbous fill can be only a pixel or two wide and
-  // easy to miss at a glance; this line marks exactly where the terminator
-  // is regardless of how little fill area survives around it.
-  ctx.beginPath();
-  ctx.moveTo(0, R);
-  ctx.bezierCurveTo(k, R, k, -R, 0, -R);
-  ctx.strokeStyle = 'rgba(255, 249, 232, 0.8)';
-  ctx.lineWidth = Math.max(1.5, R * 0.035);
-  ctx.stroke();
-
-  ctx.restore();
+  octx.restore();
 }
 
 export function drawMoon(
@@ -325,34 +308,49 @@ export function drawMoon(
   ctx.arc(x, y, haloR, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Surface disk, field-rotated by the parallactic angle (Phase 42) ──
-  // The Moon's surface "up" spins by the parallactic angle as it tracks across
-  // the sky on an Alt-Az mount, so Tycho and the maria end up correctly
-  // oriented at any hour angle instead of frozen upright.
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(parallacticRad);
-  ctx.translate(-x, -y);
+  // ── Disk + phase, composited off-screen (Phase 44) ──
+  // The disk (texture or fallback) is painted onto a transparent off-screen
+  // canvas sized to the disk, field-rotated by the parallactic angle exactly
+  // as before (Tycho and the maria stay correctly oriented at any hour
+  // angle). The unlit portion is then ERASED from that canvas — see
+  // eraseLunarPhaseShadow — so blitting the result onto the real sky reveals
+  // the TRUE background (blue by day, black by night) behind the night side,
+  // instead of a painted-on grey overlay.
+  const pad = 4; // headroom for the sprite's own feather/antialiasing bleed
+  const half = size + pad;
+  const off = document.createElement('canvas');
+  off.width = half * 2;
+  off.height = half * 2;
+  const octx = off.getContext('2d');
+  if (!octx) return;
+
+  octx.save();
+  octx.translate(half, half);
+  octx.rotate(parallacticRad);
   const moonImg = assets?.moon;
   const sprite = isTextureReady(moonImg) ? getMoonSprite(size, moonImg) : null;
   if (sprite) {
     // High-res texture, pre-baked with a feathered limb (Phase 34).
-    blitGlyphSprite(ctx, sprite, x, y, size);
+    blitGlyphSprite(octx, sprite, 0, 0, size);
   } else {
     // Procedural fallback — a plain grey disk with a few maria.
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fillStyle = '#cccccc';
-    ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.arc(x - size * 0.3, y - size * 0.4, size * 0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + size * 0.4, y - size * 0.1, size * 0.25, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + size * 0.1, y + size * 0.3, size * 0.4, 0, Math.PI * 2); ctx.fill();
+    octx.beginPath();
+    octx.arc(0, 0, size, 0, Math.PI * 2);
+    octx.fillStyle = '#cccccc';
+    octx.fill();
+    octx.fillStyle = 'rgba(0,0,0,0.15)';
+    octx.beginPath(); octx.arc(-size * 0.3, -size * 0.4, size * 0.3, 0, Math.PI * 2); octx.fill();
+    octx.beginPath(); octx.arc(size * 0.4, -size * 0.1, size * 0.25, 0, Math.PI * 2); octx.fill();
+    octx.beginPath(); octx.arc(size * 0.1, size * 0.3, size * 0.4, 0, Math.PI * 2); octx.fill();
   }
-  ctx.restore();
+  octx.restore();
 
-  // ── Sun-driven phase terminator (Phase 42), on top of the upright disk ──
-  drawLunarPhaseShadow(ctx, x, y, size, illuminatedFraction, brightLimbRad);
+  // Sun-driven phase terminator: erases the night side in place on `off`,
+  // independent of the texture's parallactic rotation above (aimed at the
+  // real Sun via brightLimbRad instead).
+  eraseLunarPhaseShadow(octx, half, half, size, illuminatedFraction, brightLimbRad);
+
+  ctx.drawImage(off, x - half, y - half);
 }
 
 export function drawSaturn(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, assets: LoadedAssets | null): void {

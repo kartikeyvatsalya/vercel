@@ -28,7 +28,10 @@
       "Bash(echo \"Exit code: $?\")",
       "Bash(npm install *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)"
     ]
   }
 }

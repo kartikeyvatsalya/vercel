@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from '../../store/useTelescopeStore';
 import { useMissionStore } from '../../engine/missionEngine';
 import { missions as RANK_MISSIONS } from '../../data/missions';
@@ -13,6 +13,18 @@ import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair } from 'lucide-
 
 const TIME_RATES = [1, 10, 60];
 
+/**
+ * Formats an epoch-ms moment for a native `<input type="datetime-local">`,
+ * using LOCAL calendar fields (matches the browser's own interpretation of
+ * datetime-local values — unlike `toISOString()`, which is UTC and would
+ * silently shift the picker by the observer's UTC offset).
+ */
+function toDatetimeLocalValue(ms: number): string {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 interface TelemetryPanelProps {
   /** Renders with a translucent, blurred backdrop so a 3D scene can show through behind it. */
   translucent?: boolean;
@@ -24,10 +36,22 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   const {
     activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
-    stepSimTimeHours, resetSimTimeToNow, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
+    stepSimTimeHours, resetSimTimeToNow, setSimTime, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
     setTarget,
   } = useTelescopeStore();
   const modeRules = SIM_MODE_RULES[simulationMode];
+
+  // ── Time Machine input (Phase 44) ── The store's `simTime` ticks ~1×/sec
+  // (see App.tsx's syncSimTime driver) even while the datetime-local picker
+  // is open, so binding the input's value straight to `simTime` would fight
+  // the user's own edit every second. This local draft mirrors `simTime`
+  // except while the field is focused, when it holds the in-progress edit
+  // instead; it re-syncs the moment the user blurs away.
+  const [timeDraft, setTimeDraft] = useState(() => toDatetimeLocalValue(simTime));
+  const isEditingTimeRef = useRef(false);
+  useEffect(() => {
+    if (!isEditingTimeRef.current) setTimeDraft(toDatetimeLocalValue(simTime));
+  }, [simTime]);
 
   // Which catalog city (if any) matches the store's current observerLocation
   // (Phase 40) — the store itself only holds coordinates, not a place name,
@@ -168,11 +192,24 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
             ({Math.abs(observerLocation.latitude).toFixed(2)}°{observerLocation.latitude >= 0 ? 'N' : 'S'}, {Math.abs(observerLocation.longitude).toFixed(2)}°{observerLocation.longitude >= 0 ? 'E' : 'W'})
           </span>
         </div>
-        <span className="text-white text-[11px]">
-          {new Date(simTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-          {' · '}
-          {new Date(simTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-        </span>
+        {/* Time Machine (Phase 44) — a native datetime-local picker in place
+            of the old static clock text, so the student can jump the whole
+            sky to any date/time, any century, not just ±1 Hour. */}
+        <input
+          type="datetime-local"
+          step="1"
+          value={timeDraft}
+          onFocus={() => { isEditingTimeRef.current = true; }}
+          onBlur={() => { isEditingTimeRef.current = false; }}
+          onChange={(e) => {
+            setTimeDraft(e.target.value);
+            if (!e.target.value) return;
+            const newTime = new Date(e.target.value).getTime();
+            if (!Number.isNaN(newTime)) setSimTime(newTime);
+          }}
+          aria-label="Simulation date and time"
+          className="bg-transparent text-cyan-400 text-[11px] font-mono border-none outline-none focus:outline-none focus:ring-1 focus:ring-cyan-500/70 rounded px-0.5 -mx-0.5 cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:invert"
+        />
         <div className="flex gap-1 flex-wrap">
           <button
             onClick={() => handleStep(-1)}
