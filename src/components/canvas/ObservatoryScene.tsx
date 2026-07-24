@@ -12,6 +12,7 @@ import { getSmoothSimTime } from '../../engine/timeEngine';
 import { getSkyState } from '../../engine/daylight';
 import { STAR_CATALOG, STAR_TINT } from '../../engine/starCatalog';
 import { TARGETS } from '../../data/bookContent';
+import { ClutchToggles } from '../ui/ClutchToggles';
 import type { TelescopeProfile, Target } from '../../types';
 
 /**
@@ -557,6 +558,9 @@ const SkyGazeControls: React.FC = () => {
   const yawRef = useRef(0);
   const pitchRef = useRef(0);
   const dragRef = useRef<{ lastX: number; lastY: number } | null>(null);
+  // Reused every frame below instead of allocating a fresh THREE.Euler each
+  // tick (Phase 47 perf audit — unmemoized allocation inside a useFrame loop).
+  const lookEulerRef = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
 
   useEffect(() => {
     const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
@@ -602,7 +606,8 @@ const SkyGazeControls: React.FC = () => {
   };
 
   useFrame(() => {
-    camera.quaternion.setFromEuler(new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ'));
+    lookEulerRef.current.set(pitchRef.current, yawRef.current, 0, 'YXZ');
+    camera.quaternion.setFromEuler(lookEulerRef.current);
   });
 
   return (
@@ -683,7 +688,15 @@ const SkyTargetBillboard: React.FC<{ target: Target }> = ({ target }) => {
 
     group.visible = alt > 0;
     if (alt > 0) {
-      group.position.copy(altAzToVector3(alt, az, SKY_TARGET_RADIUS));
+      // Write straight into group.position instead of allocating a fresh
+      // THREE.Vector3 via altAzToVector3 every frame (Phase 47 perf audit).
+      const altRad = THREE.MathUtils.degToRad(alt);
+      const azRad = THREE.MathUtils.degToRad(az);
+      group.position.set(
+        SKY_TARGET_RADIUS * Math.cos(altRad) * Math.sin(azRad),
+        SKY_TARGET_RADIUS * Math.sin(altRad),
+        SKY_TARGET_RADIUS * Math.cos(altRad) * Math.cos(azRad)
+      );
     }
   });
 
@@ -1296,6 +1309,18 @@ export const ObservatoryScene: React.FC<ObservatorySceneProps> = ({ interactive 
       </Canvas>
 
       {interactive && <CameraModeToggle cameraMode={cameraMode} onChange={setCameraMode} />}
+
+      {/* ── Alt/Az Clutch Locks (Phase 46; made global Phase 47) ── The 3D
+          tube drag (useTubeDrag, above) lives entirely in this component, so
+          the locks that isolate it to one axis need to be reachable here too
+          — they used to only exist in the Eyepiece panel, off-screen from
+          the drag itself. Same shared component/state as that panel's
+          copy, so toggling either one keeps both in sync. */}
+      {interactive && (
+        <div className="absolute bottom-3 left-3 z-10 w-32 bg-slate-800/80 border border-slate-700 rounded-lg p-1 pointer-events-auto">
+          <ClutchToggles />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 
 /**
- * IntroMascot — Phase 45; completely rewritten Phase 46
+ * IntroMascot — Phase 45; completely rewritten Phase 46; redrawn Phase 47
  * ─────────────────────────────────────────────────────────────────
  * The Phase 45 version had the mascot sprint across the screen — playful,
  * but it read as a frantic bug rather than a welcome. This version is
@@ -10,6 +10,16 @@ import React, { useEffect, useLayoutEffect, useState } from 'react';
  * button, and fires a glowing beam of light straight at it. The button
  * itself pulses while the beam is connected, then everything (mascot,
  * beam, pulse) fades out together and unmounts for good.
+ *
+ * Phase 47: the Phase 46 silhouette was one big pill-shaped tube — read as
+ * a USB drive, not a telescope. Redrawn with the four features that
+ * actually sell "refractor": a straight barrel, a flared dew shield at the
+ * front, a finderscope riding parallel on top, and a star diagonal +
+ * eyepiece angled up off the rear. A fixed, non-rotating tripod was also
+ * added underneath — it anchors the SAME pivot point the tube swings
+ * around (exactly like a real Alt-Az mount: the tube pivots on the head,
+ * the legs stay planted), so the whole rig still reads as one instrument
+ * at any aim angle.
  *
  * Runs once per page load (plain useState, deliberately NOT persisted —
  * a fresh visit/reload earns the greeting again) and never intercepts
@@ -133,16 +143,48 @@ export const IntroMascot: React.FC<IntroMascotProps> = ({ targetRef }) => {
 
       <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
         <g className="intro-mascot-fade">
-          {/* soft grounding glow beneath the telescope — deliberately no
-              legs, this version is a calm static illustration, not a
-              running character. */}
-          <ellipse cx={originX} cy={originY + 34} rx="46" ry="10" fill="rgba(125,211,252,0.16)" />
+          {/* grounding glow beneath the tripod's feet */}
+          <ellipse cx={originX} cy={originY + 40} rx="50" ry="10" fill="rgba(125,211,252,0.16)" />
 
-          {/* tube, aimed at the button */}
+          {/* Tripod — fixed to the ground and deliberately NOT rotated with
+              the tube below (exactly like a real Alt-Az mount: the tube
+              pivots on the head, the legs stay put), anchored at the same
+              point the tube swings around so the head reads as one piece. */}
+          <g transform={`translate(${originX}, ${originY})`}>
+            <rect x="-7" y="-4" width="14" height="10" rx="2" fill="#c7d2e8" stroke="#9aa8c7" strokeWidth="1" />
+            <line x1="-4" y1="4" x2="-25" y2="42" stroke="#b7c3dc" strokeWidth="4" strokeLinecap="round" />
+            <line x1="4" y1="4" x2="25" y2="42" stroke="#b7c3dc" strokeWidth="4" strokeLinecap="round" />
+            <line x1="0" y1="5" x2="0" y2="40" stroke="#9aa8c7" strokeWidth="4" strokeLinecap="round" />
+            <ellipse cx="-25" cy="43" rx="5" ry="2.2" fill="#8b98b8" opacity="0.7" />
+            <ellipse cx="25" cy="43" rx="5" ry="2.2" fill="#8b98b8" opacity="0.7" />
+            <ellipse cx="0" cy="41" rx="5" ry="2.2" fill="#7c8ab0" opacity="0.7" />
+          </g>
+
+          {/* Tube assembly, aimed at the button: a straight main barrel, a
+              flared dew shield/objective cell at the front, a finderscope
+              riding parallel on top, and a star diagonal + eyepiece angled
+              up off the rear — the four telltale refractor features. */}
           <g transform={`translate(${originX}, ${originY}) rotate(${angleDeg})`}>
-            <rect x="-16" y="-11" width="74" height="22" rx="11" fill="#eef2ff" stroke="#c7d2e8" strokeWidth="1.5" />
-            <rect x="2" y="-8" width="6" height="16" rx="2" fill="#c7d2e8" />
-            <rect x="-16" y="-4" width="10" height="8" rx="3" fill="#c7d2e8" />
+            {/* main barrel */}
+            <rect x="-20" y="-8" width="68" height="16" rx="3" fill="#eef2ff" stroke="#c7d2e8" strokeWidth="1.5" />
+            {/* dew shield / objective cell, flared slightly wider than the barrel */}
+            <rect x="46" y="-9.5" width="12" height="19" rx="2" fill="#dbe4f5" stroke="#9aa8c7" strokeWidth="1.2" />
+            {/* focuser knob */}
+            <circle cx="-8" cy="8" r="2.6" fill="#9aa8c7" />
+
+            {/* finderscope, mounted parallel on top via two small struts */}
+            <rect x="10" y="-9.5" width="3" height="2" fill="#9aa8c7" />
+            <rect x="26" y="-9.5" width="3" height="2" fill="#9aa8c7" />
+            <rect x="6" y="-15" width="28" height="5.5" rx="2" fill="#dbe4f5" stroke="#9aa8c7" strokeWidth="1" />
+            <circle cx="34" cy="-12.2" r="2.8" fill="#0a0e18" stroke="#7dd3fc" strokeWidth="1.2" />
+
+            {/* star diagonal + eyepiece, angled up and back off the tube's rear */}
+            <g transform="translate(-18, -6) rotate(-125)">
+              <rect x="0" y="-3.5" width="12" height="7" rx="2" fill="#c7d2e8" stroke="#9aa8c7" strokeWidth="1" />
+              <rect x="11" y="-2.6" width="11" height="5.2" rx="1.8" fill="#eef2ff" stroke="#c7d2e8" strokeWidth="1" />
+              <circle cx="24.5" cy="0" r="3" fill="#0a0e18" stroke="#7dd3fc" strokeWidth="1.2" />
+              <circle cx="24.5" cy="0" r="1.3" fill="#5fa8d3" opacity="0.8" />
+            </g>
           </g>
 
           {/* objective lens — the beam's origin, breathing gently */}

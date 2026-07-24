@@ -294,6 +294,43 @@ function eraseLunarPhaseShadow(
   octx.restore(); // also resets globalCompositeOperation and filter
 }
 
+// ── Per-frame scratch canvas (Phase 47 perf fix) ───────────────────
+// drawMoon composites the disk+phase onto an off-screen canvas every call
+// (see below) so the terminator can be softly erased before blitting onto
+// the real sky. This used to `document.createElement('canvas')` fresh on
+// EVERY call — with the sky visibly moving (a slew, or the idle-redraw
+// throttle never engaging at 60× playback, see LiveViewPanel's
+// `skyVisiblyMoving`) that's up to 120 canvases/sec (main + finder feeds)
+// continuously allocated and garbage-collected, the GC pressure behind the
+// reported hangs. One scratch canvas now lives for the module's lifetime
+// and is only resized when the required side actually changes; clearRect
+// erases the previous frame's content the rest of the time.
+interface MoonScratchCanvas {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+}
+let moonScratch: MoonScratchCanvas | null = null;
+let moonScratchSide = 0;
+
+function getMoonScratchCanvas(side: number): MoonScratchCanvas | null {
+  if (!moonScratch) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    moonScratch = { canvas, ctx };
+  }
+  if (moonScratchSide !== side) {
+    // Assigning width/height (even via a getter that later shrinks back)
+    // resets the bitmap, so this resize doubles as the clear.
+    moonScratch.canvas.width = side;
+    moonScratch.canvas.height = side;
+    moonScratchSide = side;
+  } else {
+    moonScratch.ctx.clearRect(0, 0, side, side);
+  }
+  return moonScratch;
+}
+
 export function drawMoon(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -330,11 +367,9 @@ export function drawMoon(
   // hard boundary.
   const pad = 4; // headroom for the sprite's own feather/antialiasing bleed
   const half = size + pad;
-  const off = document.createElement('canvas');
-  off.width = half * 2;
-  off.height = half * 2;
-  const octx = off.getContext('2d');
-  if (!octx) return;
+  const scratch = getMoonScratchCanvas(half * 2);
+  if (!scratch) return;
+  const { canvas: off, ctx: octx } = scratch;
 
   octx.save();
   octx.translate(half, half);

@@ -15,6 +15,7 @@ import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { useTranslation } from '../../engine/i18n';
 import type { AlignmentDifficulty } from '../../store/useTelescopeStore';
 import { InfoTip } from '../ui/InfoTip';
+import { ClutchToggles } from '../ui/ClutchToggles';
 import {
   RotateCcw, RotateCw, Shuffle, Lock, Unlock, Camera, Layers, Zap, Moon, Crosshair,
   Target as TargetIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
@@ -1039,39 +1040,14 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
             <div />
           </div>
 
-          {/* ── Alt/Az Clutch Locks (Phase 46) — isolate the 3D tube drag
-              to a single axis, so a sloppy diagonal pointer path can't
-              nudge the axis the student is trying to hold steady. Only
-              affects dragging the 3D tube (useTubeDrag); this D-Pad and
-              the 2D track-mode drag are unaffected. */}
-          <div className="mt-1 flex gap-1 w-full">
-            <button
-              onClick={() => telescopeState.toggleAltLocked()}
-              aria-pressed={telescopeState.isAltLocked}
-              title="Lock Altitude — 3D tube drag ignores vertical movement"
-              className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition-colors ${
-                telescopeState.isAltLocked
-                  ? 'bg-amber-900/60 border-amber-500 text-amber-300'
-                  : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300'
-              }`}
-            >
-              {telescopeState.isAltLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              Alt
-            </button>
-            <button
-              onClick={() => telescopeState.toggleAzLocked()}
-              aria-pressed={telescopeState.isAzLocked}
-              title="Lock Azimuth — 3D tube drag ignores horizontal movement"
-              className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1 rounded text-[9px] font-bold uppercase tracking-wider border transition-colors ${
-                telescopeState.isAzLocked
-                  ? 'bg-amber-900/60 border-amber-500 text-amber-300'
-                  : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300'
-              }`}
-            >
-              {telescopeState.isAzLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              Az
-            </button>
-          </div>
+          {/* ── Alt/Az Clutch Locks (Phase 46; extracted Phase 47) — isolate
+              the 3D tube drag to a single axis, so a sloppy diagonal pointer
+              path can't nudge the axis the student is trying to hold
+              steady. Only affects dragging the 3D tube (useTubeDrag); this
+              D-Pad and the 2D track-mode drag are unaffected. Also rendered
+              as a floating overlay directly on ObservatoryScene, since
+              that's where the tube drag itself actually happens. */}
+          <ClutchToggles className="mt-1 w-full" />
         </div>
       </div>
 
