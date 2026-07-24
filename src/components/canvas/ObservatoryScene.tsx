@@ -189,15 +189,21 @@ interface DragHandlers {
   onPointerOut: () => void;
 }
 
-function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
+function useTubeDrag(onDragChange: (dragging: boolean) => void): { handlers: DragHandlers; isDraggingRef: React.RefObject<boolean> } {
   // Holds the teardown fn of the in-flight drag so unmount can't leak window listeners.
   const activeDragCleanupRef = useRef<(() => void) | null>(null);
+  // Synchronous (non-React-state) drag flag for 60fps readers like
+  // EquatorialAssembly's useFrame meridian guard (Phase 50) — it needs to
+  // know "is this an active manual drag" every frame without waiting on a
+  // re-render.
+  const isDraggingRef = useRef(false);
   useEffect(() => () => activeDragCleanupRef.current?.(), []);
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation(); // don't let OrbitControls see this pointer-down
     if (activeDragCleanupRef.current) return; // one drag at a time
     onDragChange(true);
+    isDraggingRef.current = true;
     document.body.style.cursor = 'grabbing';
 
     // Pin the drag to the pointer that started it (Phase 36) — on a
@@ -248,6 +254,7 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
       window.removeEventListener('pointerup', endDrag);
       window.removeEventListener('pointercancel', endDrag);
       activeDragCleanupRef.current = null;
+      isDraggingRef.current = false;
       onDragChange(false);
       document.body.style.cursor = 'auto';
     };
@@ -265,7 +272,7 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
     if (!activeDragCleanupRef.current) document.body.style.cursor = 'auto';
   };
 
-  return { onPointerDown, onPointerOver, onPointerOut };
+  return { handlers: { onPointerDown, onPointerOver, onPointerOut }, isDraggingRef };
 }
 
 // ─── Dust Cap: tactile click-to-remove affordance (Phase 41) ────
@@ -841,7 +848,7 @@ const AltAzForkAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMode
 };
 
 // ─── Mount Assembly: German equatorial on a polar wedge ──────────
-const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMode: CameraMode }> = ({ ota, drag, cameraMode }) => {
+const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; isDraggingRef: React.RefObject<boolean>; cameraMode: CameraMode }> = ({ ota, drag, isDraggingRef, cameraMode }) => {
   const haGroupRef = useRef<THREE.Group>(null);
   const decGroupRef = useRef<THREE.Group>(null);
   const latitude = useTelescopeStore((s) => s.observerLocation.latitude);
@@ -856,27 +863,41 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMod
       observerLocation.latitude
     );
 
-    // ── Meridian collision guard (Phase 46) ──
+    // ── Meridian collision guard (Phase 46; drag-gated in Phase 50) ──
     // hourAngle > 180° means the counterweight has swung higher than the
     // OTA — numerically verified against this exact rig's transform chain
     // (haGroup's counterweight at local x=-0.56 vs decGroup's OTA pivot at
     // local x=+0.24, both carried through the polar tilt + HA rotation):
     // their world-Y heights cross exactly at hourAngle = 180° and 360°/0°,
     // with 180°-360° being the "counterweight up" danger zone. A real GEM
-    // would slam the OTA into the tripod/pier here, so this clamps the
-    // MECHANICAL pointing itself (not just the visual) back to whichever
-    // safe boundary the drag is closer to — a hard limit-switch stop, not
-    // just a warning — and keeps re-clamping every frame for as long as
-    // the drag keeps pushing past it (setPointing below feeds right back
-    // into this same computation next frame).
+    // would slam the OTA into the tripod/pier here, so `effectiveHA` below
+    // always clamps the RENDERED rig to the safe boundary, no matter what
+    // put it in the danger zone.
+    //
+    // Phase 50 fix: the store.setPointing() hard-clamp (a real limit-switch
+    // stop) now fires ONLY while isDraggingRef.current is true. It used to
+    // fire unconditionally, which fought GoTo/tracking: setPointing clamps
+    // altitude to [0,90], so whenever the HA=180 boundary point sat below
+    // the horizon for the target's declination, the "safe" correction got
+    // silently mangled into a garbage az/alt pair — and because the motor
+    // was on, setPointing ALSO overwrote trackedEquatorial with that
+    // garbage, so next frame re-derived a DIFFERENT declination from it,
+    // re-triggering danger with an ever-drifting fake position. That's the
+    // 60fps flashing / stuck-warning loop. A target that's legitimately
+    // past the flip point now just shows the warning (via isEqMeridianDanger
+    // below, unconditional — it's informational, not a fight) while the
+    // real GoTo/tracking lock keeps driving pointingAlt/pointingAz honestly;
+    // only an actual manual drag overreach gets hard-stopped at the boundary.
     const isDanger = hourAngle > MERIDIAN_SAFE_HA_MAX;
     let effectiveHA = hourAngle;
     if (isDanger) {
       effectiveHA = hourAngle < 270 ? MERIDIAN_SAFE_HA_MAX : 360;
-      const lstHours = getLocalSiderealTime(getJulianDate(new Date(getSmoothSimTime())), observerLocation.longitude);
-      const fakeRaHours = ((lstHours - effectiveHA / 15) % 24 + 24) % 24;
-      const safe = convertEquatorialToHorizontalLST(fakeRaHours, declination, observerLocation.latitude, lstHours);
-      store.setPointing(safe.altitude, safe.azimuth);
+      if (isDraggingRef.current) {
+        const lstHours = getLocalSiderealTime(getJulianDate(new Date(getSmoothSimTime())), observerLocation.longitude);
+        const fakeRaHours = ((lstHours - effectiveHA / 15) % 24 + 24) % 24;
+        const safe = convertEquatorialToHorizontalLST(fakeRaHours, declination, observerLocation.latitude, lstHours);
+        store.setPointing(safe.altitude, safe.azimuth);
+      }
     }
     if (store.isEqMeridianDanger !== isDanger) store.setEqMeridianDanger(isDanger);
 
@@ -962,10 +983,10 @@ const TelescopeRig: React.FC<{ onTubeDragChange: (dragging: boolean) => void; ca
   onTubeDragChange, cameraMode,
 }) => {
   const profile = useTelescopeStore((s) => s.activeProfile);
-  const drag = useTubeDrag(onTubeDragChange);
+  const { handlers: drag, isDraggingRef } = useTubeDrag(onTubeDragChange);
 
   if (profile.mountType === 'Equatorial') {
-    return <EquatorialAssembly ota={profile.type} drag={drag} cameraMode={cameraMode} />;
+    return <EquatorialAssembly ota={profile.type} drag={drag} isDraggingRef={isDraggingRef} cameraMode={cameraMode} />;
   }
   if (profile.type === 'Dobsonian') {
     return <DobsonianAssembly drag={drag} cameraMode={cameraMode} />;

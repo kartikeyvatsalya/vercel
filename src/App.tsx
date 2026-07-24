@@ -1155,10 +1155,12 @@ function App() {
       {/* EQ Mount Meridian Collision Warning (Phase 46) — flashes whenever
           the active German Equatorial mount's counterweight has swung
           higher than the OTA (see EquatorialAssembly's per-frame guard in
-          ObservatoryScene.tsx, which also clamps the pointing itself back
-          to the safe boundary). Purely informational; no dismiss control
-          needed since it clears itself the instant the mount is no longer
-          past the limit. */}
+          ObservatoryScene.tsx, which also hard-clamps the pointing itself
+          back to the safe boundary during an active manual tube drag —
+          Phase 50 — but only warns, without fighting the mount, while
+          GoTo/tracking is what put it past the limit). Purely informational;
+          no dismiss control needed since it clears itself the instant the
+          mount is no longer past the limit. */}
       {telescopeState.isEqMeridianDanger && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none animate-[eqDangerFlash_0.9s_ease-in-out_infinite]">
           <div className="flex items-center gap-2.5 bg-red-950/95 border-2 border-red-500 text-red-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md">

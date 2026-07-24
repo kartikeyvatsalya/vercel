@@ -17,7 +17,7 @@ import type { Target } from '../types';
  * Re-exported from useTelescopeStore for backward compatibility with
  * existing call sites.
  */
-export const TERRESTRIAL_POINTING = { alt: 45, az: 180 };
+export const TERRESTRIAL_POINTING = { alt: 2.0, az: 180 };
 
 /** Wraps a degree delta into (-180, 180], so "358° away" reads as "-2° away." */
 export const wrap180 = (deg: number): number => ((deg + 180) % 360 + 360) % 360 - 180;
