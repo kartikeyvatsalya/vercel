@@ -1,132 +1,176 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 
 /**
- * IntroMascot — Phase 45
+ * IntroMascot — Phase 45; completely rewritten Phase 46
  * ─────────────────────────────────────────────────────────────────
- * A one-shot, purely decorative welcome animation: a small cartoon
- * telescope-on-legs runs in from the bottom-left, bounces across the
- * bottom of the screen, then curves up to the header's "Start Tour"
- * button and shrinks away. Runs once per page load (plain useState,
- * deliberately NOT persisted — a fresh visit/reload earns the greeting
- * again) and never intercepts clicks (pointer-events: none throughout).
+ * The Phase 45 version had the mascot sprint across the screen — playful,
+ * but it read as a frantic bug rather than a welcome. This version is
+ * static and elegant instead: a small refracting telescope fades in near
+ * the center-left of the screen, aimed at the header's "Start Tour"
+ * button, and fires a glowing beam of light straight at it. The button
+ * itself pulses while the beam is connected, then everything (mascot,
+ * beam, pulse) fades out together and unmounts for good.
  *
- * The run path is computed as fully-resolved pixel waypoints in JS (not
- * mixed vw/px CSS calc()) from the target button's real measured position
- * plus the viewport size, then baked into an injected <style> block's
- * @keyframes — this way the mascot actually homes in on wherever the
- * header button really sits (responsive layouts move it) instead of
- * guessing a fixed screen fraction.
+ * Runs once per page load (plain useState, deliberately NOT persisted —
+ * a fresh visit/reload earns the greeting again) and never intercepts
+ * clicks (pointer-events: none throughout, except the imperative
+ * classList toggle on the REAL button, which is purely visual — no
+ * handlers are attached or removed).
+ *
+ * The beam's landing point is the button's real measured position (not a
+ * guessed screen fraction), so it still homes in correctly across
+ * responsive layouts — same reasoning as Phase 45's run path.
  */
 
-const RUN_DURATION_MS = 3500;
-const UNMOUNT_DELAY_MS = 200; // small cushion past the CSS animation's own duration
+const FADE_IN_MS = 500;
+const BEAM_DRAW_MS = 1100;
+const HOLD_MS = 1400;
+const FADE_OUT_MS = 500;
+const TOTAL_MS = FADE_IN_MS + BEAM_DRAW_MS + HOLD_MS + FADE_OUT_MS; // 3500ms
+const UNMOUNT_BUFFER_MS = 200;
 
-// One entry per keyframe stop, paired 1:1 with KEYFRAME_PERCENTS below.
-const KEYFRAME_PERCENTS = [0, 15, 30, 45, 62, 80, 94, 100];
+// Fraction-of-duration keyframe stops for the group's overall fade.
+const FADE_IN_PCT = (FADE_IN_MS / TOTAL_MS) * 100;
+const HOLD_END_PCT = ((FADE_IN_MS + BEAM_DRAW_MS + HOLD_MS) / TOTAL_MS) * 100;
 
-interface Waypoint {
-  x: number;
-  y: number;
-  rot: number;
-  scale: number;
-  opacity: number;
-}
+/** Class toggled directly on the real Start Tour button while the beam connects. */
+const TARGET_PULSE_CLASS = 'intro-mascot-target-pulse';
 
 interface IntroMascotProps {
-  /** The element to run toward — its center becomes the animation's landing point. */
+  /** The element the beam aims at — its center is the beam's landing point. */
   targetRef: React.RefObject<HTMLElement | null>;
 }
 
 export const IntroMascot: React.FC<IntroMascotProps> = ({ targetRef }) => {
-  const [path, setPath] = useState<Waypoint[] | null>(null);
+  const [target, setTarget] = useState<{ x: number; y: number } | null>(null);
   const [done, setDone] = useState(false);
 
   useLayoutEffect(() => {
     const rect = targetRef.current?.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const target = rect
-      ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-      : { x: vw - 60, y: 24 }; // header's right side, if the button isn't found yet
-
-    const floorY = vh - 60;
-    const hopY = vh - 76;
-    const runEnd = { x: vw * 0.78, y: floorY - 4 };
-    const arcMid = { x: (runEnd.x + target.x) / 2, y: (runEnd.y + target.y) / 2 - 20 };
-
-    const wp = (x: number, y: number, rot: number, scale: number, opacity = 1): Waypoint => ({ x, y, rot, scale, opacity });
-    setPath([
-      wp(-80, floorY, 0, 1),                              // 0%  — off-screen bottom-left
-      wp(vw * 0.18, hopY, -4, 1),                          // 15% — running, bounce up
-      wp(vw * 0.38, floorY - 4, 3, 1),                     // 30% — bounce down
-      wp(vw * 0.58, hopY, -4, 1),                          // 45% — bounce up
-      wp(runEnd.x, runEnd.y, 3, 1),                        // 62% — end of the run across the bottom
-      wp(arcMid.x, arcMid.y, -8, 0.92),                    // 80% — curving up toward the button
-      wp(target.x - 8, target.y + 6, -3, 0.75),            // 94% — arriving, just short of the button
-      wp(target.x - 35, target.y - 21, 0, 0.5, 0),         // 100% — settled on the button, shrunk + faded out
-    ]);
-
-    const timer = window.setTimeout(() => setDone(true), RUN_DURATION_MS + UNMOUNT_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    setTarget(
+      rect
+        ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+        : { x: window.innerWidth - 60, y: 24 } // header's right side, if the button isn't found yet
+    );
   }, [targetRef]);
 
-  if (done || !path) return null;
+  // Pulse the real button while the beam is connected, and guarantee it
+  // never stays stuck glowing (cleanup runs on unmount too, not just the
+  // natural end-of-timeline).
+  useEffect(() => {
+    const el = targetRef.current;
+    const pulseOnAt = FADE_IN_MS + BEAM_DRAW_MS;
+    const pulseOffAt = FADE_IN_MS + BEAM_DRAW_MS + HOLD_MS;
+    const pulseOnTimer = window.setTimeout(() => el?.classList.add(TARGET_PULSE_CLASS), pulseOnAt);
+    const pulseOffTimer = window.setTimeout(() => el?.classList.remove(TARGET_PULSE_CLASS), pulseOffAt);
+    const doneTimer = window.setTimeout(() => setDone(true), TOTAL_MS + UNMOUNT_BUFFER_MS);
+    return () => {
+      window.clearTimeout(pulseOnTimer);
+      window.clearTimeout(pulseOffTimer);
+      window.clearTimeout(doneTimer);
+      el?.classList.remove(TARGET_PULSE_CLASS);
+    };
+  }, [targetRef]);
 
-  const w = 70;
-  const h = 42;
-  const keyframesCss = path
-    .map((p, i) => `${KEYFRAME_PERCENTS[i]}% { transform: translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg) scale(${p.scale}); opacity: ${p.opacity}; }`)
-    .join('\n');
+  if (done || !target) return null;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const originX = vw * 0.14;
+  const originY = vh * 0.46;
+
+  // Aim the tube (and the beam's origin) straight at the button.
+  const angleRad = Math.atan2(target.y - originY, target.x - originX);
+  const angleDeg = (angleRad * 180) / Math.PI;
+  const lensX = originX + Math.cos(angleRad) * 58;
+  const lensY = originY + Math.sin(angleRad) * 58;
+  const beamLength = Math.hypot(target.x - lensX, target.y - lensY);
 
   return (
-    <div
-      aria-hidden="true"
-      style={{ position: 'fixed', top: 0, left: 0, width: w, height: h, zIndex: 9999, pointerEvents: 'none' }}
-    >
+    <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       <style>{`
-        @keyframes introMascotRun {
-          ${keyframesCss}
+        @keyframes introMascotFade {
+          0% { opacity: 0; }
+          ${FADE_IN_PCT.toFixed(2)}% { opacity: 1; }
+          ${HOLD_END_PCT.toFixed(2)}% { opacity: 1; }
+          100% { opacity: 0; }
         }
-        @keyframes introMascotLegSwing {
-          from { transform: rotate(-20deg); }
-          to   { transform: rotate(20deg); }
+        .intro-mascot-fade {
+          animation: introMascotFade ${TOTAL_MS}ms ease-in-out forwards;
         }
-        .intro-mascot-body {
-          animation: introMascotRun ${RUN_DURATION_MS}ms cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+        @keyframes introMascotBeamDraw {
+          to { stroke-dashoffset: 0; }
         }
-        .intro-mascot-leg {
+        .intro-mascot-beam {
+          stroke-dasharray: ${beamLength};
+          stroke-dashoffset: ${beamLength};
+          animation: introMascotBeamDraw ${BEAM_DRAW_MS}ms ${FADE_IN_MS}ms ease-out forwards;
+        }
+        @keyframes introMascotArrowIn {
+          to { opacity: 0.9; }
+        }
+        .intro-mascot-arrow {
+          opacity: 0;
+          animation: introMascotArrowIn 200ms ${FADE_IN_MS + BEAM_DRAW_MS - 150}ms ease-out forwards;
+        }
+        @keyframes introMascotBreathe {
+          0%, 100% { opacity: 0.55; transform: scale(1); }
+          50% { opacity: 0.95; transform: scale(1.15); }
+        }
+        .intro-mascot-lens-glow {
           transform-box: fill-box;
-          transform-origin: top center;
-          animation: introMascotLegSwing 0.26s ease-in-out infinite alternate;
+          transform-origin: center;
+          animation: introMascotBreathe 1.6s ease-in-out infinite;
         }
-        .intro-mascot-leg-2 { animation-delay: 0.13s; }
+        @keyframes introMascotTargetPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(125, 211, 252, 0); filter: brightness(1); }
+          50% { box-shadow: 0 0 22px 6px rgba(125, 211, 252, 0.85); filter: brightness(1.25); }
+        }
+        .${TARGET_PULSE_CLASS} {
+          animation: introMascotTargetPulse 0.9s ease-in-out infinite;
+        }
       `}</style>
-      <svg viewBox="0 0 100 60" width={w} height={h} className="intro-mascot-body" style={{ overflow: 'visible' }}>
-        {/* speed lines, trailing the eyepiece end */}
-        <line x1="4" y1="30" x2="16" y2="27" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-        <line x1="2" y1="38" x2="12" y2="36" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
 
-        {/* little legs */}
-        <g className="intro-mascot-leg intro-mascot-leg-2">
-          <polyline points="38,40 34,50 30,58" fill="none" stroke="#2a2a3a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
+        <g className="intro-mascot-fade">
+          {/* soft grounding glow beneath the telescope — deliberately no
+              legs, this version is a calm static illustration, not a
+              running character. */}
+          <ellipse cx={originX} cy={originY + 34} rx="46" ry="10" fill="rgba(125,211,252,0.16)" />
+
+          {/* tube, aimed at the button */}
+          <g transform={`translate(${originX}, ${originY}) rotate(${angleDeg})`}>
+            <rect x="-16" y="-11" width="74" height="22" rx="11" fill="#eef2ff" stroke="#c7d2e8" strokeWidth="1.5" />
+            <rect x="2" y="-8" width="6" height="16" rx="2" fill="#c7d2e8" />
+            <rect x="-16" y="-4" width="10" height="8" rx="3" fill="#c7d2e8" />
+          </g>
+
+          {/* objective lens — the beam's origin, breathing gently */}
+          <circle className="intro-mascot-lens-glow" cx={lensX} cy={lensY} r="17" fill="#7dd3fc" opacity="0.5" />
+          <circle cx={lensX} cy={lensY} r="10" fill="#0a0e18" stroke="#7dd3fc" strokeWidth="2" />
+          <circle cx={lensX} cy={lensY} r="4.5" fill="#bfe9ff" opacity="0.85" />
+
+          {/* the beam: a soft blurred glow layer under a crisp bright core,
+              both drawn via a stroke-dashoffset "growing line" animation */}
+          <line
+            x1={lensX} y1={lensY} x2={target.x} y2={target.y}
+            stroke="#7dd3fc" strokeWidth="9" strokeLinecap="round" opacity="0.28"
+            className="intro-mascot-beam" style={{ filter: 'blur(5px)' }}
+          />
+          <line
+            x1={lensX} y1={lensY} x2={target.x} y2={target.y}
+            stroke="#eaf8ff" strokeWidth="2.2" strokeLinecap="round" opacity="0.95"
+            className="intro-mascot-beam"
+          />
+
+          {/* arrowhead at the button end, same heading as the beam */}
+          <polygon
+            className="intro-mascot-arrow"
+            points="0,0 -14,-6 -9,0 -14,6"
+            fill="#eaf8ff"
+            transform={`translate(${target.x}, ${target.y}) rotate(${angleDeg})`}
+          />
         </g>
-        <g className="intro-mascot-leg">
-          <polyline points="58,40 62,50 66,58" fill="none" stroke="#2a2a3a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-        </g>
-
-        {/* tube body, tilted as if looking up and running forward */}
-        <rect x="18" y="14" width="58" height="20" rx="10" fill="#f0a84e" stroke="#c9832f" strokeWidth="1.5" transform="rotate(-12 47 24)" />
-        <rect x="36" y="16" width="5" height="16" rx="2" fill="#c9832f" transform="rotate(-12 38.5 24)" />
-
-        {/* objective lens, front/leading end */}
-        <circle cx="79" cy="10" r="10" fill="#1c2333" stroke="#7dd3fc" strokeWidth="2" />
-        <circle cx="79" cy="10" r="4.5" fill="#0a0e18" />
-        <circle cx="76" cy="7" r="1.6" fill="#bfe9ff" opacity="0.8" />
-
-        {/* eyepiece + a friendly little eye, trailing end */}
-        <circle cx="19" cy="32" r="7.5" fill="#3a3a4a" stroke="#22303f" strokeWidth="1" />
-        <circle cx="21" cy="30" r="3.4" fill="#ffffff" />
-        <circle cx="22" cy="30" r="1.7" fill="#0a0e18" />
       </svg>
     </div>
   );

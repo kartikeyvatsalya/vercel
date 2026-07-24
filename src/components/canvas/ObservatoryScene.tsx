@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera, Billboard } from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera, Billboard, Text } from '@react-three/drei';
 import { Orbit, Eye } from 'lucide-react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
-import { convertHorizontalToEquatorial, convertEquatorialToHorizontal, getJulianDate, getLocalSiderealTime } from '../../engine/ephemerisMath';
+import { convertHorizontalToEquatorial, convertEquatorialToHorizontal, convertEquatorialToHorizontalLST, getJulianDate, getLocalSiderealTime } from '../../engine/ephemerisMath';
 import { TERRESTRIAL_POINTING, getBodyEquatorial } from '../../engine/skyGeometry';
 import { EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID, getMagnification, getTrueFOV } from '../../engine/opticalMath';
 import { getSmoothSimTime } from '../../engine/timeEngine';
@@ -57,6 +57,10 @@ const LOOK_SENSITIVITY = 0.15;
 const SKY_TARGET_RADIUS = 45;
 // Radius of the real-catalog starfield (Phase 29).
 const CATALOG_STAR_RADIUS = 47;
+// Highest safe hour angle (degrees, [0,360) convention) for a German
+// Equatorial mount before the counterweight swings higher than the OTA —
+// see EquatorialAssembly's meridian collision guard (Phase 46).
+const MERIDIAN_SAFE_HA_MAX = 180;
 
 // ── PBR Material Palette (Phase 32) ────────────────────────────────
 // Prop bundles spread into meshStandardMaterial / meshPhysicalMaterial.
@@ -225,10 +229,15 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): DragHandlers {
         if (store.isTrackingMotorOn) store.toggleTrackingMotor();
         hasSlippedClutch = true;
       }
-      // Drag right = azimuth clockwise, drag up = altitude up.
+      // Drag right = azimuth clockwise, drag up = altitude up. Phase 46:
+      // an axis lock (see TelemetryPanel's Lock Alt/Az toggles) makes this
+      // drag ignore pointer movement along that specific axis entirely —
+      // the OTHER axis still tracks the drag normally, so a locked-Alt
+      // pan can't accidentally nudge altitude no matter how sloppy the
+      // pointer path is.
       store.setPointing(
-        store.pointingAlt - dy * DRAG_SENSITIVITY,
-        store.pointingAz + dx * DRAG_SENSITIVITY
+        store.isAltLocked ? store.pointingAlt : store.pointingAlt - dy * DRAG_SENSITIVITY,
+        store.isAzLocked ? store.pointingAz : store.pointingAz + dx * DRAG_SENSITIVITY
       );
     };
 
@@ -765,17 +774,29 @@ const AltAzForkAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMode
   const altitudeRef = useRef<THREE.Group>(null);
   useAltAzPointing(azimuthRef, altitudeRef);
 
+  // Phase 46: the Refractor's tripod legs rendered inverted — flip them
+  // 180° around their own footprint (anchored at the head-plate height, so
+  // the flip preserves the ground-to-head span instead of sending the legs
+  // to some other position) so they plant firmly on the ground pad again.
+  // Scoped to the Refractor only — no other profile reported this.
+  const flipStandLegs = ota === 'Refractor';
+
   return (
     <group>
       {/* Tripod legs — satin powder-coated aluminum */}
-      {[0, 120, 240].map((deg) => (
-        <group key={deg} rotation={[0, THREE.MathUtils.degToRad(deg), 0]}>
-          <mesh castShadow position={[0, 0.38, 0.16]} rotation={[0.38, 0, 0]}>
-            <cylinderGeometry args={[0.022, 0.028, 0.8, 10]} />
-            <meshStandardMaterial color="#3d4451" {...POWDER_COAT} />
-          </mesh>
-        </group>
-      ))}
+      <group
+        rotation={flipStandLegs ? [Math.PI, 0, 0] : [0, 0, 0]}
+        position={flipStandLegs ? [0, 0.76, 0] : [0, 0, 0]}
+      >
+        {[0, 120, 240].map((deg) => (
+          <group key={deg} rotation={[0, THREE.MathUtils.degToRad(deg), 0]}>
+            <mesh castShadow position={[0, 0.38, 0.16]} rotation={[0.38, 0, 0]}>
+              <cylinderGeometry args={[0.022, 0.028, 0.8, 10]} />
+              <meshStandardMaterial color="#3d4451" {...POWDER_COAT} />
+            </mesh>
+          </group>
+        ))}
+      </group>
       {/* Head plate */}
       <mesh castShadow position={[0, 0.76, 0]}>
         <cylinderGeometry args={[0.09, 0.09, 0.05, 16]} />
@@ -813,7 +834,8 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMod
   const latitude = useTelescopeStore((s) => s.observerLocation.latitude);
 
   useFrame((_state, delta) => {
-    const { pointingAlt, pointingAz, observerLocation } = useTelescopeStore.getState();
+    const store = useTelescopeStore.getState();
+    const { pointingAlt, pointingAz, observerLocation } = store;
     const visualAlt = THREE.MathUtils.clamp(pointingAlt, 0, 90); // horizon hard-stop
     const { hourAngle, declination } = convertHorizontalToEquatorial(
       visualAlt,
@@ -821,10 +843,34 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; cameraMod
       observerLocation.latitude
     );
 
+    // ── Meridian collision guard (Phase 46) ──
+    // hourAngle > 180° means the counterweight has swung higher than the
+    // OTA — numerically verified against this exact rig's transform chain
+    // (haGroup's counterweight at local x=-0.56 vs decGroup's OTA pivot at
+    // local x=+0.24, both carried through the polar tilt + HA rotation):
+    // their world-Y heights cross exactly at hourAngle = 180° and 360°/0°,
+    // with 180°-360° being the "counterweight up" danger zone. A real GEM
+    // would slam the OTA into the tripod/pier here, so this clamps the
+    // MECHANICAL pointing itself (not just the visual) back to whichever
+    // safe boundary the drag is closer to — a hard limit-switch stop, not
+    // just a warning — and keeps re-clamping every frame for as long as
+    // the drag keeps pushing past it (setPointing below feeds right back
+    // into this same computation next frame).
+    const isDanger = hourAngle > MERIDIAN_SAFE_HA_MAX;
+    let effectiveHA = hourAngle;
+    if (isDanger) {
+      effectiveHA = hourAngle < 270 ? MERIDIAN_SAFE_HA_MAX : 360;
+      const lstHours = getLocalSiderealTime(getJulianDate(new Date(getSmoothSimTime())), observerLocation.longitude);
+      const fakeRaHours = ((lstHours - effectiveHA / 15) % 24 + 24) % 24;
+      const safe = convertEquatorialToHorizontalLST(fakeRaHours, declination, observerLocation.latitude, lstHours);
+      store.setPointing(safe.altitude, safe.azimuth);
+    }
+    if (store.isEqMeridianDanger !== isDanger) store.setEqMeridianDanger(isDanger);
+
     if (haGroupRef.current) {
       haGroupRef.current.rotation.z = THREE.MathUtils.damp(
         haGroupRef.current.rotation.z,
-        THREE.MathUtils.degToRad(hourAngle),
+        THREE.MathUtils.degToRad(effectiveHA),
         SLEW_DAMPING,
         delta
       );
@@ -934,6 +980,67 @@ const ObservatoryGround: React.FC = () => (
       <ringGeometry args={[2.05, 2.2, 48]} />
       <meshStandardMaterial color="#42474e" roughness={0.85} envMapIntensity={0.15} />
     </mesh>
+  </group>
+);
+
+// ─── Compass Ring (Phase 46) ──────────────────────────────────────
+// A subtle N/E/S/W bearing ring around the observing pad so users don't
+// lose their orientation in the 3D space. Positioned by the SAME azimuth
+// convention as everything else in this file (see the header doc comment):
+// az 0° = North = +Z, az 90° = East = +X — reuses altAzToVector3 (defined
+// above for the sky-dome billboards) with its altitude term left at 0, so
+// it traces a flat circle on the ground instead of a point on the dome.
+const COMPASS_RADIUS = 2.55;
+const COMPASS_COLOR = '#7dd3fc';
+const COMPASS_TICK_AZIMUTHS = Array.from({ length: 12 }, (_, i) => i * 30);
+const COMPASS_LABELS: { az: number; label: string }[] = [
+  { az: 0, label: 'N' },
+  { az: 90, label: 'E' },
+  { az: 180, label: 'S' },
+  { az: 270, label: 'W' },
+];
+
+const CompassRing: React.FC = () => (
+  <group>
+    {/* Thin bearing ring, just outside the observing pad's own boundary ring */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]}>
+      <ringGeometry args={[COMPASS_RADIUS - 0.012, COMPASS_RADIUS + 0.012, 64]} />
+      <meshBasicMaterial color={COMPASS_COLOR} transparent opacity={0.22} depthWrite={false} />
+    </mesh>
+
+    {/* Tick marks every 30°, longer and brighter at the four cardinal points */}
+    {COMPASS_TICK_AZIMUTHS.map((az) => {
+      const isCardinal = az % 90 === 0;
+      return (
+        <group key={az} rotation={[0, THREE.MathUtils.degToRad(az), 0]}>
+          <mesh position={[0, 0.016, COMPASS_RADIUS]}>
+            <boxGeometry args={[0.012, 0.004, isCardinal ? 0.16 : 0.08]} />
+            <meshBasicMaterial color={COMPASS_COLOR} transparent opacity={isCardinal ? 0.55 : 0.3} depthWrite={false} />
+          </mesh>
+        </group>
+      );
+    })}
+
+    {/* N/E/S/W labels, billboarded so they stay legible from any orbit angle */}
+    {COMPASS_LABELS.map(({ az, label }) => {
+      const pos = altAzToVector3(0, az, COMPASS_RADIUS + 0.26);
+      return (
+        <Billboard key={label} position={[pos.x, 0.05, pos.z]}>
+          <Text
+            fontSize={0.16}
+            color={COMPASS_COLOR}
+            fillOpacity={0.75}
+            outlineWidth={0.006}
+            outlineColor="#04050a"
+            outlineOpacity={0.8}
+            anchorX="center"
+            anchorY="middle"
+          >
+            {label}
+          </Text>
+        </Billboard>
+      );
+    })}
   </group>
 );
 
@@ -1157,6 +1264,7 @@ export const ObservatoryScene: React.FC<ObservatorySceneProps> = ({ interactive 
 
         <ObservatoryLighting />
         <ObservatoryGround />
+        <CompassRing />
         <TelescopeRig onTubeDragChange={setIsTubeDragging} cameraMode={cameraMode} />
 
         {/* Night sky backdrop — rotates with Local Sidereal Time (Phase 25) */}

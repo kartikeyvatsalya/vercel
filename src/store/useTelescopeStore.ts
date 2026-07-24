@@ -128,6 +128,28 @@ interface TelescopeState {
   pointingAlt: number; // degrees above horizon, 0-90
   pointingAz: number;  // degrees from North, 0-360
 
+  // ── Alt/Az Clutch Locks (Phase 46) ──
+  // User-toggled precision aids: when locked, dragging the 3D tube (see
+  // useTubeDrag in ObservatoryScene.tsx) ignores pointer movement along
+  // that axis entirely, so a panning drag can't accidentally nudge the
+  // other axis. NOT the same thing as isAltTensionLocked (a mechanical
+  // "is the friction clutch tightened" rules-engine flag that governs
+  // whether the mount holds position under gravity) — these two just
+  // isolate drag INPUT to one axis at a time. Not persisted: a fresh
+  // session always starts fully unlocked.
+  isAltLocked: boolean;
+  isAzLocked: boolean;
+
+  // ── EQ Meridian Collision Guard (Phase 46) ──
+  // True while a German Equatorial mount's counterweight is higher than the
+  // OTA (hourAngle > 180°, numerically verified against the actual 3D rig
+  // transform in ObservatoryScene.tsx's EquatorialAssembly) — the real-world
+  // "OTA about to hit the tripod/pier, meridian flip required" danger zone.
+  // Set by EquatorialAssembly's per-frame check, which also clamps pointing
+  // back to the safe boundary; read by App.tsx to show the warning banner.
+  // Not persisted: irrelevant outside a live EQ-mounted session.
+  isEqMeridianDanger: boolean;
+
   // Observer's location on Earth, anchoring the RA/Dec → Alt/Az sky math.
   observerLocation: ObserverLocation;
 
@@ -220,6 +242,9 @@ interface TelescopeState {
   setIsFocuserDragging: (dragging: boolean) => void;
   toggleBarlow: () => void;
   setLoadedAssets: (assets: LoadedAssets) => void;
+  toggleAltLocked: () => void;
+  toggleAzLocked: () => void;
+  setEqMeridianDanger: (danger: boolean) => void;
 }
 
 export const useTelescopeStore = create<TelescopeState>()(
@@ -273,8 +298,11 @@ export const useTelescopeStore = create<TelescopeState>()(
       // 3D pointing defaults to wherever the default target (Moon) lives
       pointingAlt: INITIAL_POINTING.altitude,
       pointingAz: INITIAL_POINTING.azimuth,
+      isAltLocked: false,
+      isAzLocked: false,
+      isEqMeridianDanger: false,
 
-      addCustomProfile: (profile) => set((state) => ({ 
+      addCustomProfile: (profile) => set((state) => ({
         availableProfiles: [...state.availableProfiles, profile],
         activeProfile: profile // Auto-select the newly added profile
       })),
@@ -536,6 +564,9 @@ export const useTelescopeStore = create<TelescopeState>()(
       setIsFocuserDragging: (dragging: boolean) => set({ isFocuserDragging: dragging }),
       toggleBarlow: () => set((state) => ({ isBarlowActive: !state.isBarlowActive })),
       setLoadedAssets: (assets: LoadedAssets) => set({ loadedAssets: assets }),
+      toggleAltLocked: () => set((state) => ({ isAltLocked: !state.isAltLocked })),
+      toggleAzLocked: () => set((state) => ({ isAzLocked: !state.isAzLocked })),
+      setEqMeridianDanger: (danger) => set({ isEqMeridianDanger: danger }),
     }),
     {
       name: 'telescope-equipment-storage', // persist to localStorage
@@ -552,6 +583,9 @@ export const useTelescopeStore = create<TelescopeState>()(
           isVirtualNight: _virtualNight,
           tourStep: _tourStep,
           driftAnchorSimTime: _driftAnchor,
+          isAltLocked: _altLocked,
+          isAzLocked: _azLocked,
+          isEqMeridianDanger: _eqDanger,
           ...rest
         } = state;
         return rest;

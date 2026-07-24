@@ -16,3 +16,9 @@ body {
 canvas {
   touch-action: none; /* Prevent scrolling when dragging thumbscrews over canvas area */
 }
+
+/* EQ mount meridian collision warning (Phase 46) — App.tsx's banner. */
+@keyframes eqDangerFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

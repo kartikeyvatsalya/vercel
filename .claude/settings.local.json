@@ -31,7 +31,12 @@
       "Bash(git push *)",
       "Bash(git branch *)",
       "Bash(git checkout *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(node \"C:\\\\Users\\\\gupta\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Telescope-Simulator\\\\49d8f58c-d730-4c11-9dfc-b07b6a9fb221\\\\scratchpad\\\\verify_tripod.mjs\")",
+      "Bash(node _verify_tripod.mjs)",
+      "Bash(node _verify_fix.mjs)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/@react-three/drei/package.json'\\).version\\)\")",
+      "Bash(node _verify_eq.mjs)"
     ]
   }
 }

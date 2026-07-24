@@ -38,7 +38,7 @@ import { ObservatoryScene } from './components/canvas/ObservatoryScene';
 
 import {
   Crosshair, Move, BookOpen, Camera, Rocket, CheckCircle2, ChevronDown, Info, X, Telescope, Settings,
-  GraduationCap, Circle, NotebookPen, Columns2, Sparkles, FlaskConical, HelpCircle, BookMarked
+  GraduationCap, Circle, NotebookPen, Columns2, Sparkles, FlaskConical, HelpCircle, BookMarked, AlertTriangle
 
 } from 'lucide-react';
 
@@ -1146,11 +1146,29 @@ function App() {
         );
       })()}
 
-      {/* Welcome mascot (Phase 45) — a one-shot cartoon telescope that runs
-          across the bottom of the screen and up to the Start Tour button on
-          first mount, then fades away. Purely decorative; never renders again
-          this session. */}
+      {/* Welcome mascot (Phase 45; rewritten Phase 46) — a static telescope
+          that fades in and fires a glowing beam at the Start Tour button on
+          first mount, then fades away. Purely decorative; never renders
+          again this session. */}
       <IntroMascot targetRef={startTourBtnRef} />
+
+      {/* EQ Mount Meridian Collision Warning (Phase 46) — flashes whenever
+          the active German Equatorial mount's counterweight has swung
+          higher than the OTA (see EquatorialAssembly's per-frame guard in
+          ObservatoryScene.tsx, which also clamps the pointing itself back
+          to the safe boundary). Purely informational; no dismiss control
+          needed since it clears itself the instant the mount is no longer
+          past the limit. */}
+      {telescopeState.isEqMeridianDanger && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] pointer-events-none animate-[eqDangerFlash_0.9s_ease-in-out_infinite]">
+          <div className="flex items-center gap-2.5 bg-red-950/95 border-2 border-red-500 text-red-200 px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md">
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+            <span className="font-mono font-bold uppercase tracking-wide text-xs sm:text-sm">
+              WARNING: EQ Mount Collision Imminent (Meridian Flip Required)
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Slew-to-Target Toast — connects the footer's target switch to the 3D mount's physical movement */}
       {slewToast && (
