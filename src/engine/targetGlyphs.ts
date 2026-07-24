@@ -575,9 +575,21 @@ export function drawSpire(ctx: CanvasRenderingContext2D, x: number, y: number, s
   // Repainted with an atmospheric-haze palette that silhouettes against the
   // daylight sky and stays clearly visible against the night backdrop.
 
-  // Hazy ground plane at the horizon
+  // Hazy ground plane at the horizon.
+  // ── Phase 49 floating-tower fix ──
+  // The spire's screen anchor (x, y) is the projection of its fixed Alt/Az
+  // pointing target, which sits well above true Altitude 0 — the same gap
+  // every other glyph leaves between its own center and the real horizon.
+  // A fixed height here (previously size * 1.5) stopped short of that gap,
+  // so on any zoomed-in feed (the finder's fixed 7.5° field especially) the
+  // ground rendered as a short strip with sky-color still visible beneath
+  // it: the tower read as pasted onto the sky instead of standing on
+  // ground that runs down to the true horizon. Extending the rect deep
+  // enough to always cross Altitude 0 — well past any canvas edge at any
+  // supported zoom — keeps the ground flush with the bottom of the field
+  // of view instead of floating.
   ctx.fillStyle = '#31405e';
-  ctx.fillRect(-size * 1.5, size * 0.2, size * 3, size * 1.5);
+  ctx.fillRect(-size * 1.5, size * 0.2, size * 3, size * 1.5 + 3000);
 
   // Mountain ridge — distant-haze slate, with a faint rim to catch the eye
   ctx.fillStyle = '#3e4d6d';
