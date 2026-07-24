@@ -51,7 +51,12 @@ export const DEFAULT_EYEPIECE_ID = '25mm';
  * On-screen size of a target as the strict ratio of its angular diameter to
  * the current true field of view:  screenPx = (angDiam / trueFOV) × viewport.
  * The Moon (0.51°) nearly fills a 0.55° field; Saturn (0.0125°) stays a dot
- * at the same magnification. Clamped to 3px so nothing vanishes entirely.
+ * at the same magnification. Clamped to 3px so nothing vanishes entirely, and
+ * (Phase 52) clamped to 4× the viewport so nothing explodes: as trueFovDeg
+ * → 0 at extreme magnification this ratio → ∞, and every off-screen canvas
+ * sized from it (drawMoon's scratch, the M42 composite bake) grew with it —
+ * an uncapped ratio was a multi-hundred-MB-per-frame VRAM bomb, not just an
+ * oversized sprite.
  */
 export const getAngularDiameterPx = (
   angularDiameterDeg: number,
@@ -59,7 +64,8 @@ export const getAngularDiameterPx = (
   viewportPx: number
 ): number => {
   if (trueFovDeg <= 0 || angularDiameterDeg <= 0) return 0;
-  return Math.max(3, (angularDiameterDeg / trueFovDeg) * viewportPx);
+  const raw = (angularDiameterDeg / trueFovDeg) * viewportPx;
+  return Math.min(Math.max(3, raw), viewportPx * 4);
 };
 
 /**
@@ -70,6 +76,15 @@ export const getAngularDiameterPx = (
  * rounded back down to a sub-pixel, effectively invisible dot.
  */
 const MIN_TARGET_RENDER_SCALE_PX = 2;
+
+/**
+ * Maximum on-screen RADIUS (px) — Phase 52, absolute defense-in-depth ceiling
+ * independent of viewport size. Keeps every downstream off-screen surface
+ * sized from this scalar (roughly 2× the radius, plus small padding) under
+ * ~2048px on a side even if a future caller passes an unusually large
+ * viewportPx.
+ */
+const MAX_TARGET_RENDER_SCALE_PX = 1024;
 
 /**
  * Converts a target's angular diameter to the draw-scalar the 2D renderers
@@ -85,7 +100,7 @@ export const getTargetRenderScale = (
 ): number => {
   const radiusPx = getAngularDiameterPx(angularDiameterDeg, trueFovDeg, viewportPx) / 2;
   const scaled = targetId === 'saturn' ? radiusPx / 2.2 : radiusPx;
-  return Math.max(MIN_TARGET_RENDER_SCALE_PX, scaled);
+  return Math.min(Math.max(MIN_TARGET_RENDER_SCALE_PX, scaled), MAX_TARGET_RENDER_SCALE_PX);
 };
 
 /**

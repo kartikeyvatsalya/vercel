@@ -312,21 +312,28 @@ interface MoonScratchCanvas {
 let moonScratch: MoonScratchCanvas | null = null;
 let moonScratchSide = 0;
 
+// Phase 52 defense-in-depth: opticalMath's getTargetRenderScale now clamps
+// the `size` this is derived from, but this cap exists so no caller — now
+// or in the future — can ever resize the (GPU-backed) scratch bitmap past a
+// couple thousand pixels a side, no matter what size it's asked for.
+const MAX_MOON_SCRATCH_SIDE_PX = 2048;
+
 function getMoonScratchCanvas(side: number): MoonScratchCanvas | null {
+  const cappedSide = Math.min(side, MAX_MOON_SCRATCH_SIDE_PX);
   if (!moonScratch) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     moonScratch = { canvas, ctx };
   }
-  if (moonScratchSide !== side) {
+  if (moonScratchSide !== cappedSide) {
     // Assigning width/height (even via a getter that later shrinks back)
     // resets the bitmap, so this resize doubles as the clear.
-    moonScratch.canvas.width = side;
-    moonScratch.canvas.height = side;
-    moonScratchSide = side;
+    moonScratch.canvas.width = cappedSide;
+    moonScratch.canvas.height = cappedSide;
+    moonScratchSide = cappedSide;
   } else {
-    moonScratch.ctx.clearRect(0, 0, side, side);
+    moonScratch.ctx.clearRect(0, 0, cappedSide, cappedSide);
   }
   return moonScratch;
 }
@@ -652,6 +659,11 @@ export function drawSpire(ctx: CanvasRenderingContext2D, x: number, y: number, s
 const m42CompositeCache = new Map<string, HTMLCanvasElement>();
 const M42_CACHE_MAX_ENTRIES = 8;
 
+// Phase 52 defense-in-depth: same rationale as MAX_MOON_SCRATCH_SIDE_PX
+// above — the requested size is already clamped upstream, but this cap
+// guarantees the baked (GPU-backed) composite can never exceed it.
+const MAX_M42_COMPOSITE_SIDE_PX = 2048;
+
 function getM42Composite(sizePx: number, blurPx: number, orionTex: LoadedTexture): HTMLCanvasElement | null {
   // Quantize so continuous defocus animation doesn't re-bake every frame.
   const qSize = Math.max(4, Math.round(sizePx / 4) * 4);
@@ -664,8 +676,8 @@ function getM42Composite(sizePx: number, blurPx: number, orionTex: LoadedTexture
   const drawSize = qSize * 2.4;
   const pad = Math.ceil(qBlur * 2) + 2; // blur bleeds past the bitmap edge
   const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(drawSize + pad * 2);
-  canvas.height = Math.ceil(drawSize + pad * 2);
+  canvas.width = Math.min(Math.ceil(drawSize + pad * 2), MAX_M42_COMPOSITE_SIDE_PX);
+  canvas.height = Math.min(Math.ceil(drawSize + pad * 2), MAX_M42_COMPOSITE_SIDE_PX);
   const cctx = canvas.getContext('2d');
   if (!cctx) return null;
 

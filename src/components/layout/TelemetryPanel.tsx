@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from '../../store/useShallowSelector';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from '../../store/useTelescopeStore';
 import { useMissionStore } from '../../engine/missionEngine';
 import { missions as RANK_MISSIONS } from '../../data/missions';
@@ -33,12 +34,38 @@ interface TelemetryPanelProps {
 }
 
 export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = false, onTimeStep }) => {
+  // Phase 52: scoped to exactly the fields this panel reads/calls, via
+  // useShallow — this store does NOT include pointingAlt/pointingAz/
+  // trackedEquatorial, so the panel is now immune to the 60fps setPointing
+  // writes that fire during an EQ mount drag (previously a bare
+  // useTelescopeStore() whole-store subscription re-rendered this panel on
+  // every one of those writes regardless of whether it displayed them).
   const {
     activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
     stepSimTimeHours, resetSimTimeToNow, setSimTime, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
     setTarget,
-  } = useTelescopeStore();
+  } = useTelescopeStore(useShallow((state) => ({
+    activeProfile: state.activeProfile,
+    activeTarget: state.activeTarget,
+    eyepieceFocalLength: state.eyepieceFocalLength,
+    focuserPosition: state.focuserPosition,
+    isBarlowActive: state.isBarlowActive,
+    observerLocation: state.observerLocation,
+    simTime: state.simTime,
+    timeRate: state.timeRate,
+    isTrackingMotorOn: state.isTrackingMotorOn,
+    simulationMode: state.simulationMode,
+    isVirtualNight: state.isVirtualNight,
+    stepSimTimeHours: state.stepSimTimeHours,
+    resetSimTimeToNow: state.resetSimTimeToNow,
+    setSimTime: state.setSimTime,
+    setTimeRate: state.setTimeRate,
+    toggleTrackingMotor: state.toggleTrackingMotor,
+    toggleVirtualNight: state.toggleVirtualNight,
+    setObserverLocation: state.setObserverLocation,
+    setTarget: state.setTarget,
+  })));
   const modeRules = SIM_MODE_RULES[simulationMode];
 
   // ── Time Machine input (Phase 44) ── The store's `simTime` ticks ~1×/sec

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from './store/useShallowSelector';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from './store/useTelescopeStore';
 import { TARGETS } from './data/bookContent';
 import { convertEquatorialToHorizontal } from './engine/ephemerisMath';
@@ -231,7 +232,51 @@ const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 
 // ─── App ───────────────────────────────────────────────────────
 function App() {
-  const telescopeState = useTelescopeStore();
+  // Phase 52: was a bare useTelescopeStore() — a whole-store, no-selector
+  // subscription that re-rendered the entire app shell (including
+  // reconciling the ObservatoryScene 3D Canvas JSX) on EVERY store write,
+  // including the 60fps setPointing storm the EQ meridian useFrame could
+  // produce. Scoped via useShallow to exactly the fields this component
+  // reads/calls; notably excludes pointingAlt/pointingAz/trackedEquatorial,
+  // which App.tsx never reads, so a pointing-only write no longer re-renders
+  // this component (or re-fires the rules-evaluation effect that depends on
+  // the whole `telescopeState` object below).
+  const telescopeState = useTelescopeStore(useShallow((state) => ({
+    simulationMode: state.simulationMode,
+    activeEyepieceId: state.activeEyepieceId,
+    isLowPerformanceDevice: state.isLowPerformanceDevice,
+    activeProfile: state.activeProfile,
+    activeTarget: state.activeTarget,
+    eyepieceFocalLength: state.eyepieceFocalLength,
+    isDustCapOn: state.isDustCapOn,
+    isSolarFilterAttached: state.isSolarFilterAttached,
+    seeingQuality: state.seeingQuality,
+    isAltTensionLocked: state.isAltTensionLocked,
+    isMechanicallyBalanced: state.isMechanicallyBalanced,
+    isCollimated: state.isCollimated,
+    isMirrorCooled: state.isMirrorCooled,
+    focuserPosition: state.focuserPosition,
+    isBarlowActive: state.isBarlowActive,
+    observerLocation: state.observerLocation,
+    simTime: state.simTime,
+    setTarget: state.setTarget,
+    setSimulationMode: state.setSimulationMode,
+    setLanguage: state.setLanguage,
+    startTour: state.startTour,
+    tourStep: state.tourStep,
+    isEqMeridianDanger: state.isEqMeridianDanger,
+    setFocuserPosition: state.setFocuserPosition,
+    setActiveProfile: state.setActiveProfile,
+    availableProfiles: state.availableProfiles,
+    toggleDustCap: state.toggleDustCap,
+    setMirrorCooled: state.setMirrorCooled,
+    toggleSolarFilter: state.toggleSolarFilter,
+    setEyepiece: state.setEyepiece,
+    setSeeingQuality: state.setSeeingQuality,
+    toggleBarlow: state.toggleBarlow,
+    toggleDigitalZoom: state.toggleDigitalZoom,
+    isDigitalZoomOn: state.isDigitalZoomOn,
+  })));
   const progressState = useProgressStore();
   const missionState = useMissionStore();
   const modeRules = SIM_MODE_RULES[telescopeState.simulationMode];

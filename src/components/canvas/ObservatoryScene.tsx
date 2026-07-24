@@ -206,6 +206,23 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): { handlers: Dra
     isDraggingRef.current = true;
     document.body.style.cursor = 'grabbing';
 
+    // ── Clutch physics (Phase 34; made atomic with the grab in Phase 52) ──
+    // Grabbing the tube slips the clutch: the sidereal motor disengages
+    // right here, at pointer-DOWN, not on the first pointer-move. It used
+    // to wait for movement, which left a window where isDraggingRef was
+    // already true but the motor was still on — a grab-and-hold with zero
+    // movement on a target past the meridian re-armed EquatorialAssembly's
+    // useFrame motor-on setPointing()/trackedEquatorial feedback storm
+    // (see that useFrame's Phase 50 comment) even though nothing was being
+    // dragged yet. The mount does NOT forget the target on slip — it stays
+    // in the sky and streaks out of the field as you pan away. (This used
+    // to clearTarget(), which blanked the target from both 2D feeds; the
+    // motor snap-back that guarded against is already impossible —
+    // setPointing moves a running motor's tracked RA/Dec lock with the
+    // mount, Phase 26 audit fix 4a.)
+    const dragStore = useTelescopeStore.getState();
+    if (dragStore.isTrackingMotorOn) dragStore.toggleTrackingMotor();
+
     // Pin the drag to the pointer that started it (Phase 36) — on a
     // multi-touch iPad a second stray contact (a resting palm, a second
     // finger) fires its own pointermove on window and must not also steer
@@ -214,7 +231,6 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): { handlers: Dra
     const activePointerId = e.nativeEvent.pointerId;
     let lastX = e.nativeEvent.clientX;
     let lastY = e.nativeEvent.clientY;
-    let hasSlippedClutch = false;
 
     const onMove = (ev: PointerEvent) => {
       if (ev.pointerId !== activePointerId) return;
@@ -225,17 +241,6 @@ function useTubeDrag(onDragChange: (dragging: boolean) => void): { handlers: Dra
       lastY = ev.clientY;
 
       const store = useTelescopeStore.getState();
-      // ── Clutch physics (Phase 34) ── Grabbing the tube slips the clutch:
-      // the sidereal motor disengages, but the mount does NOT forget the
-      // target — it stays in the sky and streaks out of the field as you
-      // pan away. (This used to clearTarget(), which blanked the target
-      // from both 2D feeds; the motor snap-back that guarded against is
-      // already impossible — setPointing moves a running motor's tracked
-      // RA/Dec lock with the mount, Phase 26 audit fix 4a.)
-      if (!hasSlippedClutch) {
-        if (store.isTrackingMotorOn) store.toggleTrackingMotor();
-        hasSlippedClutch = true;
-      }
       // Drag right = azimuth clockwise, drag up = altitude up. Phase 46:
       // an axis lock (see TelemetryPanel's Lock Alt/Az toggles) makes this
       // drag ignore pointer movement along that specific axis entirely —
@@ -896,7 +901,20 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; isDraggin
         const lstHours = getLocalSiderealTime(getJulianDate(new Date(getSmoothSimTime())), observerLocation.longitude);
         const fakeRaHours = ((lstHours - effectiveHA / 15) % 24 + 24) % 24;
         const safe = convertEquatorialToHorizontalLST(fakeRaHours, declination, observerLocation.latitude, lstHours);
-        store.setPointing(safe.altitude, safe.azimuth);
+        // Phase 52 convergence guard: skip the write once we're already
+        // within epsilon of the safe boundary. Without this, a mangled
+        // az/alt pair (e.g. the HA=180 boundary sitting below the horizon
+        // for this declination — see the Phase 50 comment above) re-derives
+        // a drifting declination every frame and never settles, even with
+        // the clutch now slipping atomically at grab (Phase 52, above).
+        // Azimuth compares via the shortest wrap-around distance so a
+        // safe value near the 0/360 seam doesn't look like a huge delta.
+        const EPSILON_DEG = 0.05;
+        const altDelta = Math.abs(safe.altitude - pointingAlt);
+        const azDelta = Math.abs(((safe.azimuth - pointingAz + 540) % 360) - 180);
+        if (altDelta > EPSILON_DEG || azDelta > EPSILON_DEG) {
+          store.setPointing(safe.altitude, safe.azimuth);
+        }
       }
     }
     if (store.isEqMeridianDanger !== isDanger) store.setEqMeridianDanger(isDanger);
@@ -1287,6 +1305,10 @@ export const ObservatoryScene: React.FC<ObservatorySceneProps> = ({ interactive 
         // first load — same viewing angle, just a tighter default frame.
         // Still safely within OrbitControls' [1.2, 12] distance bounds.
         camera={{ position: [2.8, 1.9, 3.6], fov: 45 }}
+        // Phase 52: capped so a high-DPI/4K display (devicePixelRatio can
+        // run 2-3+) doesn't multiply the WebGL framebuffer and every shadow
+        // map by that much — R3F defaults to the full uncapped DPR.
+        dpr={[1, 1.5]}
         className="w-full h-full"
       >
         <color attach="background" args={['#04050a']} />

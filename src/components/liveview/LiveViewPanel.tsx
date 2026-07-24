@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from '../../store/useShallowSelector';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useAlignmentStore } from '../../store/useAlignmentStore';
 import { useProgressStore, type LogbookEntry } from '../../store/useProgressStore';
@@ -115,9 +116,51 @@ interface LiveViewPanelProps {
 }
 
 export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
-  const telescopeState = useTelescopeStore();
-  const alignmentState = useAlignmentStore();
-  const progressState = useProgressStore();
+  // Phase 52: this used to be a bare useTelescopeStore() — a whole-store,
+  // no-selector subscription that re-rendered this (very heavy) panel on
+  // EVERY store write anywhere in the app, including the 60fps setPointing
+  // storm the EQ meridian useFrame could produce (see ObservatoryScene.tsx).
+  // Scoped via useShallow to exactly the fields this render body/handlers
+  // actually read reactively — the shared rAF loop below reads everything
+  // else fresh via .getState() and is unaffected either way (see the Phase
+  // 28 comment on that effect). pointingAlt/Az stay in the selector because
+  // isAlignmentUnlocked below genuinely needs them live; this panel still
+  // re-renders on a pointing change, just no longer on unrelated ones.
+  const telescopeState = useTelescopeStore(useShallow((state) => ({
+    simulationMode: state.simulationMode,
+    activeEyepieceId: state.activeEyepieceId,
+    activeProfile: state.activeProfile,
+    eyepieceFocalLength: state.eyepieceFocalLength,
+    isBarlowActive: state.isBarlowActive,
+    activeTarget: state.activeTarget,
+    pointingAlt: state.pointingAlt,
+    pointingAz: state.pointingAz,
+    observerLocation: state.observerLocation,
+    simTime: state.simTime,
+    driftAnchorSimTime: state.driftAnchorSimTime,
+    isTrackingMotorOn: state.isTrackingMotorOn,
+    focuserPosition: state.focuserPosition,
+    seeingQuality: state.seeingQuality,
+    isDustCapOn: state.isDustCapOn,
+    finderscopeError: state.finderscopeError,
+    adjustFinderscope: state.adjustFinderscope,
+    alignmentDifficulty: state.alignmentDifficulty,
+    setAlignmentDifficulty: state.setAlignmentDifficulty,
+    scrambleFinderscope: state.scrambleFinderscope,
+  })));
+  // Scoped the same way — offsetX/offsetY/isAligned/checkAlignment are only
+  // ever read via the rAF loop's getState() snapshot, never reactively, so
+  // this panel no longer re-renders every frame a thumbscrew is held.
+  const alignmentState = useAlignmentStore(useShallow((state) => ({
+    angularVelocityX: state.angularVelocityX,
+    angularVelocityY: state.angularVelocityY,
+    setAngularVelocity: state.setAngularVelocity,
+  })));
+  const progressState = useProgressStore(useShallow((state) => ({
+    addLogbookEntry: state.addLogbookEntry,
+    completeModule: state.completeModule,
+    unlockAchievement: state.unlockAchievement,
+  })));
   const { t } = useTranslation();
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const finderCanvasRef = useRef<HTMLCanvasElement>(null);
