@@ -89,13 +89,14 @@ export const missions: RankMission[] = [
     ],
     targetId: 'moon',
     successCondition: `
-      const APPARENT_FOV = 50; // Standard Plössl, degrees
+      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
+        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
         telescope.isBarlowActive
       );
-      const tfov = math.getTrueFOV(APPARENT_FOV, mag);
+      const tfov = math.getTrueFOV(activeEyepiece.afovDeg, mag);
       const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
       return (
         telescope.activeTarget?.id === 'moon' &&
@@ -178,14 +179,15 @@ export const missions: RankMission[] = [
       // Per-night instrument check. The multi-night phase-sequence requirement is
       // validated by the Logbook engine (5 'moon' entries spanning >= 5 sim dates),
       // consistent with 'the Logbook levels up, not the player.'
-      const APPARENT_FOV = 50;
+      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
+        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
       const MOON_DIAMETER_DEG = 0.5;
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
         telescope.isBarlowActive
       );
-      const tfov = math.getTrueFOV(APPARENT_FOV, mag);
+      const tfov = math.getTrueFOV(activeEyepiece.afovDeg, mag);
       const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
       return (
         telescope.activeTarget?.id === 'moon' &&
@@ -268,13 +270,14 @@ export const missions: RankMission[] = [
     ],
     targetId: 'moon',
     successCondition: `
-      const APPARENT_FOV = 50;
+      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
+        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
         telescope.isBarlowActive
       );
-      const tfov = math.getTrueFOV(APPARENT_FOV, mag);
+      const tfov = math.getTrueFOV(activeEyepiece.afovDeg, mag);
       const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
       return (
         telescope.activeTarget?.id === 'moon' &&
@@ -364,13 +367,14 @@ export const missions: RankMission[] = [
       // mission session (tracked via completedTargetIds on the mission state),
       // then verify three justified logbook entries. This single condition body
       // serves all three checks — the student's configuration judgment IS the exam.
-      const APPARENT_FOV = 50;
+      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
+        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
         telescope.isBarlowActive
       );
-      const tfov = math.getTrueFOV(APPARENT_FOV, mag);
+      const tfov = math.getTrueFOV(activeEyepiece.afovDeg, mag);
       const exitPupil = math.getExitPupil(telescope.activeProfile.apertureMm, mag);
       const lightGrasp = math.getApertureBrightnessMultiplier(telescope.activeProfile.apertureMm);
       const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);

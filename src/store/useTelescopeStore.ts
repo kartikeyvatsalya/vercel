@@ -572,7 +572,11 @@ export const useTelescopeStore = create<TelescopeState>()(
       name: 'telescope-equipment-storage', // persist to localStorage
       // Exclude the non-serializable asset cache AND the simulation clock —
       // reopening the app should always start at the real current time with
-      // the motor disengaged, not resume a stale simulated moment.
+      // the motor disengaged, not resume a stale simulated moment. Also
+      // exclude the high-frequency pointing/error fields (Phase 54): these
+      // update up to 60x/sec during a drag or motor tick, and persist was
+      // synchronously serializing the whole store to localStorage on every
+      // one of those writes.
       partialize: (state) => {
         const {
           loadedAssets: _assets,
@@ -586,6 +590,9 @@ export const useTelescopeStore = create<TelescopeState>()(
           isAltLocked: _altLocked,
           isAzLocked: _azLocked,
           isEqMeridianDanger: _eqDanger,
+          pointingAlt: _pointingAlt,
+          pointingAz: _pointingAz,
+          finderscopeError: _finderscopeError,
           ...rest
         } = state;
         return rest;

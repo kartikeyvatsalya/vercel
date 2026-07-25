@@ -277,8 +277,28 @@ function App() {
     toggleDigitalZoom: state.toggleDigitalZoom,
     isDigitalZoomOn: state.isDigitalZoomOn,
   })));
-  const progressState = useProgressStore();
-  const missionState = useMissionStore();
+  // Phase 54: scoped via useShallow to exactly what App.tsx reads/calls, so
+  // an unrelated field write on either store (e.g. achievements, mission
+  // step bookkeeping this component never displays) no longer re-renders
+  // the whole app — same rationale as telescopeState above.
+  const progressState = useProgressStore(useShallow((state) => ({
+    completedModules: state.completedModules,
+    logbookEntries: state.logbookEntries,
+    addLogbookEntry: state.addLogbookEntry,
+  })));
+  const missionState = useMissionStore(useShallow((state) => ({
+    isActive: state.isActive,
+    activeMissionId: state.activeMissionId,
+    steps: state.steps,
+    currentStepIndex: state.currentStepIndex,
+    startMission: state.startMission,
+    endMission: state.endMission,
+    activeRankMissionId: state.activeRankMissionId,
+    rankMissionStatus: state.rankMissionStatus,
+    completedTargetIds: state.completedTargetIds,
+    startRankMission: state.startRankMission,
+    endRankMission: state.endRankMission,
+  })));
   const modeRules = SIM_MODE_RULES[telescopeState.simulationMode];
   const activeEyepieceForFooter = EYEPIECE_CATALOG.find((e) => e.id === telescopeState.activeEyepieceId)
     ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
@@ -509,7 +529,7 @@ function App() {
 
     // 2. Evaluate General Telescope State Rules
 
-    const magnification = getMagnification(telescopeState.activeProfile.focalLength, telescopeState.eyepieceFocalLength);
+    const magnification = getMagnification(telescopeState.activeProfile.focalLength, telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive);
     const evalResult = evaluateState({
       isDustCapOn: telescopeState.isDustCapOn,
       isSolarFilterAttached: telescopeState.isSolarFilterAttached,
@@ -528,7 +548,29 @@ function App() {
     });
 
     setInstructorResponse(evalResult.instructorResponse as any);
-  }, [telescopeState, activeModule, missionState.currentStepIndex, progressState.logbookEntries.length]);
+    // Phase 54: lists exactly the fields this effect body reads, instead of
+    // the whole `telescopeState` object — that object's identity changes
+    // every time `simTime` ticks (~1×/sec), which was re-running this
+    // mission/lesson evaluation every second even though nothing here
+    // reads simTime.
+  }, [
+    telescopeState.activeProfile,
+    telescopeState.activeTarget,
+    telescopeState.eyepieceFocalLength,
+    telescopeState.isBarlowActive,
+    telescopeState.isDustCapOn,
+    telescopeState.isSolarFilterAttached,
+    telescopeState.seeingQuality,
+    telescopeState.isAltTensionLocked,
+    telescopeState.isMechanicallyBalanced,
+    telescopeState.isCollimated,
+    telescopeState.isMirrorCooled,
+    telescopeState.focuserPosition,
+    telescopeState.simulationMode,
+    activeModule,
+    missionState.currentStepIndex,
+    progressState.logbookEntries.length,
+  ]);
 
   // Initial welcome message
   useEffect(() => {

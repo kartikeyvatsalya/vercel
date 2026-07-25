@@ -39,7 +39,8 @@ export const LogbookModal: React.FC<LogbookModalProps> = ({ onClose }) => {
 
   const currentMag = getMagnification(
     telescopeState.activeProfile?.focalLength || 1200,
-    telescopeState.eyepieceFocalLength
+    telescopeState.eyepieceFocalLength,
+    telescopeState.isBarlowActive
   );
 
   const toggleTag = (tag: string) => {

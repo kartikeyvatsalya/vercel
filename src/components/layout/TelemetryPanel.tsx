@@ -3,7 +3,7 @@ import { useShallow } from '../../store/useShallowSelector';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from '../../store/useTelescopeStore';
 import { useMissionStore } from '../../engine/missionEngine';
 import { missions as RANK_MISSIONS } from '../../data/missions';
-import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, getPerfectFocusPoint } from '../../engine/opticalMath';
+import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, getPerfectFocusPoint, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from '../../engine/opticalMath';
 import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { getBodyEquatorial } from '../../engine/skyGeometry';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
@@ -41,7 +41,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   // useTelescopeStore() whole-store subscription re-rendered this panel on
   // every one of those writes regardless of whether it displayed them).
   const {
-    activeProfile, activeTarget, eyepieceFocalLength, focuserPosition, isBarlowActive,
+    activeProfile, activeTarget, eyepieceFocalLength, activeEyepieceId, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
     stepSimTimeHours, resetSimTimeToNow, setSimTime, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
     setTarget,
@@ -49,6 +49,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     activeProfile: state.activeProfile,
     activeTarget: state.activeTarget,
     eyepieceFocalLength: state.eyepieceFocalLength,
+    activeEyepieceId: state.activeEyepieceId,
     focuserPosition: state.focuserPosition,
     isBarlowActive: state.isBarlowActive,
     observerLocation: state.observerLocation,
@@ -115,10 +116,11 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
 
   if (!activeProfile) return null;
 
-  const magnification = getMagnification(activeProfile.focalLength, eyepieceFocalLength);
+  const activeEyepiece = EYEPIECE_CATALOG.find((e) => e.id === activeEyepieceId)
+    ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
+  const magnification = getMagnification(activeProfile.focalLength, eyepieceFocalLength, isBarlowActive);
   const exitPupil = getExitPupil(activeProfile.aperture, magnification);
-  // Assuming a generic Plössl apparent FOV of 50 degrees for the sake of calculation
-  const trueFOV = getTrueFOV(50, magnification);
+  const trueFOV = getTrueFOV(activeEyepiece.afovDeg, magnification);
   const brightness = getRelativeBrightness(exitPupil);
   const brightnessPercent = Math.round((brightness / 49.0) * 100); // normalized against a 7mm pupil max (7^2 = 49)
 

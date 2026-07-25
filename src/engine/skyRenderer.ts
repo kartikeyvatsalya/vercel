@@ -1,7 +1,7 @@
 import { getTargetRenderScale, getApertureBrightnessMultiplier } from './opticalMath';
 import { computeSkyOffsetDeg, projectSkyOffsetPx, wrap180, getBodyEquatorial } from './skyGeometry';
 import { drawMoon, drawSaturn, drawSun, drawSpire, drawM42, drawJupiter, type JovianMoonSprite } from './targetGlyphs';
-import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarIlluminatedFraction, getSunEquatorial } from './ephemerisMath';
+import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarIlluminatedFraction, getSunEquatorial, degToRad } from './ephemerisMath';
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
 import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
 import type { Target } from '../types';
@@ -132,6 +132,10 @@ function drawConstellationLines(
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
+  // Phase 54: azimuth-circle degrees shrink toward the pole — an un-scaled
+  // dAz stretches the field horizontally near the zenith (see skyGeometry's
+  // projectSkyOffsetPx, which this inline projection mirrors).
+  const azPxPerDeg = pxPerDeg * Math.cos(degToRad(pointing.alt));
   // A touch looser than the star cull — a line can legitimately span
   // between one visible star and one just past the star-cull margin.
   const maxOffDeg = trueFovDeg * 0.85;
@@ -147,7 +151,7 @@ function drawConstellationLines(
     if (dAlt > maxOffDeg || dAlt < -maxOffDeg) return null;
     const dAz = wrap180(pos.azimuth - pointing.az);
     if (dAz > maxOffDeg || dAz < -maxOffDeg) return null;
-    return { x: centerX + offsetX + dAz * pxPerDeg, y: centerY + offsetY - dAlt * pxPerDeg };
+    return { x: centerX + offsetX + dAz * azPxPerDeg, y: centerY + offsetY - dAlt * pxPerDeg };
   };
 
   ctx.strokeStyle = `rgba(148, 197, 255, ${0.28 * darkness})`;
@@ -223,6 +227,8 @@ function drawFaintFieldStars(
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
+  // Phase 54: same azimuth-shrink correction as drawConstellationLines.
+  const azPxPerDeg = pxPerDeg * Math.cos(degToRad(pointing.alt));
   const maxOffDeg = trueFovDeg * 0.78;
   // Phase 38: gentled sky clock, shared with every other layer (see the
   // "Real starfield" comment below) — the LST spin and the center-cell
@@ -292,7 +298,7 @@ function drawFaintFieldStars(
           // Floor at 1px — sub-pixel arcs antialias into near-invisibility,
           // and a field star's whole job here is to be a SEEN pinpoint.
           const radius = Math.max(1, 1.9 - 0.1 * mag);
-          const x = centerX + offsetX + dAz * pxPerDeg;
+          const x = centerX + offsetX + dAz * azPxPerDeg;
           const y = centerY + offsetY - dAlt * pxPerDeg;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -354,6 +360,8 @@ function drawStarField(
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
+  // Phase 54: same azimuth-shrink correction as drawConstellationLines.
+  const azPxPerDeg = pxPerDeg * Math.cos(degToRad(pointing.alt));
   // Cull margin: half the canvas diagonal plus a little slack for halos.
   const maxOffDeg = trueFovDeg * 0.78;
   const skySimTime = targetSimTime ?? simTime;
@@ -375,7 +383,7 @@ function drawStarField(
     const alpha = starAlpha(star.mag, darkness) * apertureFactor;
     if (alpha <= 0.02) continue;
 
-    const x = centerX + offsetX + dAz * pxPerDeg;
+    const x = centerX + offsetX + dAz * azPxPerDeg;
     const y = centerY + offsetY - dAlt * pxPerDeg;
     const radius = starRadiusPx(star.mag);
 
@@ -527,7 +535,7 @@ function drawUniversalSkyBodies(
 
     // ── Visible: run the full glyph pipeline (ex-locked-target path) ──
     const angularDiameterDeg = body.angularDiameterDeg ?? body.angularSize / 60;
-    const { px: skyPxX, py: skyPxY } = projectSkyOffsetPx(skyOffset, trueFovDeg, viewportPx);
+    const { px: skyPxX, py: skyPxY } = projectSkyOffsetPx(skyOffset, pointing.alt, trueFovDeg, viewportPx);
     const targetX = centerX + offsetX + skyPxX;
     const targetY = centerY + offsetY + skyPxY;
 

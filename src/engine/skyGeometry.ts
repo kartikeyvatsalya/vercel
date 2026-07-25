@@ -1,4 +1,4 @@
-import { convertEquatorialToHorizontal, getSunEquatorial, getMoonEquatorial, getJulianDate } from './ephemerisMath';
+import { convertEquatorialToHorizontal, getSunEquatorial, getMoonEquatorial, getJulianDate, degToRad } from './ephemerisMath';
 import type { Target } from '../types';
 
 /**
@@ -88,15 +88,22 @@ export const clampSkyPx = (px: number): number => Math.max(-2000, Math.min(2000,
  * length, given the view's true field of view. Pure angular truth — the
  * simulation modes' drift gentling happens in TIME (see
  * getDriftGentledSimTime below), never by scaling this projection.
+ *
+ * Azimuth offset is scaled by cos(pointingAlt) (Phase 54): azimuth-circle
+ * degrees shrink toward the pole (they'd converge to a point at zenith), so
+ * an un-scaled dAz stretches the field horizontally — up to 11x near the
+ * zenith — instead of matching what a real flat focal plane shows.
  */
 export function projectSkyOffsetPx(
   offset: { dAlt: number; dAz: number } | null,
+  pointingAlt: number,
   trueFovDeg: number,
   viewportPx: number
 ): { px: number; py: number } {
   if (!offset || trueFovDeg <= 0) return { px: 0, py: 0 };
+  const azShrink = Math.cos(degToRad(pointingAlt));
   return {
-    px: clampSkyPx((offset.dAz / trueFovDeg) * viewportPx),
+    px: clampSkyPx(((offset.dAz * azShrink) / trueFovDeg) * viewportPx),
     py: clampSkyPx((-offset.dAlt / trueFovDeg) * viewportPx),
   };
 }

@@ -1223,33 +1223,55 @@ const DynamicSkyColor: React.FC = () => {
 };
 
 // ─── Lighting Rig ─────────────────────────────────────────────────
-const ObservatoryLighting: React.FC = () => (
-  <>
-    {/* Strong ambient fill — lifts the dark primitive meshes out of the black sky */}
-    <ambientLight intensity={1.5} color="#9fb0cc" />
-    {/* Moonlight: cool directional key light with shadows */}
-    <directionalLight
-      position={[5, 8, 3]}
-      intensity={1.6}
-      color="#cfe0ff"
-      castShadow
-      shadow-mapSize-width={2048}
-      shadow-mapSize-height={2048}
-      shadow-camera-near={0.5}
-      shadow-camera-far={30}
-      shadow-camera-left={-8}
-      shadow-camera-right={8}
-      shadow-camera-top={8}
-      shadow-camera-bottom={-8}
-    />
-    {/* Instrument accent: warm-white point light aimed at the telescope for
-        specular highlights and volumetric depth on the metallic tube.
-        (Physical light units: intensity is candela, hence the large value.) */}
-    <pointLight position={[1.8, 2.6, 1.6]} intensity={20} distance={15} decay={2} color="#dbe9ff" />
-    {/* Rim light for separation from the sky */}
-    <hemisphereLight color="#3a4d7a" groundColor="#0a0a0f" intensity={0.45} />
-  </>
-);
+// Phase 54: the light itself never moves, but its 2048x2048 shadow map
+// defaulted to THREE's per-frame autoUpdate — re-rendering the full
+// shadow-caster pass 60x/sec for a shadow that only actually changes when
+// the mount slews. Disable autoUpdate and flag needsUpdate only on real
+// pointingAlt/pointingAz changes, so the shadow pass runs on-demand.
+const ObservatoryLighting: React.FC = () => {
+  const dirLightRef = useRef<THREE.DirectionalLight>(null);
+
+  useEffect(() => {
+    const light = dirLightRef.current;
+    if (!light) return;
+    light.shadow.autoUpdate = false;
+    light.shadow.needsUpdate = true; // render the initial shadow once
+    return useTelescopeStore.subscribe((state, prevState) => {
+      if (state.pointingAlt !== prevState.pointingAlt || state.pointingAz !== prevState.pointingAz) {
+        light.shadow.needsUpdate = true;
+      }
+    });
+  }, []);
+
+  return (
+    <>
+      {/* Strong ambient fill — lifts the dark primitive meshes out of the black sky */}
+      <ambientLight intensity={1.5} color="#9fb0cc" />
+      {/* Moonlight: cool directional key light with shadows */}
+      <directionalLight
+        ref={dirLightRef}
+        position={[5, 8, 3]}
+        intensity={1.6}
+        color="#cfe0ff"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={0.5}
+        shadow-camera-far={30}
+        shadow-camera-left={-8}
+        shadow-camera-right={8}
+        shadow-camera-top={8}
+        shadow-camera-bottom={-8}
+      />
+      {/* Instrument accent: warm-white point light aimed at the telescope for
+          specular highlights and volumetric depth on the metallic tube.
+          (Physical light units: intensity is candela, hence the large value.) */}
+      <pointLight position={[1.8, 2.6, 1.6]} intensity={20} distance={15} decay={2} color="#dbe9ff" />
+      {/* Rim light for separation from the sky */}
+      <hemisphereLight color="#3a4d7a" groundColor="#0a0a0f" intensity={0.45} />
+    </>
+  );
+};
 
 // ─── Camera Mode Toggle (P27.6) — HTML overlay, outside the Canvas ────
 // Phase 39: the 'throughScope' ("Eyepiece") camera was removed from this

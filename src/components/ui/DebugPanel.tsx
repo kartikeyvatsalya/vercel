@@ -3,7 +3,7 @@ import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useAlignmentStore } from '../../store/useAlignmentStore';
 import { evaluateState } from '../../engine/rulesEngine';
-import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness } from '../../engine/opticalMath';
+import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from '../../engine/opticalMath';
 
 export const DebugPanel: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -45,9 +45,11 @@ export const DebugPanel: React.FC = () => {
 
   if (!isVisible || !telescopeState || !telescopeState.activeProfile || !telescopeState.activeTarget) return null;
 
-  const magnification = getMagnification(telescopeState.activeProfile.focalLength, telescopeState.eyepieceFocalLength);
+  const activeEyepiece = EYEPIECE_CATALOG.find((e) => e.id === telescopeState.activeEyepieceId)
+    ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
+  const magnification = getMagnification(telescopeState.activeProfile.focalLength, telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive);
   const exitPupil = getExitPupil(telescopeState.activeProfile.aperture, magnification);
-  const trueFOV = getTrueFOV(50, magnification);
+  const trueFOV = getTrueFOV(activeEyepiece.afovDeg, magnification);
   const brightness = getRelativeBrightness(exitPupil);
 
   const ruleEval = evaluateState({

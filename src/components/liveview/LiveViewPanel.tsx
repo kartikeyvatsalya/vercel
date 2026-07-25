@@ -493,7 +493,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   activeTarget, pointing.alt, pointing.az,
                   observer.latitude, observer.longitude, targetSimTime
                 );
-                const { px, py } = projectSkyOffsetPx(trackSkyOffset, mainTrueFovDeg, mainCanvas.width);
+                const { px, py } = projectSkyOffsetPx(trackSkyOffset, pointing.alt, mainTrueFovDeg, mainCanvas.width);
                 const dist = Math.hypot(px, py);
                 const isInReticle = dist < TRACK_RETICLE_RADIUS_PX;
                 const cx = mainCanvas.width / 2;

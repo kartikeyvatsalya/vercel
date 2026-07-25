@@ -45,7 +45,7 @@ export const TARGETS: Record<string, Target> = {
     name: 'Saturn',
     distance: '1.4 billion km',
     magnitude: 0.46,
-    angularSize: 18, // without rings
+    angularSize: 0.3, // ~18 arcseconds without rings
     angularDiameterDeg: 0.0125, // ring-tip to ring-tip
     type: 'planet',
     surfaceTextureUrl: '/textures/saturn.jpg',
@@ -61,7 +61,7 @@ export const TARGETS: Record<string, Target> = {
   jupiter: {
     id: 'jupiter',
     name: 'Jupiter',
-    distance: '778 million km (5.2 AU)',
+    distance: '628 million km (4.2 AU)',
     magnitude: -2.7,
     angularSize: 0.78, // ~47 arcseconds near opposition
     angularDiameterDeg: 0.013, // disk only — the Galilean moons extend far beyond (Callisto to ~26 R_J)
