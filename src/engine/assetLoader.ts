@@ -32,18 +32,40 @@ const ASSET_URLS: Record<string, string> = {
 /** Longest side of any texture kept in memory after the warm-up pass. */
 const MAX_TEXTURE_PX = 1024;
 
+/**
+ * Some network conditions (a stalled connection with no RST, a silently
+ * dropped request) never fire `onload` OR `onerror` at all — without a
+ * timeout, one stuck image hangs the whole app on the loading screen
+ * forever, since `preloadAssets`'s `Promise.all` waits on every one of them.
+ */
+const IMAGE_LOAD_TIMEOUT_MS = 15000;
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
     const img = new Image();
+    let settled = false;
+
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(img);
+    };
 
     img.crossOrigin = 'anonymous'; // Required for ctx.drawImage with CORS-enabled Wikimedia assets
-    img.onload  = () => resolve(img);
+    img.onload = settle;
     img.onerror = () => {
       // On CORS / network failure, resolve with a null-like sentinel so the
       // canvas modules can gracefully fall back to procedural rendering.
       console.warn(`[assetLoader] Failed to load: ${src}. Falling back to procedural rendering.`);
-      resolve(img); // img.complete will be false — callers should check
+      settle();
     };
+    const timeoutId = setTimeout(() => {
+      console.warn(`[assetLoader] Timed out loading: ${src}. Falling back to procedural rendering.`);
+      img.src = ''; // stop the stalled request from lingering in the background
+      settle();
+    }, IMAGE_LOAD_TIMEOUT_MS);
+
     img.src = src;
   });
 }

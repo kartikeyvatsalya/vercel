@@ -4,6 +4,7 @@ import { drawMoon, drawSaturn, drawSun, drawSpire, drawM42, drawJupiter, type Jo
 import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarIlluminatedFraction, getSunEquatorial, degToRad } from './ephemerisMath';
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
 import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
+import { drawBahtinovAsterism, MAIN_MM_TO_PX, MAIN_ARM_LENGTH_PX, type BahtinovGeometry } from './bahtinov';
 import type { Target } from '../types';
 import type { LoadedAssets } from './assetLoader';
 import type { RuleEvaluationResult } from './rulesEngine';
@@ -59,6 +60,15 @@ export interface OpticalViewSpec {
   targetSimTime?: number;
   /** Main-only "Digital Zoom" override (Fun mode); 1 = no zoom. */
   digitalZoom?: number;
+  /**
+   * Main-only: true Bahtinov mask diffraction geometry (Phase 56), computed
+   * by the caller from the live focuser state (see engine/bahtinov.ts).
+   * Present only while the Bahtinov toggle is on, in 'astrophotography'
+   * mode, and the locked target isn't the Sun/Moon (both far too extended
+   * for a point-source diffraction spike to mean anything). Rendered over
+   * the LOCKED target only, same anchor as the defocus bokeh hole below.
+   */
+  bahtinovGeometry?: BahtinovGeometry | null;
   evalResult: RuleEvaluationResult;
   isHighPerformanceMode: boolean;
   aperture: number;
@@ -480,6 +490,7 @@ function drawUniversalSkyBodies(
   const {
     role, viewportPx, trueFovDeg, pointing, digitalZoom, evalResult, aperture,
     target, skyBodies, assets, observer, simTime, now, isAltAzMount, sunAltDeg,
+    bahtinovGeometry,
   } = spec;
   if (trueFovDeg <= 0 || skyBodies.length === 0) return;
   const targetSimTime = spec.targetSimTime ?? simTime;
@@ -684,6 +695,18 @@ function drawUniversalSkyBodies(
       ctx.fillStyle = 'rgba(0, 0, 0, 1)';
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Bahtinov mask diffraction pattern (Phase 56) — screen space, over the
+    // locked target only, same anchor as the bokeh hole above.
+    if (isLockedTarget && !isFinder && bahtinovGeometry) {
+      ctx.save();
+      ctx.translate(targetX, targetY);
+      drawBahtinovAsterism(ctx, bahtinovGeometry, {
+        mmToPx: MAIN_MM_TO_PX,
+        armLengthPx: MAIN_ARM_LENGTH_PX,
+      });
+      ctx.restore();
     }
   }
 }

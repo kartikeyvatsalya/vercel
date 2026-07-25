@@ -9,6 +9,7 @@ import { calculateDsoSNR, calculatePlanetarySharpness } from '../../engine/astro
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { computeSkyOffsetDeg, projectSkyOffsetPx, getDriftGentledSimTime } from '../../engine/skyGeometry';
 import { renderOpticalView } from '../../engine/skyRenderer';
+import { computeBahtinovGeometry, drawVernierInset, VERNIER_INSET_WIDTH_PX, VERNIER_INSET_HEIGHT_PX } from '../../engine/bahtinov';
 import { TARGETS } from '../../data/bookContent';
 import { getSmoothSimTime, SIDEREAL_DEG_PER_SEC } from '../../engine/timeEngine';
 import { getSkyState } from '../../engine/daylight';
@@ -454,6 +455,22 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           if (mainCanvas) {
             const ctx = mainCanvas.getContext('2d');
             if (ctx) {
+              // True Bahtinov diffraction geometry (Phase 56) — only meaningful
+              // in 'astrophotography' mode, with the mask toggled on, over a
+              // point-source-ish target (Sun/Moon are far too extended for a
+              // diffraction spike to mean anything). Computed once here so the
+              // main overlay (inside renderOpticalView, below) and the vernier
+              // inset (drawn later in this same frame) can never disagree.
+              const bahtinovGeometry = (
+                mode === 'astrophotography' && isBahtinovMaskOn && activeTarget &&
+                activeTarget.id !== 'sun' && activeTarget.id !== 'moon'
+              ) ? computeBahtinovGeometry(
+                    telescope.focuserPosition,
+                    getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive),
+                    activeProfile.focalRatio
+                  )
+                : null;
+
               renderOpticalView(ctx, {
                 role: 'main',
                 viewportPx: mainCanvas.width,
@@ -473,6 +490,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 now,
                 sunAltDeg: sky.sunAltDeg,
                 isAltAzMount: activeProfile.mountType !== 'Equatorial',
+                bahtinovGeometry,
               });
 
               // ── 'track' mode overlay: mechanical droop + reticle + lock timer ──
@@ -592,8 +610,6 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
               // bokeh are already baked into the base render above; this layer
               // only adds exposure/stacking/calibration-driven effects on top.
               if (mode === 'astrophotography' && activeTarget && !evalResult.isBlackedOut && !evalResult.hasSolarHazard) {
-                const targetId = activeTarget.id;
-
                 if (astroMode === 'planetary') {
                   astroSharpness = calculatePlanetarySharpness(frameCutoff, telescope.seeingQuality);
 
@@ -657,27 +673,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   ctx.restore();
                 }
 
-                if (isBahtinovMaskOn && targetId !== 'sun' && targetId !== 'moon') {
-                  const perfectFocusPoint = getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
-                  const defocusSigned = telescope.focuserPosition - perfectFocusPoint;
-                  ctx.save();
-                  ctx.translate(mainCanvas.width / 2, mainCanvas.height / 2);
-                  ctx.globalCompositeOperation = 'screen';
-                  ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
-                  ctx.lineWidth = 2;
-                  ctx.shadowBlur = 10;
-                  ctx.shadowColor = 'rgba(255, 100, 100, 1)';
-                  ctx.beginPath();
-                  ctx.moveTo(-110, -75); ctx.lineTo(110, 75);
-                  ctx.moveTo(-110, 75); ctx.lineTo(110, -75);
-                  ctx.stroke();
-                  const shift = defocusSigned * 3.5;
-                  ctx.strokeStyle = 'rgba(100, 255, 100, 0.9)';
-                  ctx.shadowColor = 'rgba(100, 255, 100, 1)';
-                  ctx.beginPath();
-                  ctx.moveTo(shift, -110); ctx.lineTo(shift, 110);
-                  ctx.stroke();
-                  ctx.restore();
+                // Vernier magnifier inset (Phase 56): the true displacement
+                // computed above is microscopic at any sane magnification (see
+                // bahtinov.ts) — this is the same trick real Bahtinov-grabber
+                // software uses, an 8× cropped loupe on just the crossing.
+                if (bahtinovGeometry) {
+                  drawVernierInset(ctx, bahtinovGeometry, {
+                    x: mainCanvas.width - VERNIER_INSET_WIDTH_PX - 10,
+                    y: mainCanvas.height - VERNIER_INSET_HEIGHT_PX - 10,
+                  });
                 }
 
                 ctx.save();

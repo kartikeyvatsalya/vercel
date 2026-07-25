@@ -1,4 +1,5 @@
 import type { LoadedAssets, LoadedTexture } from './assetLoader';
+import { LRUCache } from './spriteCache';
 
 /**
  * Target Glyphs (Phase 27, P27.1; M42 warm cache added in Phase 29)
@@ -44,8 +45,8 @@ interface BakedGlyphSprite {
   radius: number;
 }
 
-const glyphSpriteCache = new Map<string, BakedGlyphSprite>();
 const GLYPH_SPRITE_CACHE_MAX_ENTRIES = 12;
+const glyphSpriteCache = new LRUCache<string, BakedGlyphSprite>(GLYPH_SPRITE_CACHE_MAX_ENTRIES);
 
 /** Jupiter's visible polar flattening (shared by the sprite bake and the fallback). */
 const JUPITER_POLAR_RATIO = 0.935;
@@ -87,7 +88,6 @@ function getGlyphSprite(
   const cctx = canvas.getContext('2d');
   if (!cctx) return null;
   if (!bake(cctx)) return null; // bake declined (e.g. tainted texture) — don't cache
-  if (glyphSpriteCache.size >= GLYPH_SPRITE_CACHE_MAX_ENTRIES) glyphSpriteCache.clear();
   const sprite: BakedGlyphSprite = { canvas, radius };
   glyphSpriteCache.set(key, sprite);
   return sprite;
@@ -658,8 +658,8 @@ export function drawSpire(ctx: CanvasRenderingContext2D, x: number, y: number, s
 // an offscreen canvas keyed by (quantized size, quantized blur) and each
 // frame just blits that cached bitmap. Recalculated only when the eyepiece/
 // zoom/defocus actually changes the requested size or blur.
-const m42CompositeCache = new Map<string, HTMLCanvasElement>();
 const M42_CACHE_MAX_ENTRIES = 8;
+const m42CompositeCache = new LRUCache<string, HTMLCanvasElement>(M42_CACHE_MAX_ENTRIES);
 
 // Phase 52 defense-in-depth: same rationale as MAX_MOON_SCRATCH_SIDE_PX
 // above — the requested size is already clamped upstream, but this cap
@@ -687,7 +687,6 @@ function getM42Composite(sizePx: number, blurPx: number, orionTex: LoadedTexture
   cctx.drawImage(orionTex, pad, pad, drawSize, drawSize);
   cctx.filter = 'none';
 
-  if (m42CompositeCache.size >= M42_CACHE_MAX_ENTRIES) m42CompositeCache.clear();
   m42CompositeCache.set(key, canvas);
   return canvas;
 }
