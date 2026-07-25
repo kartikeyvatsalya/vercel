@@ -41,7 +41,15 @@ export interface TelescopeProfile {
   focalLength: number; // in mm (Fo)
   focalRatio: number; // f/number
   centralObstruction: number; // percentage of aperture (for contrast/diffraction calculations)
-  isInvertedView: boolean;
+  /**
+   * Two physically distinct effects, often conflated: a straight-through
+   * Newtonian/Dobsonian (two mirror reflections) rotates the WHOLE field
+   * 180° ('inverted'); a refractor/SCT used with a star diagonal (one
+   * extra reflection) mirrors it left-right only ('mirrored'), which is
+   * NOT the same transform. 'correct' is a true erect image (e.g. a
+   * prism-erected spotting scope or binoculars).
+   */
+  viewOrientation: 'correct' | 'inverted' | 'mirrored';
   hasGoTo: boolean;
   mountType: 'Alt-Az' | 'Equatorial';
 }

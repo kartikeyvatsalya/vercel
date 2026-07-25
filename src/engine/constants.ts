@@ -9,7 +9,7 @@ export const TELESCOPE_PROFILES: Record<string, TelescopeProfile> = {
     focalLength: 1200,   // Typical f/6
     focalRatio: 6,
     centralObstruction: 25, // 25% by diameter
-    isInvertedView: true,
+    viewOrientation: 'inverted',
     hasGoTo: false,
     mountType: 'Alt-Az',
   },
@@ -21,7 +21,7 @@ export const TELESCOPE_PROFILES: Record<string, TelescopeProfile> = {
     focalLength: 700,
     focalRatio: 11.6,
     centralObstruction: 0,
-    isInvertedView: false,
+    viewOrientation: 'mirrored',
     hasGoTo: false,
     mountType: 'Alt-Az',
   },
@@ -33,7 +33,7 @@ export const TELESCOPE_PROFILES: Record<string, TelescopeProfile> = {
     focalLength: 3910,   // f/11 standard SCT
     focalRatio: 11,
     centralObstruction: 33, // SCTs have larger central obstruction
-    isInvertedView: false,
+    viewOrientation: 'mirrored',
     hasGoTo: true,
     mountType: 'Equatorial',
   },

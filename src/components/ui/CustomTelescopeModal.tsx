@@ -11,9 +11,42 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
   const [aperture, setAperture] = useState(130);
   const [focalLength, setFocalLength] = useState(650);
 
+  // ── Mount + Orientation (Phase 55) ── Previously guessed from the optical
+  // design (`type === 'dobsonian' ? 'Alt-Az' : 'Equatorial'`), which forced
+  // EVERY custom refractor and pair of binoculars onto an Equatorial mount —
+  // wrong for the common case (binoculars are hand-held/Alt-Az; small
+  // refractors are frequently Alt-Az too). TYPE_DEFAULTS still seeds a
+  // sensible starting value when the Optical Design changes, but the user
+  // now owns the final call via the two dropdowns below.
+  const TYPE_DEFAULTS: Record<typeof type, { mountType: 'Alt-Az' | 'Equatorial'; viewOrientation: 'inverted' | 'mirrored' }> = {
+    dobsonian: { mountType: 'Alt-Az', viewOrientation: 'inverted' },
+    newtonian: { mountType: 'Equatorial', viewOrientation: 'inverted' },
+    refractor: { mountType: 'Alt-Az', viewOrientation: 'mirrored' },
+    sct: { mountType: 'Equatorial', viewOrientation: 'mirrored' },
+    binoculars: { mountType: 'Alt-Az', viewOrientation: 'mirrored' },
+  };
+  const [mountType, setMountType] = useState<'Alt-Az' | 'Equatorial'>(TYPE_DEFAULTS.newtonian.mountType);
+  const [viewOrientation, setViewOrientation] = useState<'inverted' | 'mirrored'>(TYPE_DEFAULTS.newtonian.viewOrientation);
+
+  const handleTypeChange = (newType: typeof type) => {
+    setType(newType);
+    setMountType(TYPE_DEFAULTS[newType].mountType);
+    setViewOrientation(TYPE_DEFAULTS[newType].viewOrientation);
+  };
+
   // Derived physics
   const focalRatio = aperture > 0 ? (focalLength / aperture) : 0;
   const maxMagnification = aperture * 2;
+
+  // ── Validation (Phase 55) ── Guards the same three things a real optical
+  // system can't tolerate: non-positive aperture/focal length (division by
+  // zero or negative magnification downstream) and an f-ratio outside what
+  // any real telescope built or sold, [1.0, 30.0] — catches typos like a
+  // transposed aperture/focal-length pair before they reach the store.
+  const isApertureValid = aperture > 0;
+  const isFocalLengthValid = focalLength > 0;
+  const isFocalRatioValid = focalRatio >= 1.0 && focalRatio <= 30.0;
+  const isValid = isApertureValid && isFocalLengthValid && isFocalRatioValid;
 
   const TYPE_LABELS: Record<typeof type, TelescopeProfile['type']> = {
     dobsonian: 'Dobsonian',
@@ -24,17 +57,19 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
   };
 
   const handleSave = () => {
+    if (!isValid) return;
+
     const newProfile: TelescopeProfile = {
       id: `custom_${Date.now()}`,
       name,
       type: TYPE_LABELS[type],
       aperture,
       focalLength,
-      focalRatio: Number(focalRatio.toFixed(1)),
+      focalRatio: Number(focalRatio.toFixed(1)), // authoritative value is re-derived in useTelescopeStore.addCustomProfile
       centralObstruction: type === 'refractor' || type === 'binoculars' ? 0 : 15,
-      isInvertedView: type === 'dobsonian' || type === 'newtonian',
+      viewOrientation,
       hasGoTo: false,
-      mountType: type === 'dobsonian' ? 'Alt-Az' : 'Equatorial', // Simplification
+      mountType,
     };
 
     addCustomProfile(newProfile);
@@ -83,9 +118,9 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Optical Design</label>
-            <select 
+            <select
               value={type}
-              onChange={(e) => setType(e.target.value as any)}
+              onChange={(e) => handleTypeChange(e.target.value as typeof type)}
               className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
             >
               <option value="dobsonian">Dobsonian (Reflector)</option>
@@ -94,6 +129,32 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
               <option value="sct">Schmidt-Cassegrain (SCT)</option>
               <option value="binoculars">Binoculars</option>
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Mount Type</label>
+              <select
+                value={mountType}
+                onChange={(e) => setMountType(e.target.value as 'Alt-Az' | 'Equatorial')}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+              >
+                <option value="Alt-Az">Alt-Az</option>
+                <option value="Equatorial">Equatorial</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Orientation</label>
+              <select
+                value={viewOrientation}
+                onChange={(e) => setViewOrientation(e.target.value as 'inverted' | 'mirrored')}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+              >
+                <option value="inverted">Inverted (180°)</option>
+                <option value="mirrored">Mirrored (left-right)</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -125,17 +186,27 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 mb-3 flex items-center gap-2">
               <Calculator className="w-3.5 h-3.5" /> Optical Physics Preview
             </h3>
-            
+
             <div className="flex justify-between items-end border-b border-slate-700/50 pb-2 mb-2">
               <span className="text-xs text-slate-400">Focal Ratio (Speed)</span>
-              <span className="font-mono text-sm font-bold text-slate-200">f/{focalRatio.toFixed(1)}</span>
+              <span className={`font-mono text-sm font-bold ${isFocalRatioValid ? 'text-slate-200' : 'text-red-400'}`}>
+                f/{focalRatio.toFixed(1)}
+              </span>
             </div>
-            
+
             <div className="flex justify-between items-end">
               <span className="text-xs text-slate-400">Max Useful Magnification</span>
               <span className="font-mono text-sm font-bold text-slate-200">{maxMagnification}x</span>
             </div>
           </div>
+
+          {!isValid && (
+            <p className="text-xs text-red-400 -mt-2">
+              {!isApertureValid ? 'Aperture must be greater than 0.'
+                : !isFocalLengthValid ? 'Focal length must be greater than 0.'
+                : `f/${focalRatio.toFixed(1)} is outside the buildable range (f/1.0–f/30.0) — check your aperture and focal length.`}
+            </p>
+          )}
 
         </div>
 
@@ -143,7 +214,9 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
         <div className="p-5 border-t border-slate-800 bg-slate-900/50">
           <button
             onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest text-xs transition-colors shadow-lg shadow-amber-900/20"
+            disabled={!isValid}
+            title={isValid ? undefined : 'Fix the highlighted values before saving.'}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest text-xs transition-colors shadow-lg shadow-amber-900/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-600"
           >
             <Telescope className="w-4 h-4" /> Save to Garage
           </button>

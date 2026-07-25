@@ -37,12 +37,15 @@ export interface OpticalViewSpec {
   /** Finder-only: drives the crosshair's aligned (green) vs seeking (red) color. */
   isCrosshairAligned?: boolean;
   /**
-   * Main-only: profile.isInvertedView. A real Newtonian/Dobsonian mirror
-   * flips the ENTIRE field 180° — not just asymmetric targets — so this
-   * rotates the whole target position + glyph as one unit around the
-   * canvas center, leaving the crosshair/bezel HUD screen-locked.
+   * Main-only: profile.viewOrientation. A real Newtonian/Dobsonian (two
+   * mirror reflections) rotates the ENTIRE field 180° ('inverted'); a
+   * refractor/SCT used with a star diagonal (one reflection) mirrors it
+   * left-right only ('mirrored') — a physically different transform, not
+   * just a weaker version of the same thing. Either rotates/mirrors the
+   * whole target position + glyph as one unit around the canvas center,
+   * leaving the crosshair/bezel HUD screen-locked.
    */
-  rotate180?: boolean;
+  viewOrientation?: 'correct' | 'inverted' | 'mirrored';
   /**
    * Drift-gentled ephemeris time for the WHOLE SKY's position — stars AND
    * every catalog body alike (Phase 38; see skyGeometry.getDriftGentledSimTime).
@@ -651,8 +654,9 @@ function drawUniversalSkyBodies(
       drawM42(ctx, targetSize, assets?.orion, 0.3 * daylightVis, blurAmount);
       ctx.restore();
     } else if (body.id === 'spire') {
-      // No per-glyph invert flag: renderOpticalView's canvas-level rotate180
-      // already covers the whole field, this body included.
+      // No per-glyph invert flag: renderOpticalView's canvas-level parity
+      // transform (rotate or mirror) already covers the whole field, this
+      // body included.
       drawSpire(ctx, targetX, targetY, targetSize, now, false);
     } else {
       // Defensive fallback — no body id besides the six above exists in the
@@ -687,7 +691,7 @@ function drawUniversalSkyBodies(
 export function renderOpticalView(ctx: CanvasRenderingContext2D, spec: OpticalViewSpec): void {
   const {
     role, viewportPx, trueFovDeg, axisErrorDeg, legacyAlignmentOffsetPx,
-    isCrosshairAligned, rotate180, evalResult,
+    isCrosshairAligned, viewOrientation, evalResult,
     isHighPerformanceMode, now, sunAltDeg,
   } = spec;
   const isFinder = role === 'finder';
@@ -761,13 +765,20 @@ export function renderOpticalView(ctx: CanvasRenderingContext2D, spec: OpticalVi
 
     const droopY = evalResult.isAltDrooping ? ((now % 10000) / 10000) * height : 0;
 
-    // ── Optical inversion (main feed only) — rotates the whole field (stars
-    // AND target), not just the glyph, around the canvas center; HUD chrome
-    // stays untouched since this transform is undone by ctx.restore()
-    // before the crosshair.
-    if (!isFinder && rotate180) {
+    // ── Optical parity (main feed only) — rotates or mirrors the whole
+    // field (stars AND target), not just the glyph, around the canvas
+    // center; HUD chrome stays untouched since this transform is undone by
+    // ctx.restore() before the crosshair. 'inverted' (two mirror
+    // reflections, e.g. a straight Newtonian/Dobsonian) rotates the field
+    // 180°; 'mirrored' (one reflection, e.g. a refractor/SCT through a star
+    // diagonal) flips it left-right only — physically distinct transforms.
+    if (!isFinder && viewOrientation === 'inverted') {
       ctx.translate(centerX, centerY);
       ctx.rotate(Math.PI);
+      ctx.translate(-centerX, -centerY);
+    } else if (!isFinder && viewOrientation === 'mirrored') {
+      ctx.translate(centerX, centerY);
+      ctx.scale(-1, 1);
       ctx.translate(-centerX, -centerY);
     }
 

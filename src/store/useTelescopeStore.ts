@@ -302,10 +302,20 @@ export const useTelescopeStore = create<TelescopeState>()(
       isAzLocked: false,
       isEqMeridianDanger: false,
 
-      addCustomProfile: (profile) => set((state) => ({
-        availableProfiles: [...state.availableProfiles, profile],
-        activeProfile: profile // Auto-select the newly added profile
-      })),
+      // Phase 55: focalRatio is re-derived here from the raw aperture/focalLength
+      // rather than trusted as passed in — the two numbers are the physical
+      // ground truth, and storing a ratio computed elsewhere (or hand-edited)
+      // risks it silently desyncing from them.
+      addCustomProfile: (profile) => {
+        const derivedProfile: TelescopeProfile = {
+          ...profile,
+          focalRatio: profile.aperture > 0 ? Number((profile.focalLength / profile.aperture).toFixed(1)) : 0,
+        };
+        set((state) => ({
+          availableProfiles: [...state.availableProfiles, derivedProfile],
+          activeProfile: derivedProfile, // Auto-select the newly added profile
+        }));
+      },
       setActiveProfile: (profileId) => {
         const { availableProfiles } = get();
         const profile = availableProfiles.find(p => p.id === profileId) || TELESCOPE_PROFILES.dobsonian8;
@@ -605,6 +615,29 @@ export const useTelescopeStore = create<TelescopeState>()(
         const merged = { ...currentState, ...(persistedState as Partial<TelescopeState>) };
         if (merged.activeTarget) {
           merged.activeTarget = TARGETS[merged.activeTarget.id] ?? merged.activeTarget;
+        }
+        // ── Profile schema repair (Phase 55) ──
+        // Built-in profiles rehydrate fully from the live catalog, same as
+        // activeTarget above. Custom (user-built) profiles can't be looked
+        // up in a catalog, so instead backfill the one field that changed
+        // shape: sessions persisted before viewOrientation existed only
+        // have the legacy isInvertedView boolean. Map that forward
+        // (true→'inverted', false→'mirrored' — every pre-Phase-55 profile
+        // with isInvertedView:false was in practice a mirrored scope, never
+        // a true erect 'correct' view) instead of silently dropping the
+        // rendered parity transform for a returning user's custom scope.
+        const repairProfile = (profile: TelescopeProfile): TelescopeProfile => {
+          const builtIn = TELESCOPE_PROFILES[profile.id];
+          if (builtIn) return builtIn;
+          if (profile.viewOrientation) return profile;
+          const { isInvertedView, ...rest } = profile as TelescopeProfile & { isInvertedView?: boolean };
+          return { ...rest, viewOrientation: isInvertedView ? 'inverted' : 'mirrored' };
+        };
+        if (merged.activeProfile) {
+          merged.activeProfile = repairProfile(merged.activeProfile);
+        }
+        if (merged.availableProfiles) {
+          merged.availableProfiles = merged.availableProfiles.map(repairProfile);
         }
         // ── Eyepiece-ID backfill (Phase 27, P27.3) ──
         // Sessions persisted before activeEyepieceId existed only have the

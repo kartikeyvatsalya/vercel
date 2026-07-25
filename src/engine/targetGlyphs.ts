@@ -567,8 +567,10 @@ export function drawSun(ctx: CanvasRenderingContext2D, x: number, y: number, siz
  * The Distant Tower — a terrestrial target, so unlike the celestial glyphs
  * above it has a true "up." `invert` rotates it 180°, which is how a
  * Newtonian/Dobsonian's mirror flips every terrestrial view: pass
- * `profile.isInvertedView` for the main eyepiece feed, `false` for the
- * finder (real finders are straight-through/correct-image in this sim).
+ * `profile.viewOrientation === 'inverted'` for the main eyepiece feed,
+ * `false` for the finder (real finders are straight-through/correct-image
+ * in this sim). renderOpticalView's canvas-level transform already covers
+ * 'mirrored' scopes, so this glyph-level flag stays binary.
  */
 export function drawSpire(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, now: number, invert: boolean = false): void {
   ctx.save();

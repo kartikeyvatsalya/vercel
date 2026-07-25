@@ -459,7 +459,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 viewportPx: mainCanvas.width,
                 trueFovDeg: mainTrueFovDeg,
                 pointing,
-                rotate180: activeProfile.isInvertedView,
+                viewOrientation: activeProfile.viewOrientation,
                 targetSimTime,
                 digitalZoom,
                 evalResult,
@@ -570,8 +570,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 ctx.textAlign = 'center';
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 const hintText = activeTarget.type === 'terrestrial'
-                  ? (activeProfile.isInvertedView ? 'INVERTED VIEW — terrestrial objects appear upside-down!' : 'Terrestrial objects appear right-side up on this scope.')
-                  : (activeProfile.isInvertedView ? 'INVERTED VIEW — drag OPPOSITE to your instinct to track' : 'Drag to track — this scope shows a natural, non-inverted view');
+                  ? (activeProfile.viewOrientation === 'inverted' ? 'INVERTED VIEW — terrestrial objects appear upside-down!'
+                    : activeProfile.viewOrientation === 'mirrored' ? 'MIRRORED VIEW — terrestrial objects appear flipped left-right!'
+                    : 'Terrestrial objects appear right-side up on this scope.')
+                  : (activeProfile.viewOrientation === 'inverted' ? 'INVERTED VIEW — drag OPPOSITE to your instinct to track'
+                    : activeProfile.viewOrientation === 'mirrored' ? 'MIRRORED VIEW — sideways drag is OPPOSITE your instinct; up/down stays natural'
+                    : 'Drag to track — this scope shows a natural, non-inverted view');
                 ctx.fillText(hintText, cx, 20);
 
                 if (dist > (mainCanvas.width / 2 - 5) * 0.8) {
@@ -865,10 +869,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   // ── 'track' mode: drag-to-slew the MAIN feed (ported from DobsonianTrainer) ──
   // Calls setPointing directly — NOT clearTarget — so the target stays locked
   // and the student is fighting real ephemeris drift, not manually slewing away.
-  // The inversion sign flips with the ACTIVE PROFILE's isInvertedView (a real
-  // refractor drags naturally; only a Newtonian/Dobsonian feels "backwards" —
-  // the old DobsonianTrainer always inverted regardless of profile, a latent
-  // inaccuracy this fixes).
+  // The drag signs follow the ACTIVE PROFILE's viewOrientation — WYSIWYG drag
+  // (the rendered target follows the cursor 1:1) requires the sign of each
+  // axis to match whatever screen transform renderOpticalView applied:
+  //   'correct'  — no transform:      azSign -1, altSign +1
+  //   'inverted' — rotate(180°), BOTH axes flip: azSign +1, altSign -1
+  //   'mirrored' — scale(-1,1), only the horizontal axis flips: azSign +1,
+  //                altSign +1 (vertical drag still feels natural)
+  // (The old DobsonianTrainer always inverted regardless of profile, a
+  // latent inaccuracy this fixes.)
   const handleTrackPointerDown = (e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     trackDragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY };
@@ -895,9 +904,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
       DRAG_SENSITIVITY_MIN,
       Math.min(DRAG_SENSITIVITY_MAX, fov / DRAG_SENSITIVITY_REFERENCE_FOV_DEG)
     );
-    const invert = store.activeProfile?.isInvertedView ?? false;
-    const azSign = invert ? 1 : -1;
-    const altSign = invert ? -1 : 1;
+    const orientation = store.activeProfile?.viewOrientation ?? 'correct';
+    const azSign = orientation === 'correct' ? -1 : 1;
+    const altSign = orientation === 'inverted' ? -1 : 1;
 
     store.setPointing(
       store.pointingAlt + altSign * dy * degPerPx * dragSensitivity,
@@ -1228,7 +1237,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           <p className="mt-14 text-xs text-slate-400 max-w-xs text-center leading-relaxed">
             {t('liveview.trackIntro')}
             {' '}
-            {telescopeState.activeProfile?.isInvertedView ? t('liveview.trackInvertedNote') : t('liveview.trackNaturalNote')}
+            {telescopeState.activeProfile?.viewOrientation === 'inverted' ? t('liveview.trackInvertedNote')
+              : telescopeState.activeProfile?.viewOrientation === 'mirrored' ? t('liveview.trackMirroredNote')
+              : t('liveview.trackNaturalNote')}
             {' '}{t('liveview.trackHoldInstruction')}
           </p>
         )}
