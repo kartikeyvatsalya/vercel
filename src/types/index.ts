@@ -33,6 +33,46 @@ export interface Target {
   difficulty: 'Beginner' | 'Intermediate' | 'Expert';
 }
 
+/**
+ * One adjustable mirror cell — the three-screw mount a primary or secondary
+ * mirror actually sits in (Phase 57). Every field is a physical property of
+ * the hardware, so engine/collimation.ts can derive tilt/piston from raw
+ * screw turns without knowing which telescope it's looking at.
+ */
+export interface MirrorCell {
+  /** Radius (mm) of the bolt circle the three collimation screws sit on. */
+  screwCircleRadiusMm: number;
+  /** Axial travel (mm) the cell moves at one screw per full 360° turn — the thread pitch. */
+  threadPitchMm: number;
+  /** Clock angle (deg, CCW from screen-right) of screw #1; screws #2/#3 follow at +120°/+240°. */
+  screwPhaseDeg: number;
+  /**
+   * Angular gain from MIRROR tilt to OUTGOING BEAM deviation. A plain
+   * reflection doubles the angle, so a flat (Newtonian primary or diagonal)
+   * is 2. A Cassegrain's convex secondary additionally amplifies by its own
+   * magnification — hence an SCT secondary's ~10, and why SCT collimation is
+   * done in tiny fractions of a turn while a Dob's primary tolerates whole ones.
+   */
+  beamDeviationGain: number;
+  /**
+   * Focal-plane shift per mm of COMMON-MODE cell travel (all three screws
+   * turned equally). A rigidly translated Newtonian primary carries its own
+   * focal plane with it (1); a Cassegrain secondary is a focus amplifier and
+   * moves the back focus many times its own travel.
+   */
+  pistonFocusGain: number;
+}
+
+/**
+ * Which of a telescope's mirrors the user can actually reach with a hex key.
+ * Absent entirely on instruments with nothing user-adjustable (a sealed
+ * refractor doublet); `primary` absent on an SCT, whose primary is factory-set.
+ */
+export interface CollimationSpec {
+  primary?: MirrorCell;
+  secondary?: MirrorCell;
+}
+
 export interface TelescopeProfile {
   id: string;
   name: string;
@@ -52,6 +92,12 @@ export interface TelescopeProfile {
   viewOrientation: 'correct' | 'inverted' | 'mirrored';
   hasGoTo: boolean;
   mountType: 'Alt-Az' | 'Equatorial';
+  /**
+   * Which mirror cells this instrument exposes for collimation (Phase 57).
+   * Optional because a sealed refractor genuinely has none, and because
+   * user-built custom profiles predate the field.
+   */
+  collimation?: CollimationSpec;
 }
 
 /** Shared emotion vocabulary for the Instructor voice engine. */
@@ -74,5 +120,5 @@ export interface InstructorResponse {
   nextAction?: string;
 }
 
-/** The three practical 2D training modules — shared by App.tsx's module tab bar and the curriculum's "Try it out" routing (engine/curriculum.ts). */
-export type ModuleId = 'finderscope' | 'dobsonian' | 'astrophotography';
+/** The four practical 2D training modules — shared by App.tsx's module tab bar and the curriculum's "Try it out" routing (engine/curriculum.ts). */
+export type ModuleId = 'finderscope' | 'dobsonian' | 'collimation' | 'astrophotography';

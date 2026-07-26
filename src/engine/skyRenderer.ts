@@ -5,6 +5,10 @@ import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, 
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
 import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
 import { drawBahtinovAsterism, MAIN_MM_TO_PX, MAIN_ARM_LENGTH_PX, type BahtinovGeometry } from './bahtinov';
+import {
+  bakeStarTestSprite, blitStarTestSprite, drawComaFlare, starTestSpreadDimming,
+  MIN_STAR_TEST_RADIUS_PX, STAR_TEST_MAG_LIMIT, type StarTestRenderSpec,
+} from './starTest';
 import type { Target } from '../types';
 import type { LoadedAssets } from './assetLoader';
 import type { RuleEvaluationResult } from './rulesEngine';
@@ -69,6 +73,15 @@ export interface OpticalViewSpec {
    * the LOCKED target only, same anchor as the defocus bokeh hole below.
    */
   bahtinovGeometry?: BahtinovGeometry | null;
+  /**
+   * Main-only: live star-test geometry (Phase 57), computed by the caller
+   * from the focuser position and the collimation store (see engine/starTest
+   * and engine/collimation). Present only in 'collimate' mode. When set, the
+   * bright end of the starfield stops drawing focused points and draws the
+   * real defocused donut instead — the alignment instrument the whole mode
+   * is built around. Null everywhere else, so no other mode pays for it.
+   */
+  starTest?: StarTestRenderSpec | null;
   evalResult: RuleEvaluationResult;
   isHighPerformanceMode: boolean;
   aperture: number;
@@ -370,6 +383,10 @@ function drawStarField(
 
   const { viewportPx, trueFovDeg, pointing, observer, simTime, targetSimTime, role, aperture } = spec;
   if (trueFovDeg <= 0) return;
+  // Star test (Phase 57) — main feed only. The finder is a separate, fixed
+  // optic the main focuser doesn't touch, so its stars stay focused points
+  // no matter how far the drawtube is racked.
+  const starTest = role === 'finder' ? null : spec.starTest ?? null;
   const centerX = viewportPx / 2;
   const centerY = viewportPx / 2;
   const pxPerDeg = viewportPx / trueFovDeg;
@@ -399,6 +416,42 @@ function drawStarField(
     const x = centerX + offsetX + dAz * azPxPerDeg;
     const y = centerY + offsetY - dAlt * pxPerDeg;
     const radius = starRadiusPx(star.mag);
+
+    // ── Star test intercept (Phase 57) ──────────────────────────────
+    // A bright star, deliberately defocused, stops being a point and becomes
+    // the donut that reveals the mirror alignment (see engine/starTest). Only
+    // the genuinely bright end qualifies: spread a 4th-magnitude star over a
+    // hundred times its focused area and there is simply nothing left to see,
+    // which is exactly why observers star-test on Polaris and Vega.
+    if (starTest && star.mag < STAR_TEST_MAG_LIMIT) {
+      const diskRadiusPx = starTest.diskRadiusDeg * pxPerDeg;
+      if (diskRadiusPx >= MIN_STAR_TEST_RADIUS_PX) {
+        const sprite = bakeStarTestSprite({
+          radiusPx: diskRadiusPx,
+          obstructionFrac: starTest.obstructionFrac,
+          shadowOffsetFrac: starTest.shadowOffsetFrac,
+          shadowAngleRad: starTest.shadowAngleRad,
+          ringCount: starTest.ringCount,
+        });
+        if (sprite) {
+          const donutAlpha = alpha * starTestSpreadDimming(diskRadiusPx);
+          ctx.globalAlpha = donutAlpha;
+          blitStarTestSprite(ctx, sprite, x, y, diskRadiusPx);
+          // Coma rides ON the donut rather than replacing it: both are the
+          // same miscollimation seen two ways, and a real eyepiece shows the
+          // asymmetric flare and the off-centre hole together.
+          drawComaFlare(ctx, x, y, diskRadiusPx, starTest.comaSeverity, starTest.comaAngleRad, donutAlpha);
+          ctx.globalAlpha = 1;
+          continue;
+        }
+      }
+      // Too small to resolve as an annulus (at or very near focus) — fall
+      // through to the ordinary point star, but keep the coma, which is
+      // precisely the in-focus symptom the instructor calls "little comets."
+      ctx.globalAlpha = alpha;
+      drawComaFlare(ctx, x, y, radius * 2.2, starTest.comaSeverity, starTest.comaAngleRad, alpha);
+      ctx.globalAlpha = 1;
+    }
 
     // ── Diffuse radial-gradient star (Phase 42) ── Replaces the old hard
     // arc + separate halo pair. A single radial gradient models what a real

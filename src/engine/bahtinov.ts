@@ -17,6 +17,8 @@
  * (separate, cosmetic) screen-space scale.
  */
 
+import { focuserDefocusMm } from './opticalMath';
+
 /** Tilt of the two crossed grating sections relative to the central spike. */
 export const BAHTINOV_ARM_ANGLE_DEG = 20;
 
@@ -34,16 +36,9 @@ const SPIKE_WIDTH_COEFFICIENT = 3.5;
 /** Reference visual wavelength — green light, ~550nm, the standard choice for optical hand-formulas. */
 const VISUAL_WAVELENGTH_MM = 0.00055;
 
-/**
- * The sim's focuser is a gameplay 0–100 slider, not a physical drawtube
- * scale, so there's no real Δz to hand the formula above without bridging
- * the two. Calibrated to a believable Crayford-style FINE-focus travel
- * range (100 units ≈ 5mm) — chosen so the sim's own "acceptably focused"
- * mission tolerance (±4–5 slider units, see missions.ts) lands right
- * around one spike-width of displacement, matching the threshold real
- * astrophotographers judge critical focus by.
- */
-const FOCUSER_UNIT_TO_MM = 0.05;
+// The 0–100 slider → mm bridge moved to engine/opticalMath (Phase 57) once
+// the star test needed the very same conversion: two diagnostics reading one
+// drawtube must not each own a private calibration of it.
 
 export interface BahtinovGeometry {
   /** Signed physical defocus, mm (0 = perfect focus; sign is arbitrary — which side of "perfect" the focuser sits on). */
@@ -64,7 +59,7 @@ export function computeBahtinovGeometry(
   perfectFocusPoint: number,
   focalRatio: number
 ): BahtinovGeometry {
-  const defocusMm = (focuserPosition - perfectFocusPoint) * FOCUSER_UNIT_TO_MM;
+  const defocusMm = focuserDefocusMm(focuserPosition, perfectFocusPoint);
   const safeFocalRatio = Math.max(0.1, focalRatio); // guard against a degenerate f/0 custom profile
   const displacementMm = (DISPLACEMENT_COEFFICIENT * defocusMm) / safeFocalRatio;
   const spikeWidthMm = SPIKE_WIDTH_COEFFICIENT * VISUAL_WAVELENGTH_MM * safeFocalRatio;

@@ -4,12 +4,16 @@ import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useAlignmentStore } from '../../store/useAlignmentStore';
 import { useProgressStore, type LogbookEntry } from '../../store/useProgressStore';
 import { evaluateState, evaluateAstroPhotoRules } from '../../engine/rulesEngine';
-import { getMagnification, getTrueFOV, FINDERSCOPE_MAG, FINDERSCOPE_APPARENT_FOV, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID, getPerfectFocusPoint } from '../../engine/opticalMath';
+import { getMagnification, getTrueFOV, FINDERSCOPE_MAG, FINDERSCOPE_APPARENT_FOV, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID, getPerfectFocusPoint, focuserDefocusMm } from '../../engine/opticalMath';
 import { calculateDsoSNR, calculatePlanetarySharpness } from '../../engine/astroMath';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { computeSkyOffsetDeg, projectSkyOffsetPx, getDriftGentledSimTime } from '../../engine/skyGeometry';
 import { renderOpticalView } from '../../engine/skyRenderer';
 import { computeBahtinovGeometry, drawVernierInset, VERNIER_INSET_WIDTH_PX, VERNIER_INSET_HEIGHT_PX } from '../../engine/bahtinov';
+import { fresnelRingCount, starTestRadiusDeg, type StarTestRenderSpec } from '../../engine/starTest';
+import { comaSeverity, shadowOffsetFrac } from '../../engine/collimation';
+import { getCollimationReadout } from '../../store/useCollimationStore';
+import { CollimationPanel } from './CollimationPanel';
 import { TARGETS } from '../../data/bookContent';
 import { getSmoothSimTime, SIDEREAL_DEG_PER_SEC } from '../../engine/timeEngine';
 import { getSkyState } from '../../engine/daylight';
@@ -31,6 +35,7 @@ import {
  * is a lens on top of the SAME two feeds, not a separate screen:
  *   'align'            — finder alignment screws (ex-FinderscopeGame)
  *   'track'             — drag-to-track the real sky drift (ex-DobsonianTrainer)
+ *   'collimate'         — mirror alignment by star test (Phase 57)
  *   'astrophotography'  — exposure/stacking/calibration (ex-AstroPhotoTrainer)
  * (The 'optics' lens — ex-MagnificationSandbox — was retired in Phase 29;
  * the global footer Eyepiece selector covers that lesson from every mode.)
@@ -112,8 +117,17 @@ const TRACK_RETICLE_RADIUS_PX = MAIN_CANVAS_PX * 0.075;
 // feels equally urgent regardless of magnification.
 const TRACK_DROOP_FRACTION_PER_SEC = 25 / 400;
 
+// ── 'collimate' mode blur cap (Phase 57) ──
+// The whole-canvas CSS blur that sells defocus everywhere else would erase
+// the very thing the star test exists to show: the donut's rings and the
+// hard edge of its decentred shadow are drawn at a scale of a few pixels, and
+// a 25px blur turns all of it into a grey smudge. Capped — not disabled —
+// because a little softness is honest atmosphere, and the donut itself is
+// already an exact, geometric rendering of the defocus (engine/starTest).
+const STAR_TEST_MAX_BLUR_PX = 1.5;
+
 interface LiveViewPanelProps {
-  mode: 'align' | 'track' | 'astrophotography';
+  mode: 'align' | 'track' | 'collimate' | 'astrophotography';
 }
 
 export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
@@ -244,6 +258,24 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     !!telescopeState.activeTarget &&
     offsetMagnitudeDeg < Math.max(0.3, mainFovDeg * modeRules.alignmentLockThresholdFovFraction);
 
+  // ── Star-test disk size (Phase 57) ──
+  // How big the defocused donut currently renders in the main feed, in px.
+  // Computed here in render scope (not in the rAF loop) purely so the
+  // collimation bench can COACH with it: the donut's angular size is fixed by
+  // the light cone, so at 48× a full rack of the focuser still yields only a
+  // few pixels of annulus. That is not a bug to paper over — it is why real
+  // star tests are done at high power, and the panel says so.
+  const collimationDiskRadiusPx = telescopeState.activeProfile && mainFovDeg > 0
+    ? starTestRadiusDeg(
+        focuserDefocusMm(
+          telescopeState.focuserPosition,
+          getPerfectFocusPoint(telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive)
+        ),
+        telescopeState.activeProfile.focalRatio,
+        telescopeState.activeProfile.focalLength
+      ) * (MAIN_CANVAS_PX / mainFovDeg)
+    : 0;
+
   // ── 'astrophotography' mode: instructor rule evaluation on settings change ──
   useEffect(() => {
     if (mode !== 'astrophotography') return;
@@ -297,6 +329,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     // defeat the idle throttle permanently.
     let lastStoreAlt = NaN;
     let lastStoreAz = NaN;
+    // Same idea for 'collimate' mode: the screws are the only thing moving.
+    let lastCollimationError = NaN;
 
     const render = () => {
       const now = performance.now();
@@ -444,8 +478,19 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
         const trackHudElapsedMs = trackCompletedAtRef.current !== null ? now - trackCompletedAtRef.current : Infinity;
         const isTrackHudFading = trackCompletedRef.current && trackHudElapsedMs < TRACK_LOCKED_HUD_DURATION_MS;
         const isTrackEngaged = mode === 'track' && !!activeTarget && (!trackCompletedRef.current || isTrackHudFading);
+        // ── 'collimate' mode liveness (Phase 57) ── A screw click and a
+        // focuser rack both change the picture without moving the mount, so
+        // neither trips any of the motion tests above. Left to the 5fps idle
+        // cadence they would land up to 200ms late — long enough to break the
+        // tight screw-then-look loop the whole exercise depends on. The beam
+        // error is the one number that captures every screw on both cells.
+        const collimationReadout = mode === 'collimate' ? getCollimationReadout() : null;
+        const collimationError = collimationReadout?.errorArcmin ?? 0;
+        const collimationChanged = collimationError !== lastCollimationError;
+        lastCollimationError = collimationError;
         const needsLiveRedraw =
-          isDragging || pointingMoved || skyVisiblyMoving || evalResult.isAtmosphericBlurActive || evalResult.isAltDrooping || isTrackEngaged;
+          isDragging || pointingMoved || skyVisiblyMoving || evalResult.isAtmosphericBlurActive || evalResult.isAltDrooping || isTrackEngaged
+          || (mode === 'collimate' && (collimationChanged || telescope.isFocuserDragging));
         const shouldDraw = needsLiveRedraw || (now - lastDrawTime) >= IDLE_REDRAW_INTERVAL_MS;
 
         if (shouldDraw) {
@@ -471,6 +516,35 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   )
                 : null;
 
+              // ── Star test geometry (Phase 57) ──────────────────────
+              // 'collimate' mode only. Everything here is derived, never
+              // stored: the six screw positions in useCollimationStore become
+              // a beam error, the drawtube position becomes a real defocus in
+              // mm, and the two together fix the donut's size, its ring count,
+              // and how far off-centre its shadow sits. Recomputed per frame
+              // because BOTH inputs are live — turning a screw and racking the
+              // focuser must each move the picture immediately.
+              const starTest: StarTestRenderSpec | null = collimationReadout
+                ? (() => {
+                    const readout = collimationReadout;
+                    const defocusMm = focuserDefocusMm(
+                      telescope.focuserPosition,
+                      getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive)
+                    );
+                    return {
+                      diskRadiusDeg: starTestRadiusDeg(defocusMm, activeProfile.focalRatio, activeProfile.focalLength),
+                      obstructionFrac: activeProfile.centralObstruction / 100,
+                      shadowOffsetFrac: shadowOffsetFrac(
+                        readout.errorArcmin, defocusMm, activeProfile.focalLength, activeProfile.focalRatio
+                      ),
+                      shadowAngleRad: readout.angleRad,
+                      ringCount: fresnelRingCount(defocusMm, activeProfile.focalRatio),
+                      comaSeverity: comaSeverity(readout.errorArcmin, readout.toleranceArcmin),
+                      comaAngleRad: readout.angleRad,
+                    };
+                  })()
+                : null;
+
               renderOpticalView(ctx, {
                 role: 'main',
                 viewportPx: mainCanvas.width,
@@ -491,6 +565,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 sunAltDeg: sky.sunAltDeg,
                 isAltAzMount: activeProfile.mountType !== 'Equatorial',
                 bahtinovGeometry,
+                starTest,
               });
 
               // ── 'track' mode overlay: mechanical droop + reticle + lock timer ──
@@ -743,7 +818,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
               ? Math.max(0, ASTRO_CLEAN_SHARPNESS - astroSharpness) * 6
               : 0;
             const defocusBlurPx = evalResult.isDefocused ? evalResult.defocusAmount * 0.5 : 0;
-            const totalBlurPx = defocusBlurPx + astroBlurPx;
+            // Phase 57: 'collimate' mode caps the total. Defocus there isn't a
+            // mistake to be punished with a smear — it IS the instrument, drawn
+            // exactly by the Canvas donut (see STAR_TEST_MAX_BLUR_PX).
+            const totalBlurPx = mode === 'collimate'
+              ? Math.min(STAR_TEST_MAX_BLUR_PX, defocusBlurPx + astroBlurPx)
+              : defocusBlurPx + astroBlurPx;
             // > 0.05 (not > 0): float residue from the sharpness subtraction
             // (e.g. 3e-16) must resolve to a true 'none', both for the
             // skip-redundant-writes fast path and for an honestly crisp view.
@@ -1247,6 +1327,12 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
             {' '}{t('liveview.trackHoldInstruction')}
           </p>
         )}
+
+        {/* 'collimate' mode bench (Phase 57) — the screw pad and its readout.
+            The star test itself renders ON the main canvas (see the shared
+            render loop's starTest spec above), so the two halves of the
+            exercise sit side by side exactly as they do at a real telescope. */}
+        {mode === 'collimate' && <CollimationPanel starTestRadiusPx={collimationDiskRadiusPx} />}
 
         {/* 'astrophotography' mode caption — exposure/stacking/calibration desk.
             Reticle/HUD/grade badge render ON the main canvas itself (see the

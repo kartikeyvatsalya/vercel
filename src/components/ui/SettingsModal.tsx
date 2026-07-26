@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
+import { useCollimationStore } from '../../store/useCollimationStore';
 import { SIM_MODE_RULES, type SimulationMode } from '../../engine/simulationModes';
 import { Settings, X, Cpu, Activity, Gauge } from 'lucide-react';
 
@@ -103,8 +104,21 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                 </span>
               </button>
 
+              {/* Phase 57: this toggle now moves the SCREWS, not just the
+                  boolean. Since the Collimation module derives `isCollimated`
+                  from the six screw positions, flipping the flag on its own
+                  would produce a telescope that reports misalignment while
+                  its star test draws a perfect donut — and the next screw
+                  click would silently overwrite the sabotage anyway. */}
               <button
-                onClick={() => telescopeState.setCollimated(!telescopeState.isCollimated)}
+                onClick={() => {
+                  const collimation = useCollimationStore.getState();
+                  if (telescopeState.isCollimated) {
+                    collimation.scramble('primary');
+                  } else {
+                    collimation.resetAll();
+                  }
+                }}
                 className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
                   telescopeState.isCollimated 
                     ? 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 text-slate-300' 

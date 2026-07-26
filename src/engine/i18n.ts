@@ -78,6 +78,8 @@ const en = {
     'Real observers center a bright target in the MAIN eyepiece first, and only then adjust the finder screws to match. The screws stay locked until you do.',
   'tip.barlow':
     'A Barlow lens doubles your magnification with the same eyepiece — but it also doubles the blur from atmosphere and focus errors.',
+  'tip.collimationError':
+    'How far the light leaving your mirrors misses the eyepiece axis, in arcminutes. Below the diffraction limit the star is a clean point; above it, comet-shaped.',
   'tip.dustCap':
     'The lens cap on the front of the tube. The #1 reason beginners see nothing at all!',
   'tip.solarFilter':
@@ -181,10 +183,29 @@ const en = {
   'liveview.planetaryFooterHint': 'Record high-speed video and select the sharpest frames to beat atmospheric seeing.',
   'liveview.dsoFooterHint': 'Stack sub-exposures to pull faint detail out of the noise. Take Dark Frames to remove hot pixels!',
 
+  // ── collimation.* — CollimationPanel.tsx (Phase 57) ──
+  'collimation.title': 'Collimation',
+  'collimation.secondary': 'Secondary',
+  'collimation.primary': 'Primary',
+  'collimation.primaryLocked': 'Square the secondary first — the primary can only be aligned through a centred diagonal.',
+  'collimation.out': 'Out',
+  'collimation.close': 'Close',
+  'collimation.diffractionLimited': 'Diffraction-limited',
+  'collimation.slewPolaris': 'Slew to Polaris',
+  'collimation.reset': 'Reset Cell',
+  'collimation.screw': 'Screw {n}',
+  'collimation.fieldError': 'Field Error',
+  'collimation.focusShift': 'Focus Shift',
+  'collimation.notAdjustable': 'This telescope has no user-adjustable mirrors — a sealed refractor doublet holds its own alignment for life.',
+  'collimation.cheshireHint': 'Centre the ring on the crosshair, one detent at a time.',
+  'collimation.starTestHint': 'Defocus a bright star until it opens into a donut, then centre the dark hole inside it.',
+  'collimation.openDonutHint': 'The star is still a point. Fit a short (high-power) eyepiece and rack the focuser well away from the green mark until a donut opens.',
+
   // ── footer.* — App.tsx <footer> controls ──
   'footer.logbookBadges': 'Field Logbook & Badges',
   'footer.moduleFinderscope': 'Finderscope Alignment',
   'footer.moduleDobsonian': 'Inverted View Tracker',
+  'footer.moduleCollimation': 'Collimation',
   'footer.moduleAstrophotography': 'Astrophotography',
   'footer.focuserKnob': 'Focuser Knob',
   'footer.perfectFocus': 'PERFECT FOCUS',
@@ -267,6 +288,8 @@ const hi: Record<TranslationKey, string> = {
     'असली खगोलप्रेक्षक पहले किसी चमकीले लक्ष्य को मुख्य आईपीस के केंद्र में लाते हैं, तभी फाइंडर के पेंच समायोजित करते हैं। जब तक आप ऐसा नहीं करते, पेंच लॉक रहते हैं।',
   'tip.barlow':
     'बार्लो लेंस उसी आईपीस से आपका आवर्धन दोगुना कर देता है — लेकिन इससे वायुमंडल और फोकस की त्रुटियों से होने वाला धुंधलापन भी दोगुना हो जाता है।',
+  'tip.collimationError':
+    'आपके दर्पणों से निकलने वाला प्रकाश आईपीस के अक्ष से कितना चूकता है, आर्कमिनट में। विवर्तन-सीमा के भीतर तारा साफ़ बिंदु दिखता है; उससे ऊपर पुच्छल तारे जैसा।',
   'tip.dustCap':
     'ट्यूब के आगे लगा लेंस कैप। शुरुआती लोगों को कुछ भी न दिखने का सबसे बड़ा कारण!',
   'tip.solarFilter':
@@ -368,10 +391,29 @@ const hi: Record<TranslationKey, string> = {
   'liveview.planetaryFooterHint': 'तेज़ गति वाला वीडियो रिकॉर्ड करें और वायुमंडलीय अशांति को मात देने के लिए सबसे तीक्ष्ण फ्रेम चुनें।',
   'liveview.dsoFooterHint': 'शोर से महीन विवरण निकालने के लिए सब-एक्सपोज़र स्टैक करें। हॉट पिक्सेल हटाने के लिए डार्क फ्रेम लें!',
 
+  // ── collimation.* ──
+  'collimation.title': 'कोलिमेशन',
+  'collimation.secondary': 'द्वितीयक',
+  'collimation.primary': 'प्राथमिक',
+  'collimation.primaryLocked': 'पहले द्वितीयक दर्पण सीधा करें — प्राथमिक दर्पण केवल केंद्रित विकर्ण से ही संरेखित हो सकता है।',
+  'collimation.out': 'बाहर',
+  'collimation.close': 'निकट',
+  'collimation.diffractionLimited': 'विवर्तन-सीमित',
+  'collimation.slewPolaris': 'ध्रुव तारे पर ले जाएँ',
+  'collimation.reset': 'सेल रीसेट',
+  'collimation.screw': 'पेंच {n}',
+  'collimation.fieldError': 'क्षेत्र त्रुटि',
+  'collimation.focusShift': 'फ़ोकस बदलाव',
+  'collimation.notAdjustable': 'इस टेलीस्कोप में समायोज्य दर्पण नहीं हैं — सीलबंद रिफ़्रैक्टर डबलेट जीवनभर अपना संरेखण स्वयं बनाए रखता है।',
+  'collimation.cheshireHint': 'एक-एक डिटेंट करके वलय को क्रॉसहेयर पर केंद्रित करें।',
+  'collimation.starTestHint': 'किसी चमकीले तारे को तब तक डिफ़ोकस करें जब तक वह छल्ले जैसा न खुल जाए, फिर उसके भीतर के काले छेद को केंद्रित करें।',
+  'collimation.openDonutHint': 'तारा अभी भी बिंदु जैसा है। छोटा (उच्च-आवर्धन) आईपीस लगाएँ और फ़ोकसर को हरे निशान से काफ़ी दूर घुमाएँ जब तक छल्ला न खुल जाए।',
+
   // ── footer.* ──
   'footer.logbookBadges': 'फ़ील्ड लॉगबुक और बैज',
   'footer.moduleFinderscope': 'फाइंडरस्कोप एलाइनमेंट',
   'footer.moduleDobsonian': 'इनवर्टेड व्यू ट्रैकर',
+  'footer.moduleCollimation': 'कोलिमेशन',
   'footer.moduleAstrophotography': 'एस्ट्रोफ़ोटोग्राफ़ी',
   'footer.focuserKnob': 'फ़ोकसर नॉब',
   'footer.perfectFocus': 'सटीक फ़ोकस',

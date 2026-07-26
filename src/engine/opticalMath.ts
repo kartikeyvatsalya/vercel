@@ -218,3 +218,23 @@ export const getPerfectFocusPoint = (eyepieceFocalLength: number, isBarlowActive
   const baseFocus = 50 + (eyepieceFocalLength - 15);
   return Math.max(0, Math.min(100, isBarlowActive ? baseFocus + 20 : baseFocus));
 };
+
+/**
+ * The sim's focuser is a gameplay 0–100 slider, not a physical drawtube
+ * scale, so any optic that needs a REAL defocus distance has to bridge the
+ * two. Calibrated to a believable Crayford-style FINE-focus travel range
+ * (100 slider units ≈ 5mm) — chosen so the sim's own "acceptably focused"
+ * mission tolerance (±4–5 slider units, see missions.ts) lands right around
+ * one Bahtinov spike-width of displacement, matching the threshold real
+ * astrophotographers judge critical focus by.
+ *
+ * Lives here, beside getPerfectFocusPoint, because it is now shared: the
+ * Bahtinov mask (engine/bahtinov.ts) and the defocused star test
+ * (engine/starTest.ts) are two readings of the SAME drawtube, and would
+ * visibly contradict each other if either kept its own conversion.
+ */
+export const FOCUSER_UNIT_TO_MM = 0.05;
+
+/** Signed physical defocus in mm; 0 = exactly at focus, sign = which side of it. */
+export const focuserDefocusMm = (focuserPosition: number, perfectFocusPoint: number): number =>
+  (focuserPosition - perfectFocusPoint) * FOCUSER_UNIT_TO_MM;

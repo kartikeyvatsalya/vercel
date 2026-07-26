@@ -61,6 +61,12 @@ const MODULE_META: { id: ModuleId; label: string; icon: React.ReactNode; descrip
     description: 'Master the counter-intuitive push of a reflecting telescope.',
   },
   {
+    id: 'collimation',
+    label: 'Collimation',
+    icon: <Circle className="w-4 h-4" />,
+    description: 'Align the mirrors by star test until a defocused star is a clean, centred donut.',
+  },
+  {
     id: 'astrophotography',
     label: 'Astrophotography',
     icon: <Camera className="w-4 h-4" />,
@@ -74,6 +80,7 @@ const MODULE_META: { id: ModuleId; label: string; icon: React.ReactNode; descrip
 const MODULE_LABEL_KEYS: Record<ModuleId, TranslationKey> = {
   finderscope: 'footer.moduleFinderscope',
   dobsonian: 'footer.moduleDobsonian',
+  collimation: 'footer.moduleCollimation',
   astrophotography: 'footer.moduleAstrophotography',
 };
 
@@ -147,6 +154,7 @@ const ActiveModuleView: React.FC<{ activeModule: ModuleId }> = ({ activeModule }
   // lesson).
   const liveViewMode =
     activeModule === 'dobsonian' ? 'track'
+    : activeModule === 'collimation' ? 'collimate'
     : activeModule === 'astrophotography' ? 'astrophotography'
     : 'align';
   return <LiveViewPanel mode={liveViewMode} />;
