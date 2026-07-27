@@ -54,6 +54,24 @@ const en = {
   'telemetry.configuredCount': '{n}/3 configured',
   'telemetry.missionComplete': '✓ Mission Complete',
   'telemetry.virtualNight': 'Virtual Night',
+  'telemetry.darkAdaptation': 'Dark Adaptation',
+  'telemetry.adaptWaiting': 'let sim time run',
+
+  // ── balance.* — MountBalancePanel.tsx (Phase 58) ──
+  'balance.heading': 'Mount Balance',
+  'balance.raTorque': 'RA Axis Torque',
+  'balance.balanced': 'Balanced',
+  'balance.noseHeavy': 'Nose heavy',
+  'balance.counterweightHeavy': 'Counterweight heavy',
+  'balance.otaLine': 'OTA {mass} kg @ {arm} m',
+  'balance.cwLine': 'CW  {mass} kg @ {arm} m',
+  'balance.autoBalance': 'Balance It',
+  'balance.slideIn': 'Slide the weight in, toward the mount head',
+  'balance.slideOut': 'Slide the weight out, toward the end of the shaft',
+  'balance.noShaft': 'Alt-Az mount — no counterweight shaft. This telescope balances on where the tube sits in its cradle instead.',
+
+  // ── goto.* — App.tsx star-hopping banner (Phase 59) ──
+  'goto.suppressed': 'GoTo disabled — star-hop to the target through the finderscope',
 
   // ── tip.* — InfoTip.tsx TIP_COPY ──
   'tip.magnification':
@@ -66,6 +84,12 @@ const en = {
     'How bright the view looks compared to the maximum your eye can use. Driven by the exit pupil — high magnification makes images dimmer.',
   'tip.seeing':
     'How calm the atmosphere is tonight, rated 1 (perfect) to 5 (boiling). Bad seeing smears fine detail, especially at high power.',
+  'tip.transparency':
+    'How CLEAR the air is, rated 1 (milky) to 5 (pristine) — the opposite scale to Seeing, and a different thing entirely. Haze steals faint light, so it dims nebulae and deletes faint stars while leaving the Moon and planets almost untouched.',
+  'tip.darkAdaptation':
+    'Your eyes need about twenty minutes in the dark to reach full sensitivity — and one unfiltered glance at the Sun wipes it out instantly. Let simulated time run to get it back.',
+  'tip.raTorque':
+    'The turning force gravity puts on the RA axis: the tube’s weight times its distance from the axis, minus the counterweight’s. Slide the weight until it reads zero and the mount will hold any position on its own.',
   'tip.siderealMotor':
     'A slow motor that turns the telescope at exactly the speed Earth spins, so celestial targets stay still in the eyepiece instead of drifting out.',
   'tip.timeRate':
@@ -216,6 +240,7 @@ const en = {
   'footer.noneManual': 'None — Manual',
   'footer.eyepiece': 'Eyepiece',
   'footer.seeingAntoniadi': 'Seeing (Antoniadi)',
+  'footer.transparency': 'Transparency',
   'footer.barlow2x': '2x Barlow',
   'footer.digitalZoom': 'Digital Zoom',
   'footer.addCustomTelescope': 'Add Custom Telescope',
@@ -264,6 +289,24 @@ const hi: Record<TranslationKey, string> = {
   'telemetry.configuredCount': '{n}/3 कॉन्फ़िगर किए गए',
   'telemetry.missionComplete': '✓ मिशन पूर्ण',
   'telemetry.virtualNight': 'वर्चुअल रात',
+  'telemetry.darkAdaptation': 'अंधेरा अनुकूलन',
+  'telemetry.adaptWaiting': 'सिम समय चलने दें',
+
+  // ── balance.* ──
+  'balance.heading': 'माउंट संतुलन',
+  'balance.raTorque': 'RA अक्ष बलाघूर्ण',
+  'balance.balanced': 'संतुलित',
+  'balance.noseHeavy': 'अगला सिरा भारी',
+  'balance.counterweightHeavy': 'प्रतिभार भारी',
+  'balance.otaLine': 'नली {mass} किग्रा @ {arm} मी',
+  'balance.cwLine': 'भार {mass} किग्रा @ {arm} मी',
+  'balance.autoBalance': 'संतुलित करें',
+  'balance.slideIn': 'भार को माउंट की ओर सरकाएँ',
+  'balance.slideOut': 'भार को शाफ़्ट के सिरे की ओर सरकाएँ',
+  'balance.noShaft': 'ऑल्ट-एज़ माउंट — इसमें प्रतिभार शाफ़्ट नहीं होता। यह टेलीस्कोप अपने पालने में नली की स्थिति से संतुलित होता है।',
+
+  // ── goto.* ──
+  'goto.suppressed': 'गोटू बंद — फाइंडरस्कोप से तारा-कूद कर लक्ष्य तक पहुँचें',
 
   // ── tip.* ──
   'tip.magnification':
@@ -276,6 +319,12 @@ const hi: Record<TranslationKey, string> = {
     'आपकी आँख जितना उपयोग कर सकती है, उसकी तुलना में दृश्य कितना चमकीला दिखता है। यह निकास पुतली पर निर्भर करता है — अधिक आवर्धन से छवि कम चमकीली हो जाती है।',
   'tip.seeing':
     'आज रात वायुमंडल कितना शांत है, 1 (उत्तम) से 5 (अशांत) तक। खराब सीइंग बारीक विवरण को धुंधला कर देती है, खासकर उच्च आवर्धन पर।',
+  'tip.transparency':
+    'हवा कितनी साफ़ है, 1 (धुँधली) से 5 (निर्मल) तक — सीइंग से उल्टा पैमाना, और बिलकुल अलग बात। धुंध मंद प्रकाश छीन लेती है, इसलिए नीहारिकाएँ फीकी पड़ जाती हैं और मंद तारे गायब हो जाते हैं, जबकि चंद्रमा और ग्रह लगभग अछूते रहते हैं।',
+  'tip.darkAdaptation':
+    'आपकी आँखों को पूरी संवेदनशीलता पाने में अंधेरे में लगभग बीस मिनट लगते हैं — और बिना फ़िल्टर सूर्य की एक झलक उसे पल भर में मिटा देती है। इसे वापस पाने के लिए सिमुलेशन का समय चलने दें।',
+  'tip.raTorque':
+    'गुरुत्व द्वारा RA अक्ष पर लगाया गया घूर्णन बल: नली का भार गुणा अक्ष से उसकी दूरी, घटा प्रतिभार का वही गुणनफल। भार को तब तक सरकाएँ जब तक यह शून्य न पढ़े — तब माउंट अपने आप हर स्थिति में टिका रहेगा।',
   'tip.siderealMotor':
     'एक धीमी नाक्षत्रिक मोटर जो टेलीस्कोप को ठीक पृथ्वी के घूर्णन की गति से घुमाती है, ताकि आकाशीय लक्ष्य आईपीस में स्थिर रहें, खिसककर बाहर न निकलें।',
   'tip.timeRate':
@@ -424,6 +473,7 @@ const hi: Record<TranslationKey, string> = {
   'footer.noneManual': 'कोई नहीं — मैन्युअल',
   'footer.eyepiece': 'आईपीस',
   'footer.seeingAntoniadi': 'सीइंग (एंटोनियाडी)',
+  'footer.transparency': 'पारदर्शिता',
   'footer.barlow2x': '2x बार्लो',
   'footer.digitalZoom': 'डिजिटल ज़ूम',
   'footer.addCustomTelescope': 'कस्टम टेलीस्कोप जोड़ें',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useCollimationStore } from '../../store/useCollimationStore';
+import { useMechanicsStore } from '../../store/useMechanicsStore';
 import { SIM_MODE_RULES, type SimulationMode } from '../../engine/simulationModes';
 import { Settings, X, Cpu, Activity, Gauge } from 'lucide-react';
 
@@ -90,11 +91,27 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Phase 58: on an equatorial mount this now SLIDES THE
+                  COUNTERWEIGHT rather than flipping a boolean — the balance
+                  state is derived from the shaft position (see
+                  useMechanicsStore), so a bare flag would produce a mount that
+                  reports drooping while its weight sits visibly on the balance
+                  point, and the next touch of the slider would silently undo
+                  the sabotage anyway. An Alt-Az mount has no shaft to move, so
+                  it keeps the original direct toggle. */}
               <button
-                onClick={() => telescopeState.setMechanicallyBalanced(!telescopeState.isMechanicallyBalanced)}
+                onClick={() => {
+                  const mechanics = useMechanicsStore.getState();
+                  if (telescopeState.activeProfile?.mountType === 'Equatorial') {
+                    if (telescopeState.isMechanicallyBalanced) mechanics.unbalance();
+                    else mechanics.autoBalance();
+                  } else {
+                    telescopeState.setMechanicallyBalanced(!telescopeState.isMechanicallyBalanced);
+                  }
+                }}
                 className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
-                  telescopeState.isMechanicallyBalanced 
-                    ? 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 text-slate-300' 
+                  telescopeState.isMechanicallyBalanced
+                    ? 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 text-slate-300'
                     : 'bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-900/40'
                 }`}
               >

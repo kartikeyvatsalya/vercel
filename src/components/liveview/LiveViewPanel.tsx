@@ -13,10 +13,11 @@ import { computeBahtinovGeometry, drawVernierInset, VERNIER_INSET_WIDTH_PX, VERN
 import { fresnelRingCount, starTestRadiusDeg, type StarTestRenderSpec } from '../../engine/starTest';
 import { comaSeverity, shadowOffsetFrac } from '../../engine/collimation';
 import { getCollimationReadout } from '../../store/useCollimationStore';
+import { getMechanicsReadout } from '../../store/useMechanicsStore';
 import { CollimationPanel } from './CollimationPanel';
 import { TARGETS } from '../../data/bookContent';
 import { getSmoothSimTime, SIDEREAL_DEG_PER_SEC } from '../../engine/timeEngine';
-import { getSkyState } from '../../engine/daylight';
+import { getSkyState, DARK_ADAPTATION_FULL_MS } from '../../engine/daylight';
 import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { useTranslation } from '../../engine/i18n';
 import type { AlignmentDifficulty } from '../../store/useTelescopeStore';
@@ -331,6 +332,11 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     let lastStoreAz = NaN;
     // Same idea for 'collimate' mode: the screws are the only thing moving.
     let lastCollimationError = NaN;
+    // Edge-trigger for the white-light dark-adaptation reset (Phase 59): the
+    // hazard flag stays true for as long as the tube sits on the Sun, but the
+    // eye is only ruined once — calling resetDarkAdaptation every frame would
+    // be a no-op in the store yet still burn a getState() round trip 60×/sec.
+    let lastSolarHazard = false;
 
     const render = () => {
       const now = performance.now();
@@ -421,6 +427,16 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           enforceAtmosphericLimit: modeRules.atmosphericLimitEnforced,
           isPhysicallyPointedAtSun,
         });
+
+        // ── White-light event (Phase 59) ── An unfiltered look at the Sun
+        // destroys twenty minutes of dark adaptation in an instant, and the
+        // only cure is to sit in the dark and wait for it back. Edge-triggered
+        // on the same hazard verdict that flashes the eyepiece white.
+        if (evalResult.hasSolarHazard && !lastSolarHazard) {
+          telescope.resetDarkAdaptation();
+        }
+        lastSolarHazard = evalResult.hasSolarHazard;
+        const darkAdaptation = Math.min(1, telescope.darkAdaptationMs / DARK_ADAPTATION_FULL_MS);
 
         const finderFovDeg = getTrueFOV(FINDERSCOPE_APPARENT_FOV, FINDERSCOPE_MAG);
         const digitalZoom = telescope.isDigitalZoomOn && modeRules.digitalZoomAvailable ? 2 : 1;
@@ -564,6 +580,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 now,
                 sunAltDeg: sky.sunAltDeg,
                 isAltAzMount: activeProfile.mountType !== 'Equatorial',
+                transparency: telescope.transparency,
+                darkAdaptation,
                 bahtinovGeometry,
                 starTest,
               });
@@ -573,9 +591,22 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
               // (via setPointing) instead of a private pixel accumulator, so it
               // shares the exact same ephemeris drift as every other mode.
               if (mode === 'track' && activeTarget) {
-                if (!telescope.isMechanicallyBalanced) {
+                // ── Imbalance droop (Phase 58) ── Driven by the REAL net
+                // moment about the RA axis now, not a boolean: how fast the
+                // mount runs away scales with how badly the counterweight is
+                // misplaced, and the SIGN decides which way it goes — a
+                // nose-heavy tube sinks, a counterweight-heavy one climbs.
+                // Mounts with no counterweight shaft (a Dobsonian rocker, a
+                // fork) have no RA moment to compute, so they keep the
+                // historical fixed-rate droop off the sabotage boolean.
+                const mechanics = getMechanicsReadout();
+                const droopScalar = mechanics.hasCounterweight
+                  ? mechanics.droopScalar
+                  : (telescope.isMechanicallyBalanced ? 0 : 1);
+                if (droopScalar !== 0) {
                   telescope.setPointing(
-                    telescope.pointingAlt - mainTrueFovDeg * TRACK_DROOP_FRACTION_PER_SEC * (deltaTime / 1000),
+                    telescope.pointingAlt
+                      - mainTrueFovDeg * TRACK_DROOP_FRACTION_PER_SEC * droopScalar * (deltaTime / 1000),
                     telescope.pointingAz
                   );
                 }
@@ -858,6 +889,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 now,
                 sunAltDeg: sky.sunAltDeg,
                 isAltAzMount: activeProfile.mountType !== 'Equatorial',
+                transparency: telescope.transparency,
+                darkAdaptation,
               });
             }
           }

@@ -56,7 +56,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 8 https://www.google.com)",
       "Bash(node -e \"console.log\\(714/102\\)\")",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.app.json)",
+      "PowerShell(npm run build)",
+      "PowerShell(npm run build 2>&1)",
+      "PowerShell(git add .)"
     ]
   }
 }

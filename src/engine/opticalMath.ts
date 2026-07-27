@@ -208,6 +208,34 @@ export const isAtmosphericLimitExceeded = (magnification: number, seeingQuality:
   return magnification > maxMagForSeeing;
 };
 
+// ── Mirror cool-down (Phase 59) ────────────────────────────────────
+// A telescope carried outside is warmer than the night air, and until it
+// equilibrates the heat pouring off its optics wobbles the image as badly as
+// bad seeing. How long that takes is not a constant: thermal mass scales with
+// the glass's VOLUME while it sheds heat through its SURFACE, so the
+// time constant goes as the mirror's diameter — and in practice, once the
+// boundary layer over the face is counted, closer to D². An 8" Newtonian is
+// usable in half an hour; a 14" SCT is still settling two hours later, which
+// is exactly why observatory scopes live in the observatory.
+//
+// The sim compresses that into seconds (nobody is waiting two hours), but it
+// keeps the D² law, so the ordering and the ratios are honest: swapping the
+// 8" for the 14" really does mean a noticeably longer wait.
+
+/** Cool-down time at the reference aperture, ms — the historical 2s for the 8" Dob. */
+export const MIRROR_COOLDOWN_REFERENCE_MS = 2000;
+export const MIRROR_COOLDOWN_REFERENCE_APERTURE_MM = 200;
+/** Even a small refractor needs a moment; even a giant must eventually finish. */
+export const MIRROR_COOLDOWN_MIN_MS = 400;
+export const MIRROR_COOLDOWN_MAX_MS = 20000;
+
+/** Simulated acclimation time (ms) for an aperture, scaling as D². */
+export const getMirrorCooldownMs = (apertureMm: number): number => {
+  const ratio = Math.max(0, apertureMm) / MIRROR_COOLDOWN_REFERENCE_APERTURE_MM;
+  const scaled = MIRROR_COOLDOWN_REFERENCE_MS * ratio * ratio;
+  return Math.min(MIRROR_COOLDOWN_MAX_MS, Math.max(MIRROR_COOLDOWN_MIN_MS, scaled));
+};
+
 /**
  * Calculates the dynamic perfect focus point on the 0-100 slider based on the eyepiece focal length.
  * Shorter eyepieces require a shorter focuser drawtube position.

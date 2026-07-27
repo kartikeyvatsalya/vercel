@@ -8,10 +8,187 @@ export function getJulianDate(date: Date = new Date()): number {
   return date.getTime() / 86400000 + 2440587.5;
 }
 
-/** Local Sidereal Time, in hours [0, 24), for a Julian Date and observer longitude (degrees, east-positive). */
+// ── ΔT: Terrestrial Time − Universal Time (Phase 59) ───────────────
+// The solar and lunar series below are polynomials in TERRESTRIAL TIME, a
+// uniform atomic timescale, while every clock in this app (and every
+// `Date.now()` it is built on) reads UNIVERSAL TIME, which is tied to the
+// Earth's slightly irregular rotation. The gap between them is ΔT — about
+// 75 seconds in the 2020s, and hours once you drive the Time Machine back a
+// few centuries. Feeding UT straight into a TT-based series was a silent
+// position error: 75 s costs the Moon ~0.6 arcseconds today, which is
+// nothing, but at 1600 CE ΔT is ~2 minutes and the error is a full arcminute
+// on a body whose whole disk is only 30 of them.
+//
+// Sidereal time is deliberately NOT corrected — GMST is defined FROM UT1, so
+// getLocalSiderealTime below must keep using the raw Julian Date.
+//
+// Polynomials: Espenak & Meeus, the standard NASA eclipse-canon fit. Accurate
+// to a second or so across the modern era and to the right order of magnitude
+// across the whole historical range the Time Machine can reach.
+
+/** Approximate decimal year for a Julian Date — the argument every ΔT fit uses. */
+function decimalYear(julianDate: number): number {
+  const date = new Date((julianDate - 2440587.5) * 86400000);
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1);
+  const yearEnd = Date.UTC(date.getUTCFullYear() + 1, 0, 1);
+  return date.getUTCFullYear() + (date.getTime() - yearStart) / (yearEnd - yearStart);
+}
+
+/**
+ * ΔT = TT − UT, in seconds, for a Julian Date.
+ *
+ * Piecewise because the Earth's rotation is not a polynomial: the twentieth
+ * century alone needed four separate fits, and 1941–1975 in particular runs
+ * against the trend of everything either side of it. Outside 1900–2150 this
+ * falls back to the secular parabola the whole canon is anchored on — coarse
+ * (tens of seconds by 1800), but tens of seconds move the Moon by a handful of
+ * arcseconds, an order of magnitude below the ~0.3° error of the lunar series
+ * it feeds, so chasing more precision there would be false precision.
+ *
+ * Known limitation the other way: the 2005–2050 fit was made when the Earth
+ * was still expected to keep slowing, and it now runs ~6 s ahead of observed
+ * ΔT (75 s versus ~69 s in the mid-2020s). Six seconds is three arcseconds of
+ * lunar motion — again far inside the series' own noise.
+ */
+export function getDeltaTSeconds(julianDate: number): number {
+  const y = decimalYear(julianDate);
+
+  if (y >= 2005 && y < 2050) {
+    const t = y - 2000;
+    return 62.92 + 0.32217 * t + 0.005589 * t * t;
+  }
+  if (y >= 1986 && y < 2005) {
+    const t = y - 2000;
+    return 63.86 + 0.3345 * t - 0.060374 * t ** 2 + 0.0017275 * t ** 3
+      + 0.000651814 * t ** 4 + 0.00002373599 * t ** 5;
+  }
+  if (y >= 1961 && y < 1986) {
+    const t = y - 1975;
+    return 45.45 + 1.067 * t - (t * t) / 260 - (t * t * t) / 718;
+  }
+  if (y >= 1941 && y < 1961) {
+    const t = y - 1950;
+    return 29.07 + 0.407 * t - (t * t * t) / 233 + (t ** 4) / 2547;
+  }
+  if (y >= 1920 && y < 1941) {
+    const t = y - 1920;
+    return 21.20 + 0.84493 * t - 0.076100 * t * t + 0.0020936 * t * t * t;
+  }
+  if (y >= 1900 && y < 1920) {
+    const t = y - 1900;
+    return -2.79 + 1.494119 * t - 0.0598939 * t ** 2 + 0.0061966 * t ** 3 - 0.000197 * t ** 4;
+  }
+  if (y >= 2050 && y < 2150) {
+    return -20 + 32 * ((y - 1820) / 100) ** 2 - 0.5628 * (2150 - y);
+  }
+  const u = (y - 1820) / 100;
+  return -20 + 32 * u * u;
+}
+
+/** The Julian Date in Terrestrial Time, for the Sun/Moon series below. */
+export function toTerrestrialTimeJD(julianDate: number): number {
+  return julianDate + getDeltaTSeconds(julianDate) / 86400;
+}
+
+// ── Atmospheric refraction (Phase 59) ──────────────────────────────
+// The atmosphere is a lens. Light from a low object bends downward on its way
+// in, so the object APPEARS higher than it geometrically is — by about half a
+// degree right at the horizon, which is more than the Sun's own diameter:
+// the whole disk is already below the true horizon at the moment you watch it
+// touch it. This is why sunset runs a couple of minutes late, and why a
+// target the ephemeris puts at −0.4° is still in the eyepiece.
+//
+// Bennett's formula, the standard closed-form fit:
+//     R (arcmin) = 1 / tan( h + 7.31 / (h + 4.4) )     [h in degrees]
+// which yields the textbook 34.5′ at h = 0. Applied here to the geometric
+// altitude (rather than iterating for the apparent one) — a well-worn
+// simplification that is exact at the horizon and sub-arcsecond above ~15°.
+
+/** Altitude below which the Bennett fit stops behaving; clamped, not extrapolated. */
+const REFRACTION_MIN_ALT_DEG = -1.5;
+/** …and below which the lift is faded out entirely — see bennettRefractionDeg. */
+const REFRACTION_FADE_FLOOR_DEG = -3;
+/** Hard ceiling — refraction never exceeds ~35′ in reality, and the fit diverges past its domain. */
+const MAX_REFRACTION_DEG = 1;
+
+/**
+ * Refraction lift in DEGREES for a geometric altitude, fading to zero well
+ * below the horizon.
+ *
+ * The fade is not cosmetic. Bennett's expression is only defined down to the
+ * horizon and turns non-monotone a few degrees under it, but leaving a
+ * constant clamped lift in place there would be worse than useless: the
+ * DAYLIGHT engine reads the Sun's altitude straight off this transform, and a
+ * frozen +0.94° would mean astronomical night (Sun at −18°) never quite
+ * arrived and the faintest stars never reached full brightness. Below −3° a
+ * body is unobservable and its refraction is meaningless, so the lift ramps
+ * linearly to nothing across that last degree and a half — continuous, and
+ * still monotone enough for removeRefraction's iteration to converge.
+ */
+export function bennettRefractionDeg(altitudeDeg: number): number {
+  if (altitudeDeg <= REFRACTION_FADE_FLOOR_DEG) return 0;
+  const h = Math.max(altitudeDeg, REFRACTION_MIN_ALT_DEG);
+  const arcmin = 1 / Math.tan(degToRad(h + 7.31 / (h + 4.4)));
+  const lift = clamp(arcmin / 60, 0, MAX_REFRACTION_DEG);
+  if (altitudeDeg >= REFRACTION_MIN_ALT_DEG) return lift;
+  const fade = (altitudeDeg - REFRACTION_FADE_FLOOR_DEG)
+    / (REFRACTION_MIN_ALT_DEG - REFRACTION_FADE_FLOOR_DEG);
+  return lift * fade;
+}
+
+/** Geometric altitude → apparent (refracted) altitude. */
+export function applyRefraction(geometricAltDeg: number): number {
+  return geometricAltDeg + bennettRefractionDeg(geometricAltDeg);
+}
+
+/**
+ * Apparent altitude → geometric: the exact inverse of applyRefraction.
+ *
+ * By BISECTION rather than the obvious fixed-point iteration. Fixed point is
+ * two lines and converges beautifully for most of the sky — and then loses a
+ * tenth of a degree in the last two degrees above the horizon, where dR/dh is
+ * steepest and the whole point of modelling refraction lies. Bisection has no
+ * such regime: applyRefraction is strictly increasing everywhere (checked
+ * numerically from −3° to the zenith), and the answer is always inside
+ * [apparent − 1°, apparent], so twenty-four halvings pin it to under a
+ * milliarcsecond regardless of altitude. It costs a couple of dozen tangents
+ * a few times per frame — the mount pointing and one field-star anchor, not
+ * per star — which is nothing.
+ *
+ * This closure matters: the EQ mount rig and the sidereal motor both derive
+ * mechanical coordinates back out of a pointing through here, so a round trip
+ * that drifted would show up as the mount slowly walking off its own target.
+ */
+export function removeRefraction(apparentAltDeg: number): number {
+  let lo = apparentAltDeg - MAX_REFRACTION_DEG;
+  let hi = apparentAltDeg;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (applyRefraction(mid) < apparentAltDeg) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Local Sidereal Time, in hours [0, 24), for a Julian Date and observer
+ * longitude (degrees, east-positive).
+ *
+ * Phase 59: carries the T² and T³ terms of the IAU GMST expression, not just
+ * the linear rate. They are nothing for tonight — but the Time Machine can
+ * jump centuries, and the T² term grows as the SQUARE of that jump: 22
+ * arcseconds of sky rotation by 1600 CE, more than the whole apparent
+ * diameter of Uranus and a visible mis-placement in a sub-degree field.
+ */
 export function getLocalSiderealTime(julianDate: number, longitudeDeg: number): number {
   const daysSinceJ2000 = julianDate - 2451545.0;
-  const gmstDeg = normalizeDegrees(280.46061837 + 360.98564736629 * daysSinceJ2000);
+  const T = daysSinceJ2000 / 36525; // Julian centuries of UT
+  const gmstDeg = normalizeDegrees(
+    280.46061837
+    + 360.98564736629 * daysSinceJ2000
+    + 0.000387933 * T * T
+    - (T * T * T) / 38710000
+  );
   const lstDeg = normalizeDegrees(gmstDeg + longitudeDeg);
   return lstDeg / 15;
 }
@@ -68,7 +245,11 @@ export function convertEquatorialToHorizontalLST(
   }
 
   return {
-    altitude: radToDeg(altRad),
+    // Phase 59: APPARENT altitude — what the eyepiece actually shows. This is
+    // the single choke point every RA/Dec → Alt/Az path in the app runs
+    // through (mount pointing, both 2D feeds, the 3D dome, the horizon chips),
+    // so refracting here is what keeps all of them agreeing on one sky.
+    altitude: applyRefraction(radToDeg(altRad)),
     azimuth: normalizeDegrees(azimuthDeg),
   };
 }
@@ -86,7 +267,12 @@ export function convertHorizontalToEquatorial(
   azDeg: number,
   latDeg: number
 ): { hourAngle: number; declination: number } {
-  const altRad = degToRad(altDeg);
+  // Phase 59: the caller hands us an APPARENT altitude (that is what the
+  // forward transform, the mount pointing, and the user's own eyes all deal
+  // in), but the spherical astronomy below is geometric. Undo the atmosphere
+  // first, or the round trip stops closing and the EQ rig / sidereal motor
+  // drift by up to half a degree near the horizon.
+  const altRad = degToRad(removeRefraction(altDeg));
   const azRad = degToRad(azDeg);
   const latRad = degToRad(latDeg);
 
@@ -136,7 +322,9 @@ export function convertHorizontalToRaDec(
  * @returns ra in hours [0, 24), dec in degrees
  */
 export function getSunEquatorial(julianDate: number): { ra: number; dec: number } {
-  const n = julianDate - 2451545.0;
+  // Phase 59: the series is a polynomial in Terrestrial Time; the caller's
+  // Julian Date is UT. See getDeltaTSeconds for why the difference matters.
+  const n = toTerrestrialTimeJD(julianDate) - 2451545.0;
   const meanLongitudeDeg = normalizeDegrees(280.46 + 0.9856474 * n);
   const meanAnomalyRad = degToRad(normalizeDegrees(357.528 + 0.9856003 * n));
   const eclipticLongitudeRad = degToRad(
@@ -185,11 +373,26 @@ export function getSunAltitudeDeg(latDeg: number, lonDeg: number, timeMs: number
  * The ecliptic → equatorial conversion uses the same obliquity model as
  * getSunEquatorial above, so Sun–Moon elongation (the phase driver) is
  * internally consistent between the two bodies.
+ *
+ * ── Topocentric parallax (Phase 59) ──
+ * Pass `observer` and the result is TOPOCENTRIC — the Moon's position as seen
+ * from a point on the Earth's SURFACE rather than from its centre. This is
+ * the one body in the catalog where the distinction is glaring: everything
+ * else is effectively at infinity, but the Moon is close enough that the
+ * ~6378 km from the Earth's centre to your feet subtends up to 57 arcminutes
+ * at it — a whole lunar diameter. A geocentric Moon sits visibly (and,
+ * near the horizon, almost a disk's width) off from where a telescope
+ * actually finds it. Omit `observer` for the geocentric position.
  * @returns ra in hours [0, 24), dec in degrees
  */
-export function getMoonEquatorial(simTimeMs: number): { ra: number; dec: number } {
+export function getMoonEquatorial(
+  simTimeMs: number,
+  observer?: ObserverGeodetic
+): { ra: number; dec: number } {
   const jd = getJulianDate(new Date(simTimeMs));
-  const T = (jd - 2451545.0) / 36525; // Julian centuries since J2000.0
+  // Phase 59: the lunar series is in Terrestrial Time, like the solar one.
+  const jdTT = toTerrestrialTimeJD(jd);
+  const T = (jdTT - 2451545.0) / 36525; // Julian centuries since J2000.0
 
   // Geocentric ecliptic longitude (degrees): mean longitude + principal
   // periodic terms. Argument angles are in degrees.
@@ -209,10 +412,22 @@ export function getMoonEquatorial(simTimeMs: number): { ra: number; dec: number 
     - 0.28 * Math.sin(degToRad(318.3 + 6003.18 * T))
     - 0.17 * Math.sin(degToRad(217.6 - 407332.20 * T));
 
+  // Equatorial horizontal parallax π (degrees) — the companion series to λ and
+  // β from the same Astronomical Almanac table. Ranges ~0.90°–1.02° (54′–61′)
+  // over the Moon's eccentric orbit; this is the angle the topocentric
+  // correction below is built on, and the reason perigee full moons sit
+  // measurably further from where a geocentric ephemeris puts them.
+  const parallaxDeg =
+    0.9508
+    + 0.0518 * Math.cos(degToRad(134.9 + 477198.85 * T))
+    + 0.0095 * Math.cos(degToRad(259.2 - 413335.38 * T))
+    + 0.0078 * Math.cos(degToRad(235.7 + 890534.23 * T))
+    + 0.0028 * Math.cos(degToRad(269.9 + 954397.70 * T));
+
   const lambda = degToRad(normalizeDegrees(lambdaDeg));
   const beta = degToRad(betaDeg);
   // Same obliquity model as getSunEquatorial (n = days since J2000).
-  const obliquityRad = degToRad(23.439 - 0.0000004 * (jd - 2451545.0));
+  const obliquityRad = degToRad(23.439 - 0.0000004 * (jdTT - 2451545.0));
 
   // Ecliptic → equatorial (standard rotation about the vernal equinox).
   const sinDec = clamp(
@@ -226,9 +441,72 @@ export function getMoonEquatorial(simTimeMs: number): { ra: number; dec: number 
     Math.cos(lambda)
   );
 
-  return {
+  const geocentric = {
     ra: normalizeDegrees(radToDeg(raRad)) / 15,
     dec: radToDeg(Math.asin(sinDec)),
+  };
+
+  if (!observer) return geocentric;
+  return applyLunarParallax(geocentric, parallaxDeg, observer, jd);
+}
+
+/**
+ * Observer's position on the Earth's surface — the extra information a
+ * topocentric correction needs beyond the moment in time.
+ */
+export interface ObserverGeodetic {
+  latitude: number;
+  longitude: number;
+  /** Height above sea level, metres. Optional: worth <1 arcsecond of parallax. */
+  elevationM?: number;
+}
+
+/** Earth's equatorial radius, km — the baseline the lunar parallax is defined against. */
+const EARTH_EQUATORIAL_RADIUS_KM = 6378.14;
+/** Polar/equatorial radius ratio (WGS-84 flattening), for the geocentric-latitude fix. */
+const EARTH_FLATTENING_RATIO = 0.99664719;
+
+/**
+ * Geocentric → topocentric equatorial coordinates (Meeus, Astronomical
+ * Algorithms ch. 40). Shifts the Moon by the angle the observer's own offset
+ * from the Earth's centre subtends at it: zero when the Moon is overhead,
+ * maximal (the full ~57′ horizontal parallax) when it is on the horizon, and
+ * always DOWNWARD — a body seen from the surface is always lower than a body
+ * seen from the centre, which is precisely the opposite direction to the
+ * refraction lift applied in convertEquatorialToHorizontalLST. The two are
+ * genuinely separate effects of similar size and they partly cancel at the
+ * horizon; carrying only one of them would be worse than carrying neither.
+ *
+ * ρ sin φ′ / ρ cos φ′ account for the Earth being an ellipsoid, so the
+ * observer's geocentric latitude differs from the geodetic one they think in.
+ */
+function applyLunarParallax(
+  geocentric: { ra: number; dec: number },
+  parallaxDeg: number,
+  observer: ObserverGeodetic,
+  julianDate: number
+): { ra: number; dec: number } {
+  const latRad = degToRad(observer.latitude);
+  const elevationRatio = (observer.elevationM ?? 0) / (EARTH_EQUATORIAL_RADIUS_KM * 1000);
+  const u = Math.atan(EARTH_FLATTENING_RATIO * Math.tan(latRad));
+  const rhoSinPhi = EARTH_FLATTENING_RATIO * Math.sin(u) + elevationRatio * Math.sin(latRad);
+  const rhoCosPhi = Math.cos(u) + elevationRatio * Math.cos(latRad);
+
+  const lstHours = getLocalSiderealTime(julianDate, observer.longitude);
+  const haRad = degToRad(normalizeDegrees((lstHours - geocentric.ra) * 15));
+  const decRad = degToRad(geocentric.dec);
+  const sinParallax = Math.sin(degToRad(parallaxDeg));
+
+  const denominator = Math.cos(decRad) - rhoCosPhi * sinParallax * Math.cos(haRad);
+  const deltaRaRad = Math.atan2(-rhoCosPhi * sinParallax * Math.sin(haRad), denominator);
+  const topoDecRad = Math.atan2(
+    (Math.sin(decRad) - rhoSinPhi * sinParallax) * Math.cos(deltaRaRad),
+    denominator
+  );
+
+  return {
+    ra: ((geocentric.ra + radToDeg(deltaRaRad) / 15) % 24 + 24) % 24,
+    dec: radToDeg(topoDecRad),
   };
 }
 

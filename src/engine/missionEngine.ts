@@ -6,6 +6,7 @@ import { useProgressStore } from '../store/useProgressStore';
 import { missions } from '../data/missions';
 import type { RankMission } from '../data/missions';
 import * as opticalMath from './opticalMath';
+import { computeSkyOffsetDeg } from './skyGeometry';
 import type { InstructorResponse } from '../types';
 
 export type MissionStepId =
@@ -206,6 +207,11 @@ export const useMissionStore = create<MissionState>()(
       startRankMission: (id) => {
         const mission = missions.find(m => m.id === id);
         if (!mission) return;
+        // Phase 59: a star-hopping mission takes the GoTo away for its whole
+        // duration. Owned here rather than in App.tsx so it can never get out
+        // of step with the mission runtime — including a rehydrated session
+        // that resumes mid-mission (see onRehydrateStorage below).
+        useTelescopeStore.getState().setGoToSuppressed(!!mission.suppressGoTo);
         set({
           // Mutually exclusive with the legacy guided workflow runtime
           isActive: false,
@@ -220,12 +226,18 @@ export const useMissionStore = create<MissionState>()(
         });
       },
 
-      endRankMission: () => set({
-        activeRankMissionId: null,
-        rankMissionStatus: 'idle',
-        completedTargetIds: [],
-        compiledSuccessFn: null,
-      }),
+      endRankMission: () => {
+        // Always restore GoTo — the lockout belongs to the mission, not to the
+        // telescope, and a student who abandons the hop must not be left with a
+        // permanently dead slew.
+        useTelescopeStore.getState().setGoToSuppressed(false);
+        set({
+          activeRankMissionId: null,
+          rankMissionStatus: 'idle',
+          completedTargetIds: [],
+          compiledSuccessFn: null,
+        });
+      },
     }),
     {
       name: 'telescope-mission-storage',
@@ -238,6 +250,10 @@ export const useMissionStore = create<MissionState>()(
           const mission = missions.find(m => m.id === state.activeRankMissionId);
           if (mission) {
             state.compiledSuccessFn = compileSuccessCondition(mission);
+            // isGoToSuppressed is deliberately NOT persisted (a reopened app
+            // must never start with a mysteriously dead GoTo), so a resumed
+            // star-hopping mission has to re-assert it here.
+            useTelescopeStore.getState().setGoToSuppressed(!!mission.suppressGoTo);
           }
         }
       }
@@ -267,6 +283,20 @@ export function evaluateRankMissionProgress(): InstructorResponse | null {
   const telescopeState = useTelescopeStore.getState();
   if (!telescopeState.activeProfile || !telescopeState.activeTarget) return null;
 
+  // Phase 59: `targetOffsetDeg` — how far the mount is from the thing it is
+  // locked onto. Derived rather than stored (the mount pointing and the
+  // target's ephemeris are both already live), and exposed on the adapter
+  // because a navigation mission's whole success criterion IS that number and
+  // the condition sandbox has no access to skyGeometry.
+  const targetSkyOffset = computeSkyOffsetDeg(
+    telescopeState.activeTarget,
+    telescopeState.pointingAlt,
+    telescopeState.pointingAz,
+    telescopeState.observerLocation.latitude,
+    telescopeState.observerLocation.longitude,
+    telescopeState.simTime
+  );
+
   const telescopeAdapter = {
     ...telescopeState,
     activeProfile: {
@@ -274,6 +304,9 @@ export function evaluateRankMissionProgress(): InstructorResponse | null {
       apertureMm: telescopeState.activeProfile.aperture,
       focalLengthMm: telescopeState.activeProfile.focalLength,
     },
+    targetOffsetDeg: targetSkyOffset
+      ? Math.hypot(targetSkyOffset.dAlt, targetSkyOffset.dAz)
+      : null,
   };
 
   const success = state.compiledSuccessFn(telescopeAdapter, opticalMath);

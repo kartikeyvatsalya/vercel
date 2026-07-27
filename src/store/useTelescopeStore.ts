@@ -7,6 +7,15 @@ import { SIM_MODE_RULES, type SimulationMode } from '../engine/simulationModes';
 import { TERRESTRIAL_POINTING, getBodyEquatorial } from '../engine/skyGeometry';
 import { EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from '../engine/opticalMath';
 import { getSmoothSimTime, reanchorTimeEngine } from '../engine/timeEngine';
+import {
+  DARK_ADAPTATION_FULL_MS,
+  DARK_ADAPTATION_LOSS_RATE,
+  DARK_ADAPTATION_SKY_DARKNESS_MIN,
+  DEFAULT_TRANSPARENCY,
+  TRANSPARENCY_MAX,
+  TRANSPARENCY_MIN,
+  getSkyState,
+} from '../engine/daylight';
 import { useProgressStore } from './useProgressStore';
 import type { TelescopeProfile, Target } from '../types';
 import type { LoadedAssets } from '../engine/assetLoader';
@@ -55,7 +64,7 @@ function computePointing(target: Target, observer: ObserverLocation, time: Date)
   // (Phase 35): the Sun follows the LIVE solar ephemeris — and since Phase
   // 42.8 the Moon follows its live lunar ephemeris too — so a GoTo slew
   // lands exactly where the universal sky renderer draws it.
-  const eq = getBodyEquatorial(target, time.getTime());
+  const eq = getBodyEquatorial(target, time.getTime(), observer);
   if (!eq) {
     return { altitude: DEFAULT_POINTING.alt, azimuth: DEFAULT_POINTING.az };
   }
@@ -91,6 +100,32 @@ function pointingAfterTimeShift(
   return { pointingAlt: p.altitude, pointingAz: p.azimuth };
 }
 
+/**
+ * ── Dark adaptation clock (Phase 59) ──
+ * Accumulates SIMULATED time spent under a genuinely dark sky and bleeds it
+ * back off (much faster) under a bright one — see engine/daylight for the
+ * physiology and why the session starts fully adapted. Any single time shift
+ * is capped at one full adaptation span, so a Time-Machine jump of a century
+ * doesn't turn into a meaningless enormous number; a backwards jump leaves
+ * the eye exactly as it was, since un-observing is not a thing.
+ */
+function adaptationAfterTimeShift(
+  current: number,
+  previousSimTime: number,
+  newSimTime: number,
+  observer: ObserverLocation,
+  isVirtualNight: boolean
+): number {
+  const elapsed = newSimTime - previousSimTime;
+  if (elapsed <= 0) return current;
+  const step = Math.min(elapsed, DARK_ADAPTATION_FULL_MS);
+  const sky = getSkyState(observer.latitude, observer.longitude, newSimTime, isVirtualNight);
+  if (sky.darkness >= DARK_ADAPTATION_SKY_DARKNESS_MIN) {
+    return Math.min(DARK_ADAPTATION_FULL_MS, current + step);
+  }
+  return Math.max(0, current - step * DARK_ADAPTATION_LOSS_RATE);
+}
+
 interface TelescopeState {
   availableProfiles: TelescopeProfile[];
   activeProfile: TelescopeProfile;
@@ -108,6 +143,19 @@ interface TelescopeState {
   
   // Environment & Rules State
   seeingQuality: number; // 1 to 5
+  /**
+   * Sky transparency, 1 (milky) to 5 (pristine) — Phase 59. Deliberately the
+   * OPPOSITE polarity to the Antoniadi seeing scale above, because that is the
+   * convention in both cases; see engine/daylight for why the two are separate
+   * measurements and what each one costs you at the eyepiece.
+   */
+  transparency: number;
+  /**
+   * Accumulated simulated darkness, in ms, toward DARK_ADAPTATION_FULL_MS
+   * (Phase 59). Not persisted: a returning observer's eyes are their own, and
+   * a fresh session always starts night-adapted.
+   */
+  darkAdaptationMs: number;
   isDustCapOn: boolean;
   isSolarFilterAttached: boolean;
   isMirrorCooled: boolean;
@@ -194,6 +242,17 @@ interface TelescopeState {
   // always shows the true sky.
   isVirtualNight: boolean;
 
+  // ── GoTo suppression (Phase 59) ──
+  // Set while a mission teaches STAR-HOPPING: selecting a target still locks
+  // onto it (the reticle, the telemetry, the rules engine all keep working)
+  // but the mount does NOT slew there — the student has to find it themselves,
+  // hopping from a bright naked-eye star through the finder. Without this a
+  // single click on the target menu hands them the answer, which is the exact
+  // habit the lesson exists to break. Not persisted: it belongs to a running
+  // mission, and a reopened app should never start with a mysteriously dead
+  // GoTo button.
+  isGoToSuppressed: boolean;
+
   // ── Onboarding Tour (Phase 30) ──
   // 0 = inactive/hidden; 1+ = which spotlighted step is showing. The total
   // step count (and what each step points at) is UI-layer knowledge owned
@@ -236,6 +295,10 @@ interface TelescopeState {
   setMechanicallyBalanced: (balanced: boolean) => void;
   setCollimated: (collimated: boolean) => void;
   setSeeingQuality: (quality: number) => void;
+  setTransparency: (transparency: number) => void;
+  /** Wipe the observer's night vision — a white-light event (Phase 59). */
+  resetDarkAdaptation: () => void;
+  setGoToSuppressed: (suppressed: boolean) => void;
   setMirrorCooled: (cooled: boolean) => void;
   setLowPerformanceDevice: (isLow: boolean) => void;
   setHighPerformanceMode: (enabled: boolean) => void;
@@ -259,6 +322,10 @@ export const useTelescopeStore = create<TelescopeState>()(
       focuserPosition: 50, // Default to perfect focus
       
       seeingQuality: 3, // Antoniadi scale 1-5
+      transparency: DEFAULT_TRANSPARENCY, // 5 = pristine (the identity case)
+      // The observer arrives already night-adapted; only a white-light event
+      // or a spell of daylight takes it away.
+      darkAdaptationMs: DARK_ADAPTATION_FULL_MS,
       isDustCapOn: true,
       isSolarFilterAttached: false,
       isMirrorCooled: true,
@@ -293,6 +360,7 @@ export const useTelescopeStore = create<TelescopeState>()(
       trackedEquatorial: null,
       driftAnchorSimTime: INITIAL_SIM_TIME,
       isVirtualNight: false,
+      isGoToSuppressed: false,
       tourStep: 0,
 
       // 3D pointing defaults to wherever the default target (Moon) lives
@@ -347,26 +415,43 @@ export const useTelescopeStore = create<TelescopeState>()(
         // Bridge: slewing to a new target (e.g. "Slew to Moon") also moves
         // the 3D telescope's Alt-Az pointing — computed from the target's
         // RA/Dec, the observer's location, and the simulation time.
-        const { observerLocation, simTime, isTrackingMotorOn } = get();
+        const { observerLocation, simTime, isTrackingMotorOn, isGoToSuppressed } = get();
         const pointing = computePointing(target, observerLocation, new Date(simTime));
+
+        // ── Star-hopping (Phase 59) ── With GoTo suppressed the mount does
+        // NOT move. The target is still locked, so the reticle, the offset
+        // readout, the rules engine and mission evaluation all keep working —
+        // but finding it is the student's job, hopping through the finder from
+        // a bright star they can already see.
+        const { pointingAlt: heldAlt, pointingAz: heldAz } = get();
+        const nextAlt = isGoToSuppressed ? heldAlt : pointing.altitude;
+        const nextAz = isGoToSuppressed ? heldAz : pointing.azimuth;
+
         // A running motor re-locks onto the new pointing direction: celestial
         // targets get their exact RA/Dec (the Sun its LIVE ephemeris RA/Dec,
         // Phase 35); terrestrial anchors get whatever RA/Dec currently passes
-        // through them (so the motor drags off it).
+        // through them (so the motor drags off it). With GoTo suppressed the
+        // motor must hold the direction the tube is ACTUALLY pointing, not the
+        // target's — otherwise engaging it would slew there by the back door.
         let trackedEquatorial = get().trackedEquatorial;
         if (isTrackingMotorOn) {
-          trackedEquatorial =
-            getBodyEquatorial(target, simTime)
-              ?? convertHorizontalToRaDec(
-                  pointing.altitude, pointing.azimuth,
-                  observerLocation.latitude, observerLocation.longitude,
-                  new Date(simTime)
-                );
+          trackedEquatorial = isGoToSuppressed
+            ? convertHorizontalToRaDec(
+                nextAlt, nextAz,
+                observerLocation.latitude, observerLocation.longitude,
+                new Date(simTime)
+              )
+            : getBodyEquatorial(target, simTime, observerLocation)
+                ?? convertHorizontalToRaDec(
+                    pointing.altitude, pointing.azimuth,
+                    observerLocation.latitude, observerLocation.longitude,
+                    new Date(simTime)
+                  );
         }
         set({
           activeTarget: target,
-          pointingAlt: pointing.altitude,
-          pointingAz: pointing.azimuth,
+          pointingAlt: nextAlt,
+          pointingAz: nextAz,
           trackedEquatorial,
           // Fresh lock = fresh drift: the target starts centered, so gentled
           // drift (Phase 33) counts from this exact moment.
@@ -420,19 +505,31 @@ export const useTelescopeStore = create<TelescopeState>()(
       // updates at the driver's low cadence (~1 Hz from App.tsx) while
       // canvases interpolate per-frame via getSmoothSimTime().
       syncSimTime: () => {
-        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        const state = get();
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = state;
         const newTime = getSmoothSimTime();
         set({
           simTime: newTime,
+          // Phase 59: this ~1 Hz sample is also the eye's clock — dark
+          // adaptation is measured in SIMULATED time, so it runs with the
+          // sky rather than with the wall clock (60× playback adapts you in
+          // twenty real seconds, exactly as it compresses everything else).
+          darkAdaptationMs: adaptationAfterTimeShift(
+            state.darkAdaptationMs, state.simTime, newTime, observerLocation, state.isVirtualNight
+          ),
           ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, newTime),
         });
       },
       stepSimTimeHours: (hours) => {
-        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        const state = get();
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = state;
         const newTime = getSmoothSimTime() + hours * 3_600_000;
         reanchorTimeEngine(newTime);
         set({
           simTime: newTime,
+          darkAdaptationMs: adaptationAfterTimeShift(
+            state.darkAdaptationMs, state.simTime, newTime, observerLocation, state.isVirtualNight
+          ),
           // Deliberate time jumps show their full effect — drift gentling
           // (Phase 33) restarts from the stepped-to moment.
           driftAnchorSimTime: newTime,
@@ -452,12 +549,16 @@ export const useTelescopeStore = create<TelescopeState>()(
       // tracking. Playback rate is left untouched — "now" answers WHEN, not how
       // fast time flows.
       resetSimTimeToNow: () => {
-        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        const state = get();
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = state;
         const newTime = Date.now();
         reanchorTimeEngine(newTime);
         set({
           simTime: newTime,
           driftAnchorSimTime: newTime,
+          darkAdaptationMs: adaptationAfterTimeShift(
+            state.darkAdaptationMs, state.simTime, newTime, observerLocation, state.isVirtualNight
+          ),
           ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, newTime),
         });
       },
@@ -468,11 +569,15 @@ export const useTelescopeStore = create<TelescopeState>()(
       // drift-gentling clock, and re-derive the mount's pointing if the
       // sidereal motor is tracking.
       setSimTime: (ms) => {
-        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = get();
+        const state = get();
+        const { isTrackingMotorOn, trackedEquatorial, observerLocation } = state;
         reanchorTimeEngine(ms);
         set({
           simTime: ms,
           driftAnchorSimTime: ms,
+          darkAdaptationMs: adaptationAfterTimeShift(
+            state.darkAdaptationMs, state.simTime, ms, observerLocation, state.isVirtualNight
+          ),
           ...pointingAfterTimeShift(isTrackingMotorOn, trackedEquatorial, observerLocation, ms),
         });
       },
@@ -568,6 +673,17 @@ export const useTelescopeStore = create<TelescopeState>()(
       setMechanicallyBalanced: (balanced) => set({ isMechanicallyBalanced: balanced }),
       setCollimated: (collimated) => set({ isCollimated: collimated }),
       setSeeingQuality: (quality) => set({ seeingQuality: Math.max(1, Math.min(5, quality)) }),
+      setTransparency: (transparency) =>
+        set({ transparency: Math.max(TRANSPARENCY_MIN, Math.min(TRANSPARENCY_MAX, transparency)) }),
+      // Guarded so an edge-triggered caller that fires twice (or a render loop
+      // that calls this every frame while the hazard persists) can't spray a
+      // fresh state object — and a re-render — through the whole app.
+      resetDarkAdaptation: () => {
+        if (get().darkAdaptationMs !== 0) set({ darkAdaptationMs: 0 });
+      },
+      setGoToSuppressed: (suppressed) => {
+        if (get().isGoToSuppressed !== suppressed) set({ isGoToSuppressed: suppressed });
+      },
       setMirrorCooled: (cooled: boolean) => set({ isMirrorCooled: cooled }),
       setLowPerformanceDevice: (isLow: boolean) => set({ isLowPerformanceDevice: isLow }),
       setHighPerformanceMode: (enabled: boolean) => set({ isHighPerformanceMode: enabled }),
@@ -595,6 +711,11 @@ export const useTelescopeStore = create<TelescopeState>()(
           isTrackingMotorOn: _motor,
           trackedEquatorial: _tracked,
           isVirtualNight: _virtualNight,
+          // Phase 59: the eye's state and a mission's GoTo lockout both belong
+          // to the live session, not to the saved instrument — a returning
+          // observer arrives night-adapted with a working GoTo.
+          darkAdaptationMs: _darkAdaptation,
+          isGoToSuppressed: _goToSuppressed,
           tourStep: _tourStep,
           driftAnchorSimTime: _driftAnchor,
           isAltLocked: _altLocked,

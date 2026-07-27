@@ -3,7 +3,10 @@ import { computeSkyOffsetDeg, projectSkyOffsetPx, wrap180, getBodyEquatorial } f
 import { drawMoon, drawSaturn, drawSun, drawSpire, drawM42, drawJupiter, type JovianMoonSprite } from './targetGlyphs';
 import { getJulianDate, getLocalSiderealTime, convertEquatorialToHorizontalLST, convertHorizontalToRaDec, getParallacticAngleDeg, getGalileanMoonPositions, getLunarIlluminatedFraction, getSunEquatorial, degToRad } from './ephemerisMath';
 import { STAR_CATALOG, STAR_TINT, starRadiusPx, CONSTELLATION_LINES, STAR_BY_NAME, type CatalogStar } from './starCatalog';
-import { skyColorForSunAlt, skyDarknessForSunAlt, starAlpha } from './daylight';
+import {
+  skyColorForSunAlt, skyDarknessForSunAlt, starAlpha,
+  deepSkyVisibility, faintStarMagPenalty, transparencyThroughput, DEFAULT_TRANSPARENCY,
+} from './daylight';
 import { drawBahtinovAsterism, MAIN_MM_TO_PX, MAIN_ARM_LENGTH_PX, type BahtinovGeometry } from './bahtinov';
 import {
   bakeStarTestSprite, blitStarTestSprite, drawComaFlare, starTestSpreadDimming,
@@ -120,7 +123,24 @@ export interface OpticalViewSpec {
    * which track the sky without this rotation by mechanical design.
    */
   isAltAzMount: boolean;
+  /**
+   * Sky transparency, 1 (milky) … 5 (pristine) — Phase 59. Distinct from
+   * seeing: haze costs MAGNITUDES, not arcseconds, so it deletes faint field
+   * stars and drains the contrast out of a nebula while leaving the Moon and
+   * the planets essentially untouched. Defaults to pristine, which is exactly
+   * what every frame before Phase 59 implicitly assumed.
+   */
+  transparency?: number;
+  /**
+   * The observer's dark adaptation, 0 (just blinded) … 1 (fully night-eyed) —
+   * Phase 59. Multiplies the same faint-object budget transparency does; see
+   * engine/daylight for the physiology.
+   */
+  darkAdaptation?: number;
 }
+
+/** Faint, low-surface-brightness bodies — the ones haze and a bright eye actually erase. */
+const FAINT_BODY_TYPES = new Set<Target['type']>(['nebula', 'galaxy', 'star']);
 
 // ── Star tint → RGB (Phase 42) ─────────────────────────────────────
 // The radial-gradient star draw below needs rgba() stops (an opaque core
@@ -266,7 +286,11 @@ function drawFaintFieldStars(
   // the 30mm finder reaches ~9.9, a 200mm Dob ~14 — which stars survive
   // at all depends on the glass, exactly as at a real eyepiece.
   const apertureMm = role === 'finder' ? FINDER_APERTURE_MM : Math.max(10, aperture);
-  const limitingMag = 7.5 + 5 * Math.log10(apertureMm / 10);
+  // Phase 59: haze and a light-adapted eye do not dim the faint stars, they
+  // DELETE them — which is what a limiting-magnitude penalty does, and what
+  // an observer actually experiences when the sky goes milky.
+  const limitingMag = 7.5 + 5 * Math.log10(apertureMm / 10)
+    - faintStarMagPenalty(spec.transparency ?? DEFAULT_TRANSPARENCY, spec.darkAdaptation ?? 1);
 
   // Which RA/Dec cells cover this field: anchor the search at the RA/Dec
   // currently passing through the view center.
@@ -401,6 +425,12 @@ function drawStarField(
   const apertureFactor = role === 'finder'
     ? 1
     : Math.max(0.35, Math.min(1, getApertureBrightnessMultiplier(aperture)));
+  // Phase 59: atmospheric extinction on the named catalog. Point sources are
+  // hurt by haze but not much by the eye's own adaptation (a 1st-magnitude
+  // star is far above threshold either way), so this carries the transparency
+  // term only — the adaptation term belongs to the faint end above and to the
+  // extended deep-sky objects below.
+  const extinctionFactor = transparencyThroughput(spec.transparency ?? DEFAULT_TRANSPARENCY);
 
   for (const star of STAR_CATALOG) {
     const pos = convertEquatorialToHorizontalLST(star.ra, star.dec, observer.latitude, lstHours);
@@ -410,7 +440,7 @@ function drawStarField(
     const dAz = wrap180(pos.azimuth - pointing.az);
     if (dAz > maxOffDeg || dAz < -maxOffDeg) continue;
 
-    const alpha = starAlpha(star.mag, darkness) * apertureFactor;
+    const alpha = starAlpha(star.mag, darkness) * apertureFactor * extinctionFactor;
     if (alpha <= 0.02) continue;
 
     const x = centerX + offsetX + dAz * azPxPerDeg;
@@ -564,6 +594,13 @@ function drawUniversalSkyBodies(
   // an occlusion disk is invisible except that it erases the stars an opaque,
   // dimmed body must block from showing through it.
   const occlusionColor = skyColorForSunAlt(sunAltDeg);
+  // ── Transparency × dark adaptation (Phase 59) ── The one throughput number
+  // that decides how much of a nebula's drizzle survives the sky and the eye
+  // between it and the observer. Body-independent, so hoist it out of the loop.
+  const faintBodyVisibility = deepSkyVisibility(
+    spec.transparency ?? DEFAULT_TRANSPARENCY,
+    spec.darkAdaptation ?? 1
+  );
 
   const bodies = [...skyBodies].sort(
     (a, b) => (BODY_DEPTH_RANK[a.id] ?? DEFAULT_DEPTH_RANK) - (BODY_DEPTH_RANK[b.id] ?? DEFAULT_DEPTH_RANK)
@@ -584,7 +621,11 @@ function drawUniversalSkyBodies(
 
     // ── Cull 1: daylight washout ── Bodies dimmer than the day sky simply
     // aren't there to draw (Virtual Night restores them via darkness = 1).
-    const daylightVis = daylightTargetVisibility(body.type, darkness);
+    // Phase 59 folds transparency and dark adaptation into the SAME visibility
+    // budget, for the faint bodies only: haze and a light-blasted eye take the
+    // nebula long before they touch the Moon.
+    const daylightVis = daylightTargetVisibility(body.type, darkness)
+      * (FAINT_BODY_TYPES.has(body.type) ? faintBodyVisibility : 1);
     if (daylightVis <= 0.01) continue;
 
     // ── Cull 2: one Alt/Az conversion → below-horizon + FOV bounds ──
@@ -639,7 +680,7 @@ function drawUniversalSkyBodies(
     // — rigidly bolted to the same tube — see an identical spin.
     // Terrestrial bodies have no equatorial anchor and are naturally
     // excluded (getBodyEquatorial → null).
-    const bodyEq = getBodyEquatorial(body, bodySimTime);
+    const bodyEq = getBodyEquatorial(body, bodySimTime, observer);
     const parallacticAngleRad = isAltAzMount && bodyEq
       ? (getParallacticAngleDeg(bodyEq.ra, bodyEq.dec, observer.latitude, observer.longitude, new Date(bodySimTime)) * Math.PI) / 180
       : 0;

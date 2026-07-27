@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useShallow } from './store/useShallowSelector';
 import { useTelescopeStore, TERRESTRIAL_POINTING } from './store/useTelescopeStore';
 import { TARGETS } from './data/bookContent';
@@ -9,7 +9,8 @@ import { SIM_MODE_RULES, type SimulationMode } from './engine/simulationModes';
 import { useTranslation, type TranslationKey } from './engine/i18n';
 import { useProgressStore } from './store/useProgressStore';
 import { evaluateState } from './engine/rulesEngine';
-import { getMagnification, getPerfectFocusPoint, getTrueFOV, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from './engine/opticalMath';
+import { getMagnification, getMirrorCooldownMs, getPerfectFocusPoint, getTrueFOV, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from './engine/opticalMath';
+import { TRANSPARENCY_LABELS, TRANSPARENCY_MAX, TRANSPARENCY_MIN } from './engine/daylight';
 import { useMissionStore, evaluateMissionProgress, evaluateRankMissionProgress, AVAILABLE_MISSIONS } from './engine/missionEngine';
 import { missions as RANK_MISSIONS } from './data/missions';
 import { evaluateLessonCompletion, type Lesson } from './engine/curriculum';
@@ -34,7 +35,24 @@ import { OnboardingTour } from './components/ui/OnboardingTour';
 import { IntroMascot } from './components/ui/IntroMascot';
 import { MobileWarning } from './components/ui/MobileWarning';
 import { TextbookPanel } from './components/ui/TextbookPanel';
-import { ObservatoryScene } from './components/canvas/ObservatoryScene';
+
+// ── Deferred WebGL stack (Phase 59) ──────────────────────────────
+// ObservatoryScene pulls in three.js, @react-three/fiber and drei — the
+// single heaviest thing this app ships, and completely unreachable for anyone
+// working in pure Eyepiece mode. Behind React.lazy it becomes its own chunk
+// the browser only fetches when a view that actually renders 3D is chosen, so
+// first paint no longer waits on a WebGL renderer nobody may look at.
+// (vite.config.ts keeps three and its React bindings in one named chunk so
+// the split stays legible in the build output.)
+const ObservatoryScene = lazy(() => import('./components/canvas/ObservatoryScene'));
+
+/** Placeholder while the 3D chunk streams in — same dark plate as the scene it replaces. */
+const ObservatoryFallback: React.FC = () => (
+  <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#04050a]">
+    <div className="w-10 h-10 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
+    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Loading observatory…</p>
+  </div>
+);
 
 
 import {
@@ -281,6 +299,9 @@ function App() {
     toggleSolarFilter: state.toggleSolarFilter,
     setEyepiece: state.setEyepiece,
     setSeeingQuality: state.setSeeingQuality,
+    transparency: state.transparency,
+    setTransparency: state.setTransparency,
+    isGoToSuppressed: state.isGoToSuppressed,
     toggleBarlow: state.toggleBarlow,
     toggleDigitalZoom: state.toggleDigitalZoom,
     isDigitalZoomOn: state.isDigitalZoomOn,
@@ -349,6 +370,14 @@ function App() {
   // ── Slew-to-Target Toast — connects a footer target switch to the 3D mount's physical movement ──
   const [slewToast, setSlewToast] = useState<string | null>(null);
   const slewToastTimeoutRef = useRef<number | null>(null);
+
+  // Pending mirror acclimation timer (Phase 59) — held so a second cap toggle
+  // can't leave two racing timers, and so unmounting can't fire a setState
+  // into a dead tree.
+  const cooldownTimeoutRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (cooldownTimeoutRef.current) window.clearTimeout(cooldownTimeoutRef.current);
+  }, []);
 
   // ── First-visit tour prompt (Phase 33) ── One-shot floating nudge toward
   // the Start Tour button for brand-new users. `tourPrompted` is marked the
@@ -580,6 +609,23 @@ function App() {
     progressState.logbookEntries.length,
   ]);
 
+  // ── Navigation-mission evaluation (Phase 59) ──────────────────────
+  // A star-hopping mission succeeds on WHERE THE MOUNT POINTS, and the effect
+  // above deliberately cannot see that: App.tsx excludes pointingAlt/Az from
+  // its selector (Phase 52) precisely so a 60fps drag doesn't re-render the
+  // whole shell. Polling the evaluator at a human cadence instead costs one
+  // cheap derivation twice a second, and only while a rank mission is actually
+  // running. evaluateRankMissionProgress is idempotent once a mission reaches
+  // 'success', so a late tick can't double-award anything.
+  useEffect(() => {
+    if (!missionState.activeRankMissionId || missionState.rankMissionStatus !== 'active') return;
+    const id = window.setInterval(() => {
+      const update = evaluateRankMissionProgress();
+      if (update) setInstructorResponse(update as any);
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [missionState.activeRankMissionId, missionState.rankMissionStatus]);
+
   // Initial welcome message
   useEffect(() => {
     if (!instructorResponse) {
@@ -623,9 +669,15 @@ function App() {
   const startRankMission = (missionId: string) => {
     const missionDef = RANK_MISSIONS.find(m => m.id === missionId);
     if (!missionDef) return;
-    // Ensure the target for this mission is selected so students land in the right place
-    telescopeState.setTarget(missionDef.targetId);
+    // Order matters (Phase 59): startRankMission is what raises the GoTo
+    // lockout for a star-hopping mission, and setTarget reads that flag to
+    // decide whether to slew. Selecting the target first would hand the
+    // student the very slew the mission exists to withhold.
     missionState.startRankMission(missionId);
+    // Ensure the target for this mission is selected so students land in the
+    // right place — or, with GoTo suppressed, so they at least know what they
+    // are hunting for.
+    telescopeState.setTarget(missionDef.targetId);
     setIsMissionMenuOpen(false);
     setInstructorResponse({
       title: `Mission Started: ${missionDef.title}`,
@@ -681,7 +733,7 @@ function App() {
   const getTargetAltitudeNow = (target: Target): number | null => {
     if (target.type === 'terrestrial') return TERRESTRIAL_POINTING.alt; // ground-anchored, always up
     const { observerLocation, simTime } = telescopeState;
-    const eq = getBodyEquatorial(target, simTime);
+    const eq = getBodyEquatorial(target, simTime, observerLocation);
     if (!eq) return null;
     return convertEquatorialToHorizontal(
       eq.ra, eq.dec,
@@ -699,13 +751,20 @@ function App() {
     // 3D mount's horizon clamp parks the tube at the 0° hard-stop.
     telescopeState.setTarget(targetId);
     setIsTargetMenuOpen(false);
+    // Phase 59: with a star-hopping mission running the mount deliberately
+    // does NOT move, so the toast must not promise a slew that isn't coming.
     setSlewToast(
-      isBelowHorizon
-        ? `${target.name} is below the horizon — mount parked at the horizon stop. Advance sim time (+1 Hour) to bring it into view.`
-        : `Slewing mount to ${target.name}...`
+      telescopeState.isGoToSuppressed
+        ? `${target.name} locked — GoTo is off for this mission. Find it yourself through the finderscope.`
+        : isBelowHorizon
+          ? `${target.name} is below the horizon — mount parked at the horizon stop. Advance sim time (+1 Hour) to bring it into view.`
+          : `Slewing mount to ${target.name}...`
     );
     if (slewToastTimeoutRef.current) window.clearTimeout(slewToastTimeoutRef.current);
-    slewToastTimeoutRef.current = window.setTimeout(() => setSlewToast(null), isBelowHorizon ? 4500 : 2200);
+    slewToastTimeoutRef.current = window.setTimeout(
+      () => setSlewToast(null),
+      isBelowHorizon || telescopeState.isGoToSuppressed ? 4500 : 2200
+    );
   };
 
   // ── Split-mode divider drag: adjusts the eyepiece panel between 30% and 70% ──
@@ -738,7 +797,7 @@ function App() {
     if (s.activeTarget) {
       const target = s.activeTarget;
       // Phase 42.8: resolve through getBodyEquatorial (live Sun/Moon ephemeris).
-      const eq = target.type === 'terrestrial' ? null : getBodyEquatorial(target, s.simTime);
+      const eq = target.type === 'terrestrial' ? null : getBodyEquatorial(target, s.simTime, s.observerLocation);
       const alt = target.type === 'terrestrial'
         ? TERRESTRIAL_POINTING.alt
         : eq
@@ -794,7 +853,9 @@ function App() {
           Eyepiece mode unmounts the WebGL canvas entirely to save resources. ── */}
       {viewMode === 'observatory' && (
         <div className="absolute inset-0 z-0">
-          <ObservatoryScene />
+          <Suspense fallback={<ObservatoryFallback />}>
+            <ObservatoryScene />
+          </Suspense>
         </div>
       )}
 
@@ -1046,6 +1107,17 @@ function App() {
               Rank {activeRankMission.rank} · {activeRankMission.title}
             </h3>
           </div>
+          {/* Star-hopping lockout (Phase 59) — stated up front, because a
+              GoTo button that silently does nothing reads as a bug, not a
+              lesson. */}
+          {telescopeState.isGoToSuppressed && (
+            <div className="mb-2 flex items-start gap-1.5 bg-indigo-950/60 border border-indigo-500/50 rounded-lg px-2 py-1.5">
+              <Crosshair className="w-3 h-3 text-indigo-300 shrink-0 mt-0.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-300 leading-snug">
+                {t('goto.suppressed')}
+              </span>
+            </div>
+          )}
           <p className="text-xs text-slate-300 leading-relaxed italic mb-3 whitespace-pre-line">
             {activeRankMission.description}
           </p>
@@ -1143,7 +1215,9 @@ function App() {
         >
           {/* 3D Observatory pane (in-flow — resizes live with the divider) */}
           <div className="relative flex-1 min-w-0 min-h-0">
-            <ObservatoryScene />
+            <Suspense fallback={<ObservatoryFallback />}>
+              <ObservatoryScene />
+            </Suspense>
             <div className="absolute top-0 left-0 bottom-0 w-60 p-3 overflow-y-auto bg-slate-950/35 backdrop-blur-md pointer-events-auto">
               <TelemetryPanel translucent onTimeStep={handleTimeStepFeedback} />
             </div>
@@ -1424,9 +1498,20 @@ function App() {
               data-tour-id="tour-dustcap"
               onClick={() => {
                 telescopeState.toggleDustCap();
+                // `telescopeState` is this render's snapshot, so isDustCapOn
+                // here is the PRE-toggle value: true means the cap was just
+                // REMOVED, which is the moment a warm mirror starts meeting
+                // the night air. Phase 59: how long that takes now scales as
+                // D² (see getMirrorCooldownMs) — the 8" is ready in a couple
+                // of seconds, the 14" makes you wait, exactly as the real
+                // instruments do at their own compressed scale.
                 if (telescopeState.isDustCapOn) {
                   telescopeState.setMirrorCooled(false);
-                  setTimeout(() => telescopeState.setMirrorCooled(true), 2000);
+                  if (cooldownTimeoutRef.current) window.clearTimeout(cooldownTimeoutRef.current);
+                  cooldownTimeoutRef.current = window.setTimeout(
+                    () => useTelescopeStore.getState().setMirrorCooled(true),
+                    getMirrorCooldownMs(telescopeState.activeProfile.aperture)
+                  );
                 }
               }}
               className={`px-3 py-1 rounded border transition-colors ${telescopeState.isDustCapOn ? 'bg-red-950/80 border-red-500 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-800 border-slate-600'}`}
@@ -1532,6 +1617,27 @@ function App() {
                 onChange={(e) => telescopeState.setSeeingQuality(Number(e.target.value))}
                 className="w-16 accent-amber-500"
                 title="1 = Perfect, 5 = Terrible"
+              />
+            </div>
+
+            {/* ── Transparency (Phase 59) ── Sits beside Seeing on purpose:
+                the two are constantly confused and they are not the same
+                measurement. Seeing is how STEADY the air is (it smears fine
+                detail at high power); transparency is how CLEAR it is (it
+                steals faint light). Note the deliberately opposite polarity —
+                the Antoniadi scale counts UP toward worse, transparency counts
+                up toward better — so the value is always shown as a word as
+                well as a number. */}
+            <div className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded px-3 py-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                {t('footer.transparency')}: {TRANSPARENCY_LABELS[telescopeState.transparency] ?? telescopeState.transparency}
+              </label>
+              <input
+                type="range" min={TRANSPARENCY_MIN} max={TRANSPARENCY_MAX} step="1"
+                value={telescopeState.transparency}
+                onChange={(e) => telescopeState.setTransparency(Number(e.target.value))}
+                className="w-16 accent-sky-400"
+                title={t('tip.transparency')}
               />
             </div>
 

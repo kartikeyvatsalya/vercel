@@ -5,6 +5,8 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { OrbitControls, Stars, PerspectiveCamera, Billboard, Text } from '@react-three/drei';
 import { Orbit, Eye } from 'lucide-react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
+import { useMechanicsStore } from '../../store/useMechanicsStore';
+import { counterweightAnchorX } from '../../engine/mechanics';
 import { convertHorizontalToEquatorial, convertEquatorialToHorizontal, convertEquatorialToHorizontalLST, getJulianDate, getLocalSiderealTime } from '../../engine/ephemerisMath';
 import { TERRESTRIAL_POINTING, getBodyEquatorial } from '../../engine/skyGeometry';
 import { EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID, getMagnification, getTrueFOV } from '../../engine/opticalMath';
@@ -684,7 +686,7 @@ const SkyTargetBillboard: React.FC<{ target: Target }> = ({ target }) => {
       // and the 2D optical feeds agree on every body — the Sun in
       // particular rides the live solar ephemeris, matching the daylight.
       const smoothNow = getSmoothSimTime();
-      const eq = getBodyEquatorial(target, smoothNow);
+      const eq = getBodyEquatorial(target, smoothNow, observerLocation);
       if (!eq) {
         group.visible = false;
         return;
@@ -857,6 +859,12 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; isDraggin
   const haGroupRef = useRef<THREE.Group>(null);
   const decGroupRef = useRef<THREE.Group>(null);
   const latitude = useTelescopeStore((s) => s.observerLocation.latitude);
+  // ── Counterweight position (Phase 58) ── The cast weight is no longer bolted
+  // to a hardcoded x: it slides along its shaft with the balance slider, and
+  // engine/mechanics derives BOTH this anchor and the RA-axis torque from the
+  // same normalised position — so what the student sees on the shaft is
+  // literally the number the torque readout is computed from.
+  const counterweightX = useMechanicsStore((s) => counterweightAnchorX(s.counterweightPosition));
 
   useFrame((_state, delta) => {
     const store = useTelescopeStore.getState();
@@ -871,10 +879,13 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; isDraggin
     // ── Meridian collision guard (Phase 46; drag-gated in Phase 50) ──
     // hourAngle > 180° means the counterweight has swung higher than the
     // OTA — numerically verified against this exact rig's transform chain
-    // (haGroup's counterweight at local x=-0.56 vs decGroup's OTA pivot at
-    // local x=+0.24, both carried through the polar tilt + HA rotation):
+    // (haGroup's counterweight at a negative local x vs decGroup's OTA pivot
+    // at local x=+0.24, both carried through the polar tilt + HA rotation):
     // their world-Y heights cross exactly at hourAngle = 180° and 360°/0°,
-    // with 180°-360° being the "counterweight up" danger zone. A real GEM
+    // with 180°-360° being the "counterweight up" danger zone. Phase 58 made
+    // the weight slide along its shaft, which does NOT move that boundary —
+    // both heights carry the same sin(HA) factor, so the crossing is where
+    // sin(HA) = 0 regardless of how far out the weight sits. A real GEM
     // would slam the OTA into the tripod/pier here, so `effectiveHA` below
     // always clamps the RENDERED rig to the safe boundary, no matter what
     // put it in the danger zone.
@@ -974,7 +985,7 @@ const EquatorialAssembly: React.FC<{ ota: OtaKind; drag: DragHandlers; isDraggin
             <cylinderGeometry args={[0.022, 0.022, 0.5, 10]} />
             <meshStandardMaterial color="#aeb6c2" {...POLISHED_STEEL} />
           </mesh>
-          <mesh castShadow position={[-0.56, 0, 0]}>
+          <mesh castShadow position={[counterweightX, 0, 0]}>
             <boxGeometry args={[0.15, 0.17, 0.17]} />
             <meshStandardMaterial color="#23272e" {...CAST_IRON} />
           </mesh>

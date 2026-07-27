@@ -15,6 +15,14 @@ import type { InstructorEmotion } from '../types';
 //   • Controls are only ever referenced AFTER the rank that unlocks them.
 //   • Failure is never a dead end: fieldNotePrompt converts abandonment
 //     into a Field Logbook entry ("failure is data").
+//
+// Beyond the raw store, the evaluator's `telescope` object also carries two
+// derived conveniences the store itself does not hold (see missionEngine's
+// telescopeAdapter):
+//   telescope.targetOffsetDeg  → angular distance, in degrees, between where
+//                                the mount is pointing and where the locked
+//                                target actually is. null with no lock.
+//   telescope.isGoToSuppressed → true while a mission has disabled auto-slew.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface RankMission {
@@ -26,6 +34,15 @@ export interface RankMission {
   targetId: 'moon' | 'saturn' | 'm42';
   successCondition: string;   // See contract above.
   fieldNotePrompt: string;    // Shown if the student exits without success.
+  /**
+   * Disables the GoTo auto-slew for the duration of this mission (Phase 59).
+   * Selecting the target still LOCKS onto it — the reticle, the offset
+   * readout and every rule keep working — but the mount does not move, so the
+   * student has to find the object themselves. Reserved for the star-hopping
+   * lesson, where a working GoTo button simply hands over the answer and
+   * teaches nothing.
+   */
+  suppressGoTo?: boolean;
   /** Optional emotional tag for the Instructor voice engine (future use). */
   voiceEmotion?: InstructorEmotion;
 }
@@ -246,6 +263,54 @@ export const missions: RankMission[] = [
     `,
     fieldNotePrompt:
       'The nebula hid tonight. Log your aperture and exit pupil — when you find it later, comparing these numbers will teach you more than success would have.',
+  },
+
+  {
+    id: 'rank2_star_hopping',
+    rank: 'II',
+    title: 'Star-Hopping: Finding It Yourself',
+    description:
+      `Tonight I am taking the GoTo away. Don't look at me like that. ` +
+      `A computer that drives to the object for you is a wonderful convenience ` +
+      `and a terrible teacher: press the button a hundred times and you will ` +
+      `still not know where anything IS. So — the target stays selected, every ` +
+      `readout keeps working, but the mount will not move an inch on its own. ` +
+      `Here is how it is done, and how it has been done since long before ` +
+      `electricity. Start from something you can see with your bare eyes. Orion's ` +
+      `Belt — three bright stars in a short, straight row, the most obvious ` +
+      `signpost in the winter sky. Put the middle one in your FINDERSCOPE, which ` +
+      `shows you a fat 7.5° window instead of the eyepiece's keyhole. Now drop ` +
+      `south, down the little line of fainter stars hanging off the Belt — the ` +
+      `Sword. The middle "star" of the Sword is not a star. Nudge the tube in ` +
+      `short hops, checking the finder after each one, until that fuzzy patch ` +
+      `sits on the crosshair. Then look through the eyepiece. ` +
+      `Do this once and Orion belongs to you for life.`,
+    objectives: [
+      'Select the Orion Nebula (M42). Notice that the mount does NOT slew — that is deliberate.',
+      'Dust cap off. Find Orion’s Belt in the finderscope first — three bright stars in a row.',
+      'Hop south from the Belt down the Sword, using the slew pad in short steps, checking the finder each time.',
+      'Land the fuzzy patch inside the finder’s field — within about a degree of the target.',
+      'Focus, and look. You found that with your own eyes and your own hands.',
+    ],
+    targetId: 'm42',
+    suppressGoTo: true,
+    successCondition: `
+      // The whole exam is the OFFSET: did the student physically drive the
+      // mount to within a finder-field's reach of the nebula? No aperture,
+      // eyepiece or exit-pupil gates here on purpose — this mission is about
+      // navigation, and adding optics requirements would let a student fail it
+      // for reasons that have nothing to do with the skill being taught.
+      const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
+      return (
+        telescope.activeTarget?.id === 'm42' &&
+        telescope.isDustCapOn === false &&
+        telescope.targetOffsetDeg !== null &&
+        telescope.targetOffsetDeg <= 1.0 &&              // comfortably inside the 7.5° finder
+        Math.abs(telescope.focuserPosition - focusTarget) <= 5
+      );
+    `,
+    fieldNotePrompt:
+      'Lost in Orion? Everyone is, the first time. Log the last star you were SURE of and which way you went from it. That note is the first line of your own star atlas.',
   },
 
   {

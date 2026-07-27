@@ -1,4 +1,7 @@
-import { convertEquatorialToHorizontal, getSunEquatorial, getMoonEquatorial, getJulianDate, degToRad } from './ephemerisMath';
+import {
+  convertEquatorialToHorizontal, getSunEquatorial, getMoonEquatorial, getJulianDate, degToRad,
+  type ObserverGeodetic,
+} from './ephemerisMath';
 import type { Target } from '../types';
 
 /**
@@ -39,12 +42,23 @@ export const wrap180 = (deg: number): number => ((deg + 180) % 360 + 360) % 360 
  *     the 3D dome billboard, both 2D feeds, the phase renderer, telemetry
  *     altitude — resolves through THIS function, the whole app agrees on
  *     the orbiting Moon by construction.
+ *
+ * Phase 59: pass `observer` and the Moon comes back TOPOCENTRIC — corrected
+ * for the observer's own offset from the Earth's centre, worth up to 57
+ * arcminutes (a full lunar diameter). Every call site in the app that knows
+ * where the observer is standing passes it, so the whole app agrees on ONE
+ * Moon; the argument is optional only so a caller with no location (a pure
+ * catalog lookup) still gets a sensible geocentric answer.
  * Returns null for bodies with no equatorial anchor (terrestrial targets).
  */
-export function getBodyEquatorial(target: Target, simTimeMs: number): { ra: number; dec: number } | null {
+export function getBodyEquatorial(
+  target: Target,
+  simTimeMs: number,
+  observer?: ObserverGeodetic
+): { ra: number; dec: number } | null {
   if (target.type === 'terrestrial') return null;
   if (target.id === 'sun') return getSunEquatorial(getJulianDate(new Date(simTimeMs)));
-  if (target.id === 'moon') return getMoonEquatorial(simTimeMs);
+  if (target.id === 'moon') return getMoonEquatorial(simTimeMs, observer);
   if (target.ra === undefined || target.dec === undefined) return null;
   return { ra: target.ra, dec: target.dec };
 }
@@ -73,7 +87,7 @@ export function computeSkyOffsetDeg(
       dAz: wrap180(TERRESTRIAL_POINTING.az - pointingAz),
     };
   }
-  const eq = getBodyEquatorial(target, simTime);
+  const eq = getBodyEquatorial(target, simTime, { latitude, longitude });
   if (!eq) return null;
   const pos = convertEquatorialToHorizontal(eq.ra, eq.dec, latitude, longitude, new Date(simTime));
   return { dAlt: pos.altitude - pointingAlt, dAz: wrap180(pos.azimuth - pointingAz) };

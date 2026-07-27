@@ -8,9 +8,11 @@ import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { getBodyEquatorial } from '../../engine/skyGeometry';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
 import { CITIES } from '../../engine/constants';
+import { DARK_ADAPTATION_FULL_MS } from '../../engine/daylight';
 import { useTranslation } from '../../engine/i18n';
 import { InfoTip } from '../ui/InfoTip';
-import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair, CalendarClock } from 'lucide-react';
+import { MountBalancePanel } from '../ui/MountBalancePanel';
+import { GraduationCap, Clock, Play, Pause, Moon, Sun, Crosshair, CalendarClock, Eye } from 'lucide-react';
 
 const TIME_RATES = [1, 10, 60];
 
@@ -43,6 +45,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   const {
     activeProfile, activeTarget, eyepieceFocalLength, activeEyepieceId, focuserPosition, isBarlowActive,
     observerLocation, simTime, timeRate, isTrackingMotorOn, simulationMode, isVirtualNight,
+    darkAdaptationMs,
     stepSimTimeHours, resetSimTimeToNow, setSimTime, setTimeRate, toggleTrackingMotor, toggleVirtualNight, setObserverLocation,
     setTarget,
   } = useTelescopeStore(useShallow((state) => ({
@@ -58,6 +61,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     isTrackingMotorOn: state.isTrackingMotorOn,
     simulationMode: state.simulationMode,
     isVirtualNight: state.isVirtualNight,
+    darkAdaptationMs: state.darkAdaptationMs,
     stepSimTimeHours: state.stepSimTimeHours,
     resetSimTimeToNow: state.resetSimTimeToNow,
     setSimTime: state.setSimTime,
@@ -93,7 +97,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
   // the Sun and the orbiting Moon report their LIVE ephemeris altitude here,
   // matching where the renderer actually draws them.
   const activeTargetEq = activeTarget && activeTarget.type !== 'terrestrial'
-    ? getBodyEquatorial(activeTarget, simTime)
+    ? getBodyEquatorial(activeTarget, simTime, observerLocation)
     : null;
   const activeTargetAlt = activeTarget
     ? activeTarget.type === 'terrestrial'
@@ -327,7 +331,40 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
             {t('telemetry.virtualNight')}
           </button>
         </div>
+
+        {/* ── Dark adaptation (Phase 59) ── The observer's own optics. Twenty
+            simulated minutes in the dark to fill; one unfiltered glance at the
+            Sun to empty. Shown as a bar because the useful question is never
+            "adapted or not" but "how much further do I have to wait." */}
+        <div className="flex flex-col gap-0.5">
+          <InfoTip tip={t('tip.darkAdaptation')}>
+            <span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
+              <Eye className="w-2.5 h-2.5" /> {t('telemetry.darkAdaptation')}
+            </span>
+          </InfoTip>
+          {(() => {
+            const adaptation = Math.min(1, darkAdaptationMs / DARK_ADAPTATION_FULL_MS);
+            const isFull = adaptation >= 0.999;
+            return (
+              <>
+                <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-500 ${isFull ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    style={{ width: `${adaptation * 100}%` }}
+                  />
+                </div>
+                <span className={`text-[9px] font-mono ${isFull ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {Math.round(adaptation * 100)}%
+                  {!isFull && ` · ${t('telemetry.adaptWaiting')}`}
+                </span>
+              </>
+            );
+          })()}
+        </div>
       </div>
+
+      {/* ── Mount Balance (Phase 58) ── */}
+      <MountBalancePanel />
 
       {/* Rank Curriculum status readout */}
       {activeRankMission && (
