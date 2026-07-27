@@ -44,6 +44,9 @@ export interface ObserverLocation {
 /** How badly the finderscope starts out misaligned when scrambled. */
 export type AlignmentDifficulty = 'auto' | 'easy' | 'medium' | 'realistic';
 
+/** Which onboarding walkthrough is running — see `tourTrack` below (Phase 60). */
+export type TourTrack = 'basic' | 'advanced';
+
 export interface FinderscopeError {
   deltaAlt: number; // degrees the finder aims ABOVE the mount's true pointing
   deltaAz: number;  // degrees the finder aims RIGHT of the mount's true pointing
@@ -253,7 +256,7 @@ interface TelescopeState {
   // GoTo button.
   isGoToSuppressed: boolean;
 
-  // ── Onboarding Tour (Phase 30) ──
+  // ── Onboarding Tour (Phase 30; two tracks in Phase 60) ──
   // 0 = inactive/hidden; 1+ = which spotlighted step is showing. The total
   // step count (and what each step points at) is UI-layer knowledge owned
   // by components/ui/OnboardingTour.tsx, not the store — its "Finish"
@@ -261,6 +264,13 @@ interface TelescopeState {
   // needing to know where the tour ends. Not persisted: a fresh session
   // always starts with the tour closed.
   tourStep: number;
+  // Which walkthrough is running. 'basic' is the first-visit orientation
+  // (what the buttons do); 'advanced' is the Phase 60 tour of the physics
+  // that has accumulated since — collimation, counterweight torque,
+  // transparency, dark adaptation. Kept as a separate field rather than an
+  // offset into one long step list so neither track can ever renumber the
+  // other, and so the step counter reads honestly ("3 of 6", not "14 of 17").
+  tourTrack: TourTrack;
 
   // Actions
   addCustomProfile: (profile: TelescopeProfile) => void;
@@ -284,7 +294,7 @@ interface TelescopeState {
   setSimTime: (ms: number) => void;
   setTimeRate: (rate: number) => void;
   toggleVirtualNight: () => void;
-  startTour: () => void;
+  startTour: (track?: TourTrack) => void;
   advanceTour: () => void;
   endTour: () => void;
   toggleTrackingMotor: () => void;
@@ -362,6 +372,7 @@ export const useTelescopeStore = create<TelescopeState>()(
       isVirtualNight: false,
       isGoToSuppressed: false,
       tourStep: 0,
+      tourTrack: 'basic',
 
       // 3D pointing defaults to wherever the default target (Moon) lives
       pointingAlt: INITIAL_POINTING.altitude,
@@ -596,7 +607,7 @@ export const useTelescopeStore = create<TelescopeState>()(
         }
       },
       toggleVirtualNight: () => set((state) => ({ isVirtualNight: !state.isVirtualNight })),
-      startTour: () => set({ tourStep: 1 }),
+      startTour: (track = 'basic') => set({ tourStep: 1, tourTrack: track }),
       advanceTour: () => set((state) => ({ tourStep: state.tourStep + 1 })),
       endTour: () => set({ tourStep: 0 }),
       toggleTrackingMotor: () => {
@@ -717,6 +728,7 @@ export const useTelescopeStore = create<TelescopeState>()(
           darkAdaptationMs: _darkAdaptation,
           isGoToSuppressed: _goToSuppressed,
           tourStep: _tourStep,
+          tourTrack: _tourTrack,
           driftAnchorSimTime: _driftAnchor,
           isAltLocked: _altLocked,
           isAzLocked: _azLocked,

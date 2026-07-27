@@ -11,6 +11,7 @@ import {
   type CollimationGrade,
   type ScrewTriple,
 } from '../engine/collimation';
+import { SIM_MODE_RULES } from '../engine/simulationModes';
 import { useTelescopeStore } from './useTelescopeStore';
 
 /**
@@ -60,7 +61,9 @@ interface CollimationState {
   /**
    * Advance one screw by `detents` 1/24-turn clicks (negative = back it out).
    * Syncs the derived alignment verdict afterward, so the rules engine and
-   * the renderer can never lag a click behind the hardware.
+   * the renderer can never lag a click behind the hardware — and drags the
+   * finderscope out of alignment by the same angle the main axis swung
+   * (Phase 60; see withFinderCoupling).
    */
   turnScrew: (mirror: MirrorId, index: number, detents: number) => void;
   /** Snap one cell back to factory-perfect. */
@@ -109,6 +112,112 @@ export function getCollimationReadout(): CollimationReadout {
   };
 }
 
+/**
+ * Below which a coupled finder shift is not worth a store write, in degrees.
+ * Pure hygiene: `adjustFinderscope` unconditionally builds a fresh
+ * `finderscopeError` object, so an action that moved no screws (a reset of an
+ * already-zeroed cell, a scramble on a sealed refractor) would otherwise push
+ * a new object reference — and a re-render — through every consumer of the
+ * very widely subscribed telescope store for nothing.
+ */
+const FINDER_COUPLING_EPSILON_DEG = 1e-9;
+
+/**
+ * The residual beam error as a VECTOR in the cell/screen frame, arcmin.
+ *
+ * computeCollimationField hands back magnitude + direction because that is
+ * what the renderer and the Cheshire bullseye want, but the underlying
+ * quantity is a two-axis tilt and the coupling below needs it that way:
+ * differences of magnitudes are meaningless here (backing a screw out through
+ * perfect alignment and out the far side leaves |error| unchanged while the
+ * beam has swung a full 180°).
+ */
+function beamErrorVectorArcmin(): { x: number; y: number } {
+  const { primaryScrews, secondaryScrews } = useCollimationStore.getState();
+  const spec = useTelescopeStore.getState().activeProfile?.collimation;
+  const { errorArcmin, angleRad } = computeCollimationField(primaryScrews, secondaryScrews, spec);
+  return { x: errorArcmin * Math.cos(angleRad), y: errorArcmin * Math.sin(angleRad) };
+}
+
+/**
+ * Collimation ⇄ finderscope coupling (Phase 60)
+ * ─────────────────────────────────────────────────────────────────
+ * Every mutation of the screws runs through here, and the reason is physical
+ * rather than architectural: the collimation screws tilt the MIRRORS, and the
+ * mirrors are what define the main telescope's outgoing optical axis. The
+ * finderscope is bolted to the TUBE. It does not move when a mirror does. So
+ * the angle between the two — which is precisely what `finderscopeError`
+ * stores — changes by exactly the amount the main axis swung.
+ *
+ * This is one of the most reliably experienced consequences in amateur
+ * astronomy and one of the most reliably forgotten: collimate at dusk, then
+ * spend the next ten minutes wondering why the finder's crosshair no longer
+ * lands anything in the eyepiece. Modelling it makes the simulator's two
+ * alignment lessons stop being independent chores and become the ordered
+ * procedure they are in the field — mirrors first, finder second, never the
+ * reverse.
+ *
+ * Sampling before/after rather than deriving the shift from the mutation
+ * itself is deliberate. The two cells add as vectors (see
+ * computeCollimationField), so a primary turn's effect on the *residual* beam
+ * depends on where the secondary already sits; only the endpoints know. It
+ * also makes the wrapper total — `scramble` jumping to a random tilt and
+ * `resetAll` snapping two cells to zero at once are handled by the same three
+ * lines as a single detent, and no future action can forget the coupling by
+ * being written the way `turnScrew` originally was.
+ *
+ * FRAME AND SIGN, the two things that are easy to get backwards:
+ *  • Beam-error x is the horizontal axis of the cell frame → AZIMUTH; y is
+ *    vertical with +y UP (the same convention CheshireBullseye draws with,
+ *    where it flips to canvas coordinates itself) → ALTITUDE. Arcmin ÷ 60 for
+ *    the degrees `finderscopeError` is kept in.
+ *  • `finderscopeError` is (finder aim − main optical axis). Collimation moves
+ *    the MAIN axis by +delta while the tube-mounted finder stays exactly where
+ *    it was, so the stored difference moves by −delta. Getting this backwards
+ *    would produce a simulator in which collimating a scrambled scope also
+ *    magically *fixes* the finder, which is the opposite of the lesson.
+ *
+ * The cell frame is treated as the alt/az frame directly. A fuller model would
+ * rotate it by the tube's roll about its own optical axis, which on an
+ * alt-az mount depends on where the scope is pointed and on an equatorial one
+ * on the hour angle. That was rejected: the mapping would then change under a
+ * student who hadn't touched a screw, the finder error would appear to drift
+ * during a slew, and the payoff is a rotation of an error whose direction is
+ * arbitrary to begin with. Magnitude is the pedagogy here; the axis is not.
+ */
+function withFinderCoupling(mutate: () => void): void {
+  // Fun mode pins the finder perfectly aligned — mirror scrambleFinderscope's
+  // behaviour and skip the sampling entirely rather than applying a delta that
+  // something else would only have to zero out again.
+  //
+  // Verified consequence, not a leak: turn screws in Fun mode and then leave
+  // it, and the next screw turn's delta is measured from a beam error that
+  // includes the Fun-era changes — so resetting the mirrors afterwards leaves
+  // the finder off by exactly what Fun mode had been hiding. That is the
+  // honest reading of what Fun mode asserted (finder perfectly aligned AT
+  // those mirror positions); moving the mirrors back off them has to cost
+  // something. It needs a deliberate mid-session mode switch to reach, and
+  // "now go and re-align your finder" is the right lesson at that moment.
+  const coupled = !SIM_MODE_RULES[useTelescopeStore.getState().simulationMode].finderErrorForcedZero;
+  const before = coupled ? beamErrorVectorArcmin() : null;
+
+  mutate();
+
+  if (before) {
+    const after = beamErrorVectorArcmin();
+    const deltaAltDeg = -(after.y - before.y) / 60;
+    const deltaAzDeg = -(after.x - before.x) / 60;
+    if (
+      Math.abs(deltaAltDeg) > FINDER_COUPLING_EPSILON_DEG ||
+      Math.abs(deltaAzDeg) > FINDER_COUPLING_EPSILON_DEG
+    ) {
+      useTelescopeStore.getState().adjustFinderscope(deltaAltDeg, deltaAzDeg);
+    }
+  }
+
+  useCollimationStore.getState().syncCollimationStatus();
+}
+
 export const useCollimationStore = create<CollimationState>()(
   persist(
     (set, get) => ({
@@ -119,45 +228,53 @@ export const useCollimationStore = create<CollimationState>()(
 
       turnScrew: (mirror, index, detents) => {
         if (index < 0 || index > 2) return;
-        const current = mirror === 'primary' ? get().primaryScrews : get().secondaryScrews;
-        const next: [number, number, number] = [current[0], current[1], current[2]];
-        next[index] = current[index] + detents * SCREW_DETENT_TURNS;
-        set(mirror === 'primary' ? { primaryScrews: next } : { secondaryScrews: next });
-        get().syncCollimationStatus();
+        withFinderCoupling(() => {
+          const current = mirror === 'primary' ? get().primaryScrews : get().secondaryScrews;
+          const next: [number, number, number] = [current[0], current[1], current[2]];
+          next[index] = current[index] + detents * SCREW_DETENT_TURNS;
+          set(mirror === 'primary' ? { primaryScrews: next } : { secondaryScrews: next });
+        });
       },
 
       resetMirror: (mirror) => {
-        set(mirror === 'primary' ? { primaryScrews: ALIGNED } : { secondaryScrews: ALIGNED });
-        get().syncCollimationStatus();
+        withFinderCoupling(() => {
+          set(mirror === 'primary' ? { primaryScrews: ALIGNED } : { secondaryScrews: ALIGNED });
+        });
       },
 
       scramble: (mirror) => {
-        const profile = useTelescopeStore.getState().activeProfile;
-        const cell = mirror === 'primary' ? profile?.collimation?.primary : profile?.collimation?.secondary;
-        if (!cell || !profile) return;
+        withFinderCoupling(() => {
+          const profile = useTelescopeStore.getState().activeProfile;
+          const cell = mirror === 'primary' ? profile?.collimation?.primary : profile?.collimation?.secondary;
+          // Nothing to scramble (a sealed refractor, or an SCT's factory-set
+          // primary). Bailing out INSIDE the wrapper rather than before it
+          // keeps the coupling unconditional; the before/after samples are
+          // then identical and the epsilon guard swallows the write.
+          if (!cell || !profile) return;
 
-        // A pure tilt in a random direction θ: zᵢ = A·cos(φᵢ − θ). Three
-        // cosines 120° apart sum to zero, so this carries NO piston at all —
-        // Scramble misaligns the mirror without secretly also defocusing it,
-        // which would muddle the very symptom the student is learning to read.
-        // The identity Σcos(φᵢ−θ)·cos φᵢ = (3/2)cos θ collapses screwsToTilt's
-        // plane fit to exactly tilt = A / R, which is what makes the amplitude
-        // below solvable in closed form instead of guessed at.
-        const targetBeamArcmin = collimationToleranceArcmin(profile) * SCRAMBLE_TOLERANCE_MULTIPLE;
-        const tiltRad = targetBeamArcmin / cell.beamDeviationGain / RAD_TO_ARCMIN;
-        const amplitudeMm = tiltRad * cell.screwCircleRadiusMm;
-        const theta = Math.random() * Math.PI * 2;
-        const scrambled = [0, 1, 2].map(
-          (i) => (amplitudeMm * Math.cos(screwAngleRad(cell, i) - theta)) / cell.threadPitchMm
-        ) as unknown as ScrewTriple;
+          // A pure tilt in a random direction θ: zᵢ = A·cos(φᵢ − θ). Three
+          // cosines 120° apart sum to zero, so this carries NO piston at all —
+          // Scramble misaligns the mirror without secretly also defocusing it,
+          // which would muddle the very symptom the student is learning to read.
+          // The identity Σcos(φᵢ−θ)·cos φᵢ = (3/2)cos θ collapses screwsToTilt's
+          // plane fit to exactly tilt = A / R, which is what makes the amplitude
+          // below solvable in closed form instead of guessed at.
+          const targetBeamArcmin = collimationToleranceArcmin(profile) * SCRAMBLE_TOLERANCE_MULTIPLE;
+          const tiltRad = targetBeamArcmin / cell.beamDeviationGain / RAD_TO_ARCMIN;
+          const amplitudeMm = tiltRad * cell.screwCircleRadiusMm;
+          const theta = Math.random() * Math.PI * 2;
+          const scrambled = [0, 1, 2].map(
+            (i) => (amplitudeMm * Math.cos(screwAngleRad(cell, i) - theta)) / cell.threadPitchMm
+          ) as unknown as ScrewTriple;
 
-        set(mirror === 'primary' ? { primaryScrews: scrambled } : { secondaryScrews: scrambled });
-        get().syncCollimationStatus();
+          set(mirror === 'primary' ? { primaryScrews: scrambled } : { secondaryScrews: scrambled });
+        });
       },
 
       resetAll: () => {
-        set({ primaryScrews: ALIGNED, secondaryScrews: ALIGNED });
-        get().syncCollimationStatus();
+        withFinderCoupling(() => {
+          set({ primaryScrews: ALIGNED, secondaryScrews: ALIGNED });
+        });
       },
 
       syncCollimationStatus: () => {
@@ -182,6 +299,12 @@ export const useCollimationStore = create<CollimationState>()(
       // A rehydrated session must republish its verdict: useTelescopeStore
       // persists `isCollimated` separately, and the two snapshots are written
       // at different moments, so they can land out of step.
+      //
+      // Emphatically NOT withFinderCoupling (Phase 60). Rehydration is not a
+      // screw turn — nobody touched the mirrors, and the finder error those
+      // turns already caused is sitting in useTelescopeStore's own persisted
+      // snapshot. Coupling here would re-apply the whole accumulated history
+      // on every page load, doubling the misalignment each visit.
       onRehydrateStorage: () => (state) => {
         state?.syncCollimationStatus();
       },

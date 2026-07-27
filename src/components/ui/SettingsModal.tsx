@@ -3,11 +3,13 @@ import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useCollimationStore } from '../../store/useCollimationStore';
 import { useMechanicsStore } from '../../store/useMechanicsStore';
 import { SIM_MODE_RULES, type SimulationMode } from '../../engine/simulationModes';
-import { Settings, X, Cpu, Activity, Gauge } from 'lucide-react';
+import { useTranslation } from '../../engine/i18n';
+import { Settings, X, Cpu, Activity, Gauge, GraduationCap } from 'lucide-react';
 
 
 export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const telescopeState = useTelescopeStore();
+  const { t } = useTranslation();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -28,6 +30,35 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex flex-col gap-6 text-sm">
+
+          {/* ── Advanced Tour (Phase 60) ──
+              Collimation, counterweight torque, transparency and dark
+              adaptation are all real, working physics that nothing in the
+              interface announces — a student can use this simulator for a
+              month and never learn the Collimation tab holds a star test.
+              This is the front door to that material. Deliberately parked in
+              Settings rather than the nav bar: it is a second visit's lesson,
+              and the nav already carries the beginner tour. */}
+          <section className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" /> {t('settings.learning')}
+            </h3>
+            <div className="flex items-center justify-between gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+              <div>
+                <p className="font-semibold text-slate-200 mb-1">{t('settings.advancedTour')}</p>
+                <p className="text-xs text-slate-400 leading-relaxed">{t('settings.advancedTourDesc')}</p>
+              </div>
+              <button
+                onClick={() => {
+                  telescopeState.startTour('advanced');
+                  onClose(); // the tour spotlights the app itself; this modal would cover it
+                }}
+                className="shrink-0 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 border border-amber-400 text-white font-bold uppercase tracking-widest text-[10px] transition-colors"
+              >
+                {t('settings.startAdvancedTour')}
+              </button>
+            </div>
+          </section>
 
           {/* ── Global Simulation Mode (Phase 26) ── */}
           <section className="flex flex-col gap-3">

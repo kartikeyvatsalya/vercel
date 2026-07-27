@@ -60,7 +60,15 @@
       "PowerShell(npx tsc --noEmit -p tsconfig.app.json)",
       "PowerShell(npm run build)",
       "PowerShell(npm run build 2>&1)",
-      "PowerShell(git add .)"
+      "PowerShell(git add .)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git --no-pager log --oneline -1)",
+      "Bash(echo \"EXIT:$?\")",
+      "PowerShell(npx tsc --noEmit -p tsconfig.app.json; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff --stat)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" status --short)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- src/store/useCollimationStore.ts)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- src/store/useTelescopeStore.ts)"
     ]
   }
 }

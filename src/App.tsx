@@ -32,6 +32,9 @@ import { CustomTelescopeModal } from './components/ui/CustomTelescopeModal';
 import { FieldLogbookModal } from './components/ui/FieldLogbookModal';
 import { SettingsModal } from './components/ui/SettingsModal';
 import { OnboardingTour } from './components/ui/OnboardingTour';
+// Phase 60: lifted out of this file into its own component, where it now
+// carries the BRAHMAND acronym and the project's reason for existing.
+import { AboutModal } from './components/ui/AboutModal';
 import { IntroMascot } from './components/ui/IntroMascot';
 import { MobileWarning } from './components/ui/MobileWarning';
 import { TextbookPanel } from './components/ui/TextbookPanel';
@@ -177,84 +180,6 @@ const ActiveModuleView: React.FC<{ activeModule: ModuleId }> = ({ activeModule }
     : 'align';
   return <LiveViewPanel mode={liveViewMode} />;
 };
-
-// ─── About Modal ───────────────────────────────────────────────
-const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-cyan-500/20 border border-cyan-500/40 p-2.5 rounded-xl">
-            <Telescope className="w-6 h-6 text-cyan-400" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              Telescope Trainer
-            </h2>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">v0.7.0 — Interactive Astronomy Simulator</p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors text-slate-400 hover:text-white shrink-0"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="p-6 flex flex-col gap-5">
-        <p className="text-slate-300 leading-relaxed">
-          <strong className="text-white">Telescope Trainer</strong> is an interactive astronomical simulator designed to teach the optical and mechanical physics of observational astronomy. It simulates three professional workflows — Finderscope Alignment, Dobsonian Inverted-View Tracking, and Astrophotography — grounded in real physics equations, over a live digital twin of the night sky.
-        </p>
-
-        {/* Origin Credit Block */}
-        <div className="bg-gradient-to-br from-indigo-950/60 to-slate-900/60 border border-indigo-500/40 rounded-xl p-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 mb-3">Origin & Credits</p>
-          <p className="text-slate-200 leading-relaxed mb-4">
-            Originally built for{' '}
-            <strong className="text-white text-base">Vatsalya</strong>
-            {' '}— an astronomy education initiative that makes observational science accessible to students in India.
-          </p>
-          <a
-            href="https://www.vatsalya.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold uppercase tracking-widest text-xs transition-colors shadow-lg"
-          >
-            🔭 Visit www.vatsalya.org
-          </a>
-          <p className="text-slate-400 text-sm mt-4">
-            Designed and developed by <strong className="text-slate-200">Kartikey Gupta</strong>.
-          </p>
-        </div>
-
-        {/* Modules List */}
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Simulation Modules</p>
-          <ul className="flex flex-col gap-1.5 text-sm text-slate-300">
-            {MODULE_META.map(m => (
-              <li key={m.id} className="flex items-center gap-2">
-                <span className="text-cyan-400">{m.icon}</span>
-                <strong className="text-white">{m.label}</strong> — {m.description}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div className="px-6 pb-5">
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 // ─── App ───────────────────────────────────────────────────────
 function App() {
@@ -1077,12 +1002,17 @@ function App() {
             <HelpCircle className="w-3.5 h-3.5" /> <span className="hidden xl:inline">{t('tour.startTour')}</span>
           </button>
 
-          {/* About Button */}
+          {/* About BRAHMAND (Phase 60) — the app is named for the acronym and
+              for the Hindi word for the cosmos, and until now neither fact
+              appeared anywhere in the interface. Labelled with the name rather
+              than a bare "About" so the button itself does some of the work. */}
           <button
             onClick={() => setIsAboutOpen(true)}
+            title="About BRAHMAND"
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors"
           >
-            <Info className="w-3.5 h-3.5" /> About
+            <Info className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">About</span> BRAHMAND
           </button>
           
           {/* Settings Button */}
@@ -1410,6 +1340,10 @@ function App() {
             return (
               <button
                 key={mod.id}
+                // Phase 60: the advanced tour spotlights this one tab — the
+                // collimation bench behind it is the least discoverable thing
+                // in the app.
+                data-tour-id={mod.id === 'collimation' ? 'tour-collimation-tab' : undefined}
                 onClick={() => handleModuleSwitch(mod.id)}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${
                   isActive
@@ -1628,7 +1562,7 @@ function App() {
                 the Antoniadi scale counts UP toward worse, transparency counts
                 up toward better — so the value is always shown as a word as
                 well as a number. */}
-            <div className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded px-3 py-1">
+            <div data-tour-id="tour-transparency" className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded px-3 py-1">
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
                 {t('footer.transparency')}: {TRANSPARENCY_LABELS[telescopeState.transparency] ?? telescopeState.transparency}
               </label>
@@ -1683,6 +1617,8 @@ function App() {
       <OnboardingTour
         areCanvasesVisible={viewMode !== 'observatory'}
         onRequestCanvasesVisible={() => setViewMode('split')}
+        activeModule={activeModule}
+        onRequestModule={setActiveModule}
       />
     </div>
   );

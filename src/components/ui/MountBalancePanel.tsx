@@ -52,7 +52,7 @@ export const MountBalancePanel: React.FC = () => {
   const readout = useMemo(getMechanicsReadout, [counterweightPosition, activeProfile]);
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-800 flex flex-col gap-1.5">
+    <div data-tour-id="tour-balance" className="mt-3 pt-3 border-t border-slate-800 flex flex-col gap-1.5">
       <InfoTip tip={t('tip.raTorque')} position="bottom">
         <span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
           <Scale className="w-2.5 h-2.5" /> {t('balance.heading')}

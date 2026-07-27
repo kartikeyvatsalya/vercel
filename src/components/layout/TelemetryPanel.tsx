@@ -336,7 +336,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
             simulated minutes in the dark to fill; one unfiltered glance at the
             Sun to empty. Shown as a bar because the useful question is never
             "adapted or not" but "how much further do I have to wait." */}
-        <div className="flex flex-col gap-0.5">
+        <div data-tour-id="tour-dark-adaptation" className="flex flex-col gap-0.5">
           <InfoTip tip={t('tip.darkAdaptation')}>
             <span className="text-slate-500 uppercase text-[9px] flex items-center gap-1">
               <Eye className="w-2.5 h-2.5" /> {t('telemetry.darkAdaptation')}

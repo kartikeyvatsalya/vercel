@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useTelescopeStore } from '../../store/useTelescopeStore';
+import { useTelescopeStore, type TourTrack } from '../../store/useTelescopeStore';
 import { useTranslation, type TranslationKey } from '../../engine/i18n';
 import { X } from 'lucide-react';
+import type { ModuleId } from '../../types';
 
 /**
  * OnboardingTour — Phase 30
@@ -24,6 +25,16 @@ import { X } from 'lucide-react';
  * beginner doesn't know a dust cap has to come off before ANYTHING is
  * visible, and conflated the wide-aiming Finderscope with the high-power
  * Main Eyepiece as "the two circles." Each now gets its own spotlighted step.
+ *
+ * Phase 60: two TRACKS instead of one list. Phases 57–59 added a great deal of
+ * real physics — a six-screw collimation bench, counterweight torque, sky
+ * transparency, dark adaptation — and every bit of it was invisible: nothing
+ * in the interface tells you the Collimation tab contains a star test, or that
+ * the slider next to Seeing is measuring something else entirely. Bolting six
+ * more steps onto the beginner walkthrough would have been the wrong fix: a
+ * first-time user does not need to hear about RA-axis moments before they have
+ * taken the dust cap off. So the advanced material is its own opt-in track,
+ * reachable from Settings, with its own step numbering.
  */
 
 interface TourStepConfig {
@@ -32,9 +43,17 @@ interface TourStepConfig {
   bodyKey: TranslationKey;
   /** This step's target element only exists when the 2D Live View canvases are mounted. */
   requiresCanvases?: boolean;
+  /**
+   * Switch the 2D workspace to this module before spotlighting (Phase 60).
+   * The advanced track explains the collimation bench, whose screw pad and
+   * star test only exist while that module is the active one — pointing at a
+   * tab and saying "there is a bench behind this" is a strictly worse lesson
+   * than opening it and showing them.
+   */
+  requiresModule?: ModuleId;
 }
 
-const TOUR_STEPS: TourStepConfig[] = [
+const BASIC_TOUR_STEPS: TourStepConfig[] = [
   // Step 0 (Phase 41): a pure intro — `tour-welcome` deliberately matches no
   // data-tour-id in the DOM, so `rect` stays null and the tour renders it as
   // a centered, un-spotlighted card (see the `!rect` branches below) instead
@@ -51,6 +70,38 @@ const TOUR_STEPS: TourStepConfig[] = [
   { tourId: 'tour-eyepiece', titleKey: 'tour.eyepiece.title', bodyKey: 'tour.eyepiece.body' },
   { tourId: 'tour-focuser', titleKey: 'tour.focuser.title', bodyKey: 'tour.focuser.body' },
 ];
+
+// ── Advanced track (Phase 60) ──────────────────────────────────────
+// Ordered as a real observing session's preparation actually runs: get the
+// mirrors square, get the mount balanced, then read the sky and your own eyes.
+// The collimation pair is deliberately two steps — the bench (what you turn)
+// and the eyepiece (what it does), because the entire skill is the loop
+// between them and a single step spotlighting either half teaches neither.
+const ADVANCED_TOUR_STEPS: TourStepConfig[] = [
+  { tourId: 'tour-advanced-welcome', titleKey: 'tour.advWelcome.title', bodyKey: 'tour.advWelcome.body' },
+  {
+    tourId: 'tour-collimation-tab',
+    titleKey: 'tour.collimationTab.title',
+    bodyKey: 'tour.collimationTab.body',
+    requiresCanvases: true,
+    requiresModule: 'collimation',
+  },
+  {
+    tourId: 'tour-main-eyepiece',
+    titleKey: 'tour.starTest.title',
+    bodyKey: 'tour.starTest.body',
+    requiresCanvases: true,
+    requiresModule: 'collimation',
+  },
+  { tourId: 'tour-balance', titleKey: 'tour.balance.title', bodyKey: 'tour.balance.body' },
+  { tourId: 'tour-transparency', titleKey: 'tour.transparency.title', bodyKey: 'tour.transparency.body' },
+  { tourId: 'tour-dark-adaptation', titleKey: 'tour.darkAdaptation.title', bodyKey: 'tour.darkAdaptation.body' },
+];
+
+const TOUR_TRACKS: Record<TourTrack, TourStepConfig[]> = {
+  basic: BASIC_TOUR_STEPS,
+  advanced: ADVANCED_TOUR_STEPS,
+};
 
 // Recheck the spotlighted element's position on a light interval — footer
 // dropups, mission panels, and responsive layout shifts can all move it in
@@ -76,10 +127,17 @@ interface OnboardingTourProps {
   areCanvasesVisible: boolean;
   /** Switch to a layout where the 2D feeds exist — called when the tour reaches that step. */
   onRequestCanvasesVisible: () => void;
+  /** Which 2D module tab is currently open (Phase 60). */
+  activeModule: ModuleId;
+  /** Open a specific module tab — called for steps that explain one (Phase 60). */
+  onRequestModule: (moduleId: ModuleId) => void;
 }
 
-export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisible, onRequestCanvasesVisible }) => {
+export const OnboardingTour: React.FC<OnboardingTourProps> = ({
+  areCanvasesVisible, onRequestCanvasesVisible, activeModule, onRequestModule,
+}) => {
   const tourStep = useTelescopeStore((s) => s.tourStep);
+  const tourTrack = useTelescopeStore((s) => s.tourTrack);
   const advanceTour = useTelescopeStore((s) => s.advanceTour);
   const endTour = useTelescopeStore((s) => s.endTour);
   const { t } = useTranslation();
@@ -87,7 +145,8 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipHeight, setTooltipHeight] = useState(FALLBACK_TOOLTIP_HEIGHT_PX);
 
-  const config = tourStep > 0 ? TOUR_STEPS[tourStep - 1] : null;
+  const steps = TOUR_TRACKS[tourTrack] ?? BASIC_TOUR_STEPS;
+  const config = tourStep > 0 ? steps[tourStep - 1] : null;
   const isWelcomeStep = tourStep === 1;
 
   useEffect(() => {
@@ -95,6 +154,12 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
       onRequestCanvasesVisible();
     }
   }, [config, areCanvasesVisible, onRequestCanvasesVisible]);
+
+  useEffect(() => {
+    if (config?.requiresModule && config.requiresModule !== activeModule) {
+      onRequestModule(config.requiresModule);
+    }
+  }, [config, activeModule, onRequestModule]);
 
   useEffect(() => {
     if (!config) {
@@ -131,7 +196,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
 
   if (!config) return null;
 
-  const isLastStep = tourStep >= TOUR_STEPS.length;
+  const isLastStep = tourStep >= steps.length;
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
   // Mobile/tablet safety (Phase 38): shrink to fit rather than overflow a
@@ -187,7 +252,8 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ areCanvasesVisib
       >
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-400">
-            {t('tour.stepOf', { step: tourStep, total: TOUR_STEPS.length })}
+            {tourTrack === 'advanced' && <span className="text-amber-400">{t('tour.advancedBadge')} · </span>}
+            {t('tour.stepOf', { step: tourStep, total: steps.length })}
           </span>
           <button onClick={endTour} className="text-slate-500 hover:text-slate-300" aria-label="Close tour">
             <X className="w-3.5 h-3.5" />

@@ -166,6 +166,27 @@ const en = {
   'tour.promptTitle': 'New to the simulator?',
   'tour.promptBody': 'Take the 2-minute guided tour and learn the controls.',
 
+  // ── tour.* advanced track (Phase 60) ──
+  'tour.advancedBadge': 'Advanced',
+  'tour.advWelcome.title': 'Advanced Telescope Mechanics',
+  'tour.advWelcome.body':
+    'You can already find things and focus on them. Everything after that is preparation — the quiet work a real observer does before the good seeing arrives. Four things this simulator models properly, and none of them announce themselves: your mirrors, your balance, your sky, and your eyes.',
+  'tour.collimationTab.title': 'Collimation: squaring the mirrors',
+  'tour.collimationTab.body':
+    'A reflector\'s mirrors sit on three adjustment screws each, and they drift. Turn a screw here and the mirror tilts; the pad shows every screw and what the light is doing about it. Turn all three equally and you only shift focus — turn one, and you have changed the alignment.',
+  'tour.starTest.title': 'The star test',
+  'tour.starTest.body':
+    'This is the instrument for the job. Rack a bright star well out of focus and it opens into a donut. If the dark hole sits dead centre, your mirrors are square; if it drifts to one side, that side is your error. Rack back TOWARD focus to magnify the offset until it is unmistakable. Watch the finderscope while you work — the mirrors move the main optical axis, and the finder is bolted to the tube, so collimating always costs you your finder alignment.',
+  'tour.balance.title': 'Counterweight & RA-axis torque',
+  'tour.balance.body':
+    'An equatorial mount is a lever: the tube on one side of the polar axis, a cast weight on the other. The readout is the net turning force. Positive means nose heavy and the tube sinks; negative means the weight wins and it climbs. Slide it to zero and the mount will hold any position with the clutches loose. (On a Dobsonian this panel says so — a rocker box has no shaft to slide. Fit the 14" SCT to see the lever work.)',
+  'tour.transparency.title': 'Transparency is not Seeing',
+  'tour.transparency.body':
+    'The slider beside Seeing measures something completely different, and observers confuse the two constantly. Seeing is how STEADY the air is — it smears fine detail at high power. Transparency is how CLEAR it is — haze costs you magnitudes, so it drains nebulae and deletes faint stars while barely touching the Moon. A night can be superb for Saturn and useless for a galaxy.',
+  'tour.darkAdaptation.title': 'Your own optics',
+  'tour.darkAdaptation.body':
+    'The last instrument is you. Rods take about twenty minutes in the dark to reach full sensitivity, and one unfiltered glance at the Sun — or a phone screen — throws all of it away in an instant. Watch this bar collapse the moment the eyepiece flashes white, then let simulated time run to earn it back. Every faint thing in the sky is dimmer until you do.',
+
   // ── liveview.* — LiveViewPanel.tsx (visible DOM text; canvas-drawn HUD
   // text — reticle labels, astro HUD readouts — is out of scope for this
   // pass, see Phase 28 summary) ──
@@ -245,6 +266,14 @@ const en = {
   'footer.digitalZoom': 'Digital Zoom',
   'footer.addCustomTelescope': 'Add Custom Telescope',
   'footer.add': 'Add',
+
+  // ── settings.* — SettingsModal.tsx (Phase 60) ──
+  'settings.learning': 'Learning',
+  'settings.advancedTour': 'Advanced Telescope Mechanics Tour',
+  'settings.advancedTourDesc':
+    'A guided walk through the physics the beginner tour skips: collimation and the star test, counterweight balance, sky transparency, and dark adaptation.',
+  'settings.startAdvancedTour': 'Take Tour',
+  'settings.aboutBrahmand': 'About BRAHMAND',
 
   // ── textbook.* — TextbookPanel.tsx (Phase 31) ──
   'textbook.heading': 'Textbook',
@@ -401,6 +430,27 @@ const hi: Record<TranslationKey, string> = {
   'tour.promptTitle': 'सिम्युलेटर में नए हैं?',
   'tour.promptBody': '2 मिनट का गाइडेड टूर लें और नियंत्रण सीखें।',
 
+  // ── tour.* उन्नत ट्रैक ──
+  'tour.advancedBadge': 'उन्नत',
+  'tour.advWelcome.title': 'उन्नत टेलीस्कोप यांत्रिकी',
+  'tour.advWelcome.body':
+    'चीज़ें ढूँढ़ना और फ़ोकस करना आप सीख चुके हैं। उसके आगे सब तैयारी है — वह शांत काम जो हर असली प्रेक्षक अच्छी सीइंग आने से पहले करता है। यह सिम्युलेटर चार चीज़ों को सही ढंग से प्रस्तुत करता है, और उनमें से कोई भी खुद अपनी घोषणा नहीं करती: आपके दर्पण, आपका संतुलन, आपका आकाश, और आपकी आँखें।',
+  'tour.collimationTab.title': 'कोलिमेशन: दर्पणों को सीधा करना',
+  'tour.collimationTab.body':
+    'परावर्तक दूरबीन का हर दर्पण तीन समायोजन पेंचों पर टिका होता है, और वे समय के साथ खिसकते हैं। यहाँ पेंच घुमाइए और दर्पण झुकेगा; पैड हर पेंच और प्रकाश पर उसके असर को दिखाता है। तीनों को बराबर घुमाएँ तो केवल फ़ोकस बदलेगा — एक को घुमाएँ, और संरेखण बदल जाएगा।',
+  'tour.starTest.title': 'तारा परीक्षण',
+  'tour.starTest.body':
+    'यही इस काम का औज़ार है। किसी चमकीले तारे को फ़ोकस से काफ़ी दूर ले जाइए और वह छल्ले में खुल जाएगा। अगर काला छेद ठीक बीच में है, दर्पण सीधे हैं; अगर वह एक ओर खिसका है, वही आपकी त्रुटि की दिशा है। छेद को स्पष्ट देखने के लिए फ़ोकस की ओर लौटिए। काम करते समय फाइंडरस्कोप पर नज़र रखें — दर्पण मुख्य प्रकाशिक अक्ष को हिलाते हैं और फाइंडर नली से कसा है, इसलिए कोलिमेशन हमेशा फाइंडर का संरेखण बिगाड़ता है।',
+  'tour.balance.title': 'प्रतिभार और RA-अक्ष बलाघूर्ण',
+  'tour.balance.body':
+    'विषुवतीय माउंट एक लीवर है: ध्रुवीय अक्ष के एक ओर नली, दूसरी ओर ढला हुआ भार। यह पाठ्यांक शुद्ध घूर्णन बल है। धनात्मक अर्थात अगला सिरा भारी और नली नीचे झुकेगी; ऋणात्मक अर्थात भार जीत रहा है और नली ऊपर चढ़ेगी। इसे शून्य पर लाइए और क्लच ढीले होने पर भी माउंट हर स्थिति में टिका रहेगा। (डॉब्सोनियन पर यह पैनल बता देता है — रॉकर बॉक्स में शाफ़्ट होती ही नहीं। लीवर देखने के लिए 14" SCT लगाइए।)',
+  'tour.transparency.title': 'पारदर्शिता सीइंग नहीं है',
+  'tour.transparency.body':
+    'सीइंग के बगल वाला स्लाइडर बिलकुल अलग चीज़ नापता है, और प्रेक्षक अक्सर दोनों को गड्डमड्ड कर देते हैं। सीइंग बताती है हवा कितनी स्थिर है — वह उच्च आवर्धन पर बारीक विवरण धुँधला करती है। पारदर्शिता बताती है हवा कितनी साफ़ है — धुंध कांतिमान छीनती है, इसलिए नीहारिकाएँ फीकी पड़ती हैं और मंद तारे मिट जाते हैं, जबकि चंद्रमा लगभग अछूता रहता है। कोई रात शनि के लिए शानदार और आकाशगंगा के लिए बेकार हो सकती है।',
+  'tour.darkAdaptation.title': 'आपकी अपनी प्रकाशिकी',
+  'tour.darkAdaptation.body':
+    'आख़िरी उपकरण आप स्वयं हैं। रॉड कोशिकाओं को पूरी संवेदनशीलता पाने में अंधेरे में लगभग बीस मिनट लगते हैं, और बिना फ़िल्टर सूर्य की एक झलक — या फ़ोन की स्क्रीन — पल भर में सब मिटा देती है। आईपीस के सफ़ेद चमकते ही इस पट्टी को गिरते देखिए, फिर सिमुलेशन का समय चलाकर उसे वापस कमाइए। तब तक आकाश की हर मंद चीज़ फीकी रहेगी।',
+
   // ── liveview.* ──
   'liveview.mainEyepiece': 'मुख्य आईपीस',
   'liveview.finderscope': 'फाइंडरस्कोप',
@@ -478,6 +528,14 @@ const hi: Record<TranslationKey, string> = {
   'footer.digitalZoom': 'डिजिटल ज़ूम',
   'footer.addCustomTelescope': 'कस्टम टेलीस्कोप जोड़ें',
   'footer.add': 'जोड़ें',
+
+  // ── settings.* ──
+  'settings.learning': 'सीखना',
+  'settings.advancedTour': 'उन्नत टेलीस्कोप यांत्रिकी टूर',
+  'settings.advancedTourDesc':
+    'उस भौतिकी की निर्देशित सैर जिसे शुरुआती टूर छोड़ देता है: कोलिमेशन और तारा परीक्षण, प्रतिभार संतुलन, आकाश की पारदर्शिता, और अंधेरा अनुकूलन।',
+  'settings.startAdvancedTour': 'टूर लें',
+  'settings.aboutBrahmand': 'BRAHMAND के बारे में',
 
   // ── textbook.* ──
   'textbook.heading': 'पाठ्यपुस्तक',
