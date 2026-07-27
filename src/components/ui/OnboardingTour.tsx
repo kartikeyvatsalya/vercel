@@ -121,6 +121,13 @@ const TOOLTIP_TARGET_GAP_PX = 15;
 // or the instant a step's content changes) — only used for one frame each
 // time, since useLayoutEffect corrects it before the browser paints.
 const FALLBACK_TOOLTIP_HEIGHT_PX = 190;
+// Phase 62: hard ceiling on the card's own rendered height, independent of
+// where it's positioned relative to the spotlighted target. Without this, a
+// step whose body text alone is taller than viewportH - 30px forces the
+// `top >= TOOLTIP_TARGET_GAP_PX` and `bottom <= viewportH - TOOLTIP_TARGET_GAP_PX`
+// constraints below to conflict — the floor wins, and the bottom (Skip/Next)
+// pushes off-screen. Capping height keeps both constraints satisfiable.
+const TOOLTIP_MAX_HEIGHT_MARGIN_PX = 20;
 
 interface OnboardingTourProps {
   /** False only in pure Observatory view, where the 2D feeds are unmounted. */
@@ -204,6 +211,11 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   // wider than some phones in portrait. Never wider than TOOLTIP_WIDTH_PX
   // (or the deliberately bigger WELCOME_TOOLTIP_WIDTH_PX for step 0).
   const tooltipWidth = Math.min(isWelcomeStep ? WELCOME_TOOLTIP_WIDTH_PX : TOOLTIP_WIDTH_PX, viewportW - 28);
+  // Same source of truth for both the card's CSS max-height (below, so the
+  // actual DOM node can't grow past this) and the `top` clamp math (so the
+  // guarantee doesn't depend on the measured tooltipHeight state having
+  // already caught up to a step change).
+  const tooltipMaxHeight = viewportH - TOOLTIP_MAX_HEIGHT_MARGIN_PX * 2;
 
   let tooltipTop: number;
   let tooltipLeft: number;
@@ -232,7 +244,12 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
   // takes priority over the above/below gap in that squeeze: a sliver of
   // overlap with an oversized, non-interactive-during-this-step spotlight is
   // far less broken than a tooltip the student can't read or click Next on.
-  tooltipTop = Math.max(TOOLTIP_TARGET_GAP_PX, Math.min(tooltipTop, viewportH - tooltipHeight - TOOLTIP_TARGET_GAP_PX));
+  // Phase 62: clamp off tooltipMaxHeight rather than the raw measured
+  // tooltipHeight — tooltipHeight lags one render behind on a step change
+  // (see the useLayoutEffect above), so trusting it here would momentarily
+  // reopen the exact conflict this clamp exists to prevent.
+  const clampedTooltipHeight = Math.min(tooltipHeight, tooltipMaxHeight);
+  tooltipTop = Math.max(TOOLTIP_TARGET_GAP_PX, Math.min(tooltipTop, viewportH - clampedTooltipHeight - TOOLTIP_TARGET_GAP_PX));
 
   return (
     <div className="fixed inset-0 z-[9996] pointer-events-none">
@@ -257,7 +274,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         className={`absolute pointer-events-auto bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl flex flex-col gap-2.5 transition-all duration-300 ease-out ${
           isWelcomeStep ? 'p-6' : 'p-4'
         }`}
-        style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth }}
+        style={{ top: tooltipTop, left: tooltipLeft, width: tooltipWidth, maxHeight: tooltipMaxHeight }}
       >
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-400">
@@ -271,12 +288,20 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
         {/* Step 0 (Phase 45): dramatically bigger type so the welcome card
             commands attention as a real first impression, not just another
             spotlighted tip. */}
-        <h3 className={isWelcomeStep ? 'text-2xl font-bold text-white' : 'text-sm font-bold text-white'}>
-          {t(config.titleKey)}
-        </h3>
-        <p className={isWelcomeStep ? 'text-lg text-slate-300 leading-relaxed' : 'text-xs text-slate-300 leading-relaxed'}>
-          {t(config.bodyKey)}
-        </p>
+        {/* Phase 62: min-h-0 lets this flex child shrink below its content's
+            intrinsic size (the default `min-height: auto` would refuse to,
+            and grow the card past maxHeight instead) — that's what hands
+            overflow to this div's own scrollbar rather than the card's
+            bottom edge. Header and footer sit outside it so Skip/Next stay
+            pinned and visible no matter how long the body text runs. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2.5">
+          <h3 className={isWelcomeStep ? 'text-2xl font-bold text-white' : 'text-sm font-bold text-white'}>
+            {t(config.titleKey)}
+          </h3>
+          <p className={isWelcomeStep ? 'text-lg text-slate-300 leading-relaxed' : 'text-xs text-slate-300 leading-relaxed'}>
+            {t(config.bodyKey)}
+          </p>
+        </div>
         <div className="flex items-center justify-between mt-1">
           <button
             onClick={endTour}
