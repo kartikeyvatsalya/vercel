@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useShallow } from './store/useShallowSelector';
-import { useTelescopeStore, TERRESTRIAL_POINTING } from './store/useTelescopeStore';
+import { useTelescopeStore, TERRESTRIAL_POINTING, type TourTrack } from './store/useTelescopeStore';
 import { TARGETS } from './data/bookContent';
 import { convertEquatorialToHorizontal } from './engine/ephemerisMath';
 import { getBodyEquatorial } from './engine/skyGeometry';
@@ -311,6 +311,19 @@ function App() {
   // persist partition, since it must survive store resets.
   const [showTourPrompt, setShowTourPrompt] = useState(false);
   const startTourBtnRef = useRef<HTMLButtonElement | null>(null);
+  // ── Tour track picker (Phase 61) ── Start Tour no longer launches the
+  // Basic track directly — it opens this popover so the Advanced track (six
+  // steps of real physics, previously reachable only from Settings) gets
+  // equal billing the moment a student is looking for a tour at all.
+  const [isTourChoiceOpen, setIsTourChoiceOpen] = useState(false);
+  const tourChoiceMenuRef = useRef<HTMLDivElement | null>(null);
+  // Pulses the nav button until the student engages with the tour system at
+  // all (opens the picker, or a tour starts by any other route). Reads the
+  // SAME one-shot 'tourPrompted' flag the toast below keys off, but eagerly
+  // — not behind that toast's 1.5s delay — so the CTA itself looks like the
+  // obvious next step the instant the UI paints, rather than only during the
+  // few seconds IntroMascot's one-shot beam animation happens to be playing.
+  const [tourCtaEmphasis, setTourCtaEmphasis] = useState(false);
 
   // ── Preload + WARM high-res textures on mount (Phase 29) ──
   // preloadAssets decodes and downsamples every texture behind this loading
@@ -343,6 +356,7 @@ function App() {
       alreadyPrompted = !!localStorage.getItem('tourPrompted');
     } catch { /* storage blocked (private mode) — treat as prompted */ alreadyPrompted = true; }
     if (alreadyPrompted) return;
+    setTourCtaEmphasis(true);
 
     const showId = window.setTimeout(() => {
       // Re-check at fire time: the user may have hit Start Tour themselves
@@ -357,6 +371,16 @@ function App() {
       if (hideId !== undefined) window.clearTimeout(hideId);
     };
   }, [assetsLoaded]);
+
+  // However a tour actually starts — this picker, Settings' own Advanced
+  // Tour link, anything future — retire the CTA emphasis and close the
+  // picker so neither can linger once a tour is genuinely running.
+  useEffect(() => {
+    if (telescopeState.tourStep > 0) {
+      setTourCtaEmphasis(false);
+      setIsTourChoiceOpen(false);
+    }
+  }, [telescopeState.tourStep]);
 
   // Performance (FPS) Tracker — with 5-second startup grace period
   useEffect(() => {
@@ -431,21 +455,23 @@ function App() {
 
   // ── Menu dismissal: outside-click + Escape (Phase 26 fix 4d) ──
   useEffect(() => {
-    if (!isMissionMenuOpen && !isTargetMenuOpen && !isEyepieceMenuOpen) return;
+    if (!isMissionMenuOpen && !isTargetMenuOpen && !isEyepieceMenuOpen && !isTourChoiceOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       // e.target can be the window itself (synthetic events) — only Nodes
       // can be containment-tested; anything else counts as "outside".
       const t = e.target instanceof Node ? e.target : null;
-      if (t && (missionMenuRef.current?.contains(t) || targetMenuRef.current?.contains(t) || eyepieceMenuRef.current?.contains(t))) return;
+      if (t && (missionMenuRef.current?.contains(t) || targetMenuRef.current?.contains(t) || eyepieceMenuRef.current?.contains(t) || tourChoiceMenuRef.current?.contains(t))) return;
       setIsMissionMenuOpen(false);
       setIsTargetMenuOpen(false);
       setIsEyepieceMenuOpen(false);
+      setIsTourChoiceOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsMissionMenuOpen(false);
         setIsTargetMenuOpen(false);
         setIsEyepieceMenuOpen(false);
+        setIsTourChoiceOpen(false);
       }
     };
     window.addEventListener('pointerdown', onPointerDown);
@@ -454,7 +480,7 @@ function App() {
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [isMissionMenuOpen, isTargetMenuOpen, isEyepieceMenuOpen]);
+  }, [isMissionMenuOpen, isTargetMenuOpen, isEyepieceMenuOpen, isTourChoiceOpen]);
 
   // Global Keyboard Listener for Instructor Dashboard
   useEffect(() => {
@@ -566,6 +592,21 @@ function App() {
       } as any);
     }
   }, []);
+
+  // ── Tour track picker (Phase 61) ── Shared by the nav button and the
+  // first-visit toast: both used to call startTour() directly, skipping
+  // straight to the Basic track.
+  const openTourChoice = () => {
+    setShowTourPrompt(false);
+    setTourCtaEmphasis(false);
+    try { localStorage.setItem('tourPrompted', '1'); } catch { /* best effort */ }
+    setIsTourChoiceOpen(true);
+  };
+
+  const beginTour = (track: TourTrack) => {
+    setIsTourChoiceOpen(false);
+    telescopeState.startTour(track);
+  };
 
   const handleModuleSwitch = (moduleId: ModuleId) => {
     if (moduleId === activeModule) return;
@@ -989,18 +1030,42 @@ function App() {
             <BookMarked className="w-3.5 h-3.5" /> <span className="hidden xl:inline">{t('textbook.heading')}</span>
           </button>
 
-          {/* Start Tour Button (Phase 30; first-visit prompt anchor in Phase 33) */}
-          <button
-            ref={startTourBtnRef}
-            onClick={() => {
-              setShowTourPrompt(false);
-              try { localStorage.setItem('tourPrompted', '1'); } catch { /* best effort */ }
-              telescopeState.startTour();
-            }}
-            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 border border-green-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors"
-          >
-            <HelpCircle className="w-3.5 h-3.5" /> <span className="hidden xl:inline">{t('tour.startTour')}</span>
-          </button>
+          {/* Start Tour Button (Phase 30; first-visit prompt anchor in Phase
+              33; track picker in Phase 61) — pulses until the student
+              engages with the tour system at all, so the CTA doesn't go
+              quiet the moment IntroMascot's one-shot intro finishes. */}
+          <div className="relative" ref={tourChoiceMenuRef}>
+            <button
+              ref={startTourBtnRef}
+              onClick={openTourChoice}
+              className={`flex items-center gap-1.5 bg-green-600 hover:bg-green-500 border border-green-500 text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-all ${
+                tourCtaEmphasis ? 'scale-110 shadow-[0_0_16px_4px_rgba(74,222,128,0.65)] animate-pulse' : ''
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5" /> <span className="hidden xl:inline">{t('tour.startTour')}</span>
+            </button>
+            {isTourChoiceOpen && (
+              <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-green-500/50 rounded-xl p-3 shadow-2xl min-w-[280px] z-50">
+                <p className="text-[10px] font-bold text-green-400 uppercase tracking-widest mb-2 px-1">
+                  {t('tour.chooseTitle')}
+                </p>
+                <button
+                  onClick={() => beginTour('basic')}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-green-950/40 border border-transparent hover:border-green-700/40 transition-colors flex flex-col gap-0.5 mb-1.5"
+                >
+                  <span className="text-xs font-bold text-green-200">{t('tour.chooseBasicLabel')}</span>
+                  <span className="text-[10px] text-slate-400 leading-snug">{t('tour.chooseBasicDesc')}</span>
+                </button>
+                <button
+                  onClick={() => beginTour('advanced')}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-amber-950/40 border border-transparent hover:border-amber-700/40 transition-colors flex flex-col gap-0.5"
+                >
+                  <span className="text-xs font-bold text-amber-300">{t('tour.chooseAdvancedLabel')}</span>
+                  <span className="text-[10px] text-slate-400 leading-snug">{t('tour.chooseAdvancedDesc')}</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* About BRAHMAND (Phase 60) — the app is named for the acronym and
               for the Hindi word for the cosmos, and until now neither fact
@@ -1233,10 +1298,7 @@ function App() {
               </button>
             </div>
             <button
-              onClick={() => {
-                setShowTourPrompt(false);
-                telescopeState.startTour();
-              }}
+              onClick={openTourChoice}
               className="self-start flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold uppercase tracking-widest transition-colors"
             >
               <HelpCircle className="w-3 h-3" /> {t('tour.startTour')}

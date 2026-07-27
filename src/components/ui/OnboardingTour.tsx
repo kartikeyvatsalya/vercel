@@ -224,6 +224,15 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
     tooltipTop = viewportH / 2 - tooltipHeight / 2;
     tooltipLeft = viewportW / 2 - tooltipWidth / 2;
   }
+  // Viewport safety clamp: a target tall enough to eat most of the viewport
+  // (e.g. tour-main-eyepiece, spotlighting the whole feed) combined with a
+  // long enough step body can push the "outside the target" placement above
+  // past the top or below past the bottom — invisible and unreachable, since
+  // this overlay has no scroll of its own. Keeping the card fully on-screen
+  // takes priority over the above/below gap in that squeeze: a sliver of
+  // overlap with an oversized, non-interactive-during-this-step spotlight is
+  // far less broken than a tooltip the student can't read or click Next on.
+  tooltipTop = Math.max(TOOLTIP_TARGET_GAP_PX, Math.min(tooltipTop, viewportH - tooltipHeight - TOOLTIP_TARGET_GAP_PX));
 
   return (
     <div className="fixed inset-0 z-[9996] pointer-events-none">

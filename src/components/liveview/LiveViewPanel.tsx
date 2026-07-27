@@ -494,19 +494,23 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
         const trackHudElapsedMs = trackCompletedAtRef.current !== null ? now - trackCompletedAtRef.current : Infinity;
         const isTrackHudFading = trackCompletedRef.current && trackHudElapsedMs < TRACK_LOCKED_HUD_DURATION_MS;
         const isTrackEngaged = mode === 'track' && !!activeTarget && (!trackCompletedRef.current || isTrackHudFading);
-        // ── 'collimate' mode liveness (Phase 57) ── A screw click and a
-        // focuser rack both change the picture without moving the mount, so
-        // neither trips any of the motion tests above. Left to the 5fps idle
-        // cadence they would land up to 200ms late — long enough to break the
-        // tight screw-then-look loop the whole exercise depends on. The beam
-        // error is the one number that captures every screw on both cells.
-        const collimationReadout = mode === 'collimate' ? getCollimationReadout() : null;
-        const collimationError = collimationReadout?.errorArcmin ?? 0;
+        // ── Collimation liveness (Phase 57; every mode since Phase 61) ── A
+        // screw click changes the picture without moving the mount, so it
+        // trips none of the motion tests above. Left to the 5fps idle cadence
+        // it would land up to 200ms late — long enough to break the tight
+        // screw-then-look loop the whole exercise depends on. The beam error
+        // is the one number that captures every screw on both cells, and it
+        // now shifts the MAIN feed's pointing in every mode (mirror tilt is a
+        // property of the instrument, not of which lesson tab is open) — only
+        // the star-test donut visualization below stays 'collimate'-only.
+        const collimationReadout = getCollimationReadout();
+        const collimationError = collimationReadout.errorArcmin;
         const collimationChanged = collimationError !== lastCollimationError;
         lastCollimationError = collimationError;
         const needsLiveRedraw =
           isDragging || pointingMoved || skyVisiblyMoving || evalResult.isAtmosphericBlurActive || evalResult.isAltDrooping || isTrackEngaged
-          || (mode === 'collimate' && (collimationChanged || telescope.isFocuserDragging));
+          || collimationChanged
+          || (mode === 'collimate' && telescope.isFocuserDragging);
         const shouldDraw = needsLiveRedraw || (now - lastDrawTime) >= IDLE_REDRAW_INTERVAL_MS;
 
         if (shouldDraw) {
@@ -540,7 +544,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
               // and how far off-centre its shadow sits. Recomputed per frame
               // because BOTH inputs are live — turning a screw and racking the
               // focuser must each move the picture immediately.
-              const starTest: StarTestRenderSpec | null = collimationReadout
+              const starTest: StarTestRenderSpec | null = mode === 'collimate'
                 ? (() => {
                     const readout = collimationReadout;
                     const defocusMm = focuserDefocusMm(
@@ -560,6 +564,17 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                     };
                   })()
                 : null;
+
+              // ── Collimation → main pointing offset (Phase 61) ── The
+              // residual beam error as a vector (same cos/sin decomposition
+              // useCollimationStore's readout feeds the star-test shadow
+              // direction with), converted from arcmin to the degrees
+              // skyRenderer's Alt/Az offset math expects. Bolted-to-the-tube
+              // finder never sees this; only the main feed does.
+              const collimationOffsetDeg = {
+                deltaAz: (collimationReadout.errorArcmin * Math.cos(collimationReadout.angleRad)) / 60,
+                deltaAlt: (collimationReadout.errorArcmin * Math.sin(collimationReadout.angleRad)) / 60,
+              };
 
               renderOpticalView(ctx, {
                 role: 'main',
@@ -584,6 +599,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 darkAdaptation,
                 bahtinovGeometry,
                 starTest,
+                collimationOffsetDeg,
               });
 
               // ── 'track' mode overlay: mechanical droop + reticle + lock timer ──

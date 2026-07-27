@@ -165,6 +165,12 @@ const en = {
   // First-visit prompt toast (Phase 33)
   'tour.promptTitle': 'New to the simulator?',
   'tour.promptBody': 'Take the 2-minute guided tour and learn the controls.',
+  // Track picker (Phase 61) — shown the moment Start Tour is clicked.
+  'tour.chooseTitle': 'Choose Your Tour',
+  'tour.chooseBasicLabel': 'Basic Tour',
+  'tour.chooseBasicDesc': 'Learn the interface — targets, time, focuser, and the two eyepiece feeds.',
+  'tour.chooseAdvancedLabel': 'Advanced Tour',
+  'tour.chooseAdvancedDesc': 'Collimation, balance, and the physics running under the hood.',
 
   // ── tour.* advanced track (Phase 60) ──
   'tour.advancedBadge': 'Advanced',
@@ -176,7 +182,7 @@ const en = {
     'A reflector\'s mirrors sit on three adjustment screws each, and they drift. Turn a screw here and the mirror tilts; the pad shows every screw and what the light is doing about it. Turn all three equally and you only shift focus — turn one, and you have changed the alignment.',
   'tour.starTest.title': 'The star test',
   'tour.starTest.body':
-    'This is the instrument for the job. Rack a bright star well out of focus and it opens into a donut. If the dark hole sits dead centre, your mirrors are square; if it drifts to one side, that side is your error. Rack back TOWARD focus to magnify the offset until it is unmistakable. Watch the finderscope while you work — the mirrors move the main optical axis, and the finder is bolted to the tube, so collimating always costs you your finder alignment.',
+    'This is the instrument for the job. Rack a bright star well out of focus and it opens into a donut. If the dark hole sits dead centre, your mirrors are square; if it drifts to one side, that side is your error. Rack back TOWARD focus to magnify the offset until it is unmistakable. Watch the MAIN eyepiece while you work, not the finder — the mirrors steer the main optical axis, and the finder is bolted to the tube and never moves, so a star that shifts as you turn a screw is the collimation error itself, made visible.',
   'tour.balance.title': 'Counterweight & RA-axis torque',
   'tour.balance.body':
     'An equatorial mount is a lever: the tube on one side of the polar axis, a cast weight on the other. The readout is the net turning force. Positive means nose heavy and the tube sinks; negative means the weight wins and it climbs. Slide it to zero and the mount will hold any position with the clutches loose. (On a Dobsonian this panel says so — a rocker box has no shaft to slide. Fit the 14" SCT to see the lever work.)',
@@ -429,6 +435,12 @@ const hi: Record<TranslationKey, string> = {
   // First-visit prompt toast (Phase 33)
   'tour.promptTitle': 'सिम्युलेटर में नए हैं?',
   'tour.promptBody': '2 मिनट का गाइडेड टूर लें और नियंत्रण सीखें।',
+  // Track picker (Phase 61)
+  'tour.chooseTitle': 'अपना टूर चुनें',
+  'tour.chooseBasicLabel': 'बेसिक टूर',
+  'tour.chooseBasicDesc': 'इंटरफ़ेस सीखें — लक्ष्य, समय, फ़ोकसर, और दोनों आईपीस फ़ीड।',
+  'tour.chooseAdvancedLabel': 'एडवांस्ड टूर',
+  'tour.chooseAdvancedDesc': 'कोलिमेशन, संतुलन, और पर्दे के पीछे की भौतिकी।',
 
   // ── tour.* उन्नत ट्रैक ──
   'tour.advancedBadge': 'उन्नत',
@@ -440,7 +452,7 @@ const hi: Record<TranslationKey, string> = {
     'परावर्तक दूरबीन का हर दर्पण तीन समायोजन पेंचों पर टिका होता है, और वे समय के साथ खिसकते हैं। यहाँ पेंच घुमाइए और दर्पण झुकेगा; पैड हर पेंच और प्रकाश पर उसके असर को दिखाता है। तीनों को बराबर घुमाएँ तो केवल फ़ोकस बदलेगा — एक को घुमाएँ, और संरेखण बदल जाएगा।',
   'tour.starTest.title': 'तारा परीक्षण',
   'tour.starTest.body':
-    'यही इस काम का औज़ार है। किसी चमकीले तारे को फ़ोकस से काफ़ी दूर ले जाइए और वह छल्ले में खुल जाएगा। अगर काला छेद ठीक बीच में है, दर्पण सीधे हैं; अगर वह एक ओर खिसका है, वही आपकी त्रुटि की दिशा है। छेद को स्पष्ट देखने के लिए फ़ोकस की ओर लौटिए। काम करते समय फाइंडरस्कोप पर नज़र रखें — दर्पण मुख्य प्रकाशिक अक्ष को हिलाते हैं और फाइंडर नली से कसा है, इसलिए कोलिमेशन हमेशा फाइंडर का संरेखण बिगाड़ता है।',
+    'यही इस काम का औज़ार है। किसी चमकीले तारे को फ़ोकस से काफ़ी दूर ले जाइए और वह छल्ले में खुल जाएगा। अगर काला छेद ठीक बीच में है, दर्पण सीधे हैं; अगर वह एक ओर खिसका है, वही आपकी त्रुटि की दिशा है। छेद को स्पष्ट देखने के लिए फ़ोकस की ओर लौटिए। काम करते समय फाइंडर पर नहीं, मुख्य आईपीस पर नज़र रखें — दर्पण मुख्य प्रकाशिक अक्ष को हिलाते हैं, जबकि फाइंडर नली से कसा है और कभी नहीं हिलता; पेंच घुमाते ही तारा जितना खिसकता है, वही कोलिमेशन की त्रुटि आँखों के सामने है।',
   'tour.balance.title': 'प्रतिभार और RA-अक्ष बलाघूर्ण',
   'tour.balance.body':
     'विषुवतीय माउंट एक लीवर है: ध्रुवीय अक्ष के एक ओर नली, दूसरी ओर ढला हुआ भार। यह पाठ्यांक शुद्ध घूर्णन बल है। धनात्मक अर्थात अगला सिरा भारी और नली नीचे झुकेगी; ऋणात्मक अर्थात भार जीत रहा है और नली ऊपर चढ़ेगी। इसे शून्य पर लाइए और क्लच ढीले होने पर भी माउंट हर स्थिति में टिका रहेगा। (डॉब्सोनियन पर यह पैनल बता देता है — रॉकर बॉक्स में शाफ़्ट होती ही नहीं। लीवर देखने के लिए 14" SCT लगाइए।)',

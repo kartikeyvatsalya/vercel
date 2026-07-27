@@ -42,6 +42,17 @@ export interface OpticalViewSpec {
   axisErrorDeg?: { deltaAlt: number; deltaAz: number };
   /** Finder-only: legacy px-based thumbscrew nudge from useAlignmentStore. */
   legacyAlignmentOffsetPx?: { x: number; y: number };
+  /**
+   * Main-only: the collimation beam error (Phase 61), converted to degrees of
+   * Alt/Az pointing offset. Turning a screw tilts the MIRRORS, which are what
+   * define the main telescope's outgoing optical axis — the finderscope is
+   * bolted to the tube and does not move when a mirror does. So this is
+   * applied to the main feed with the exact same sign convention as the
+   * finder's own axisErrorDeg just above (both express "this feed's true aim
+   * minus the mount's nominal pointing"), and is never read when
+   * role === 'finder'.
+   */
+  collimationOffsetDeg?: { deltaAlt: number; deltaAz: number };
   /** Finder-only: drives the crosshair's aligned (green) vs seeking (red) color. */
   isCrosshairAligned?: boolean;
   /**
@@ -809,7 +820,7 @@ export function renderOpticalView(ctx: CanvasRenderingContext2D, spec: OpticalVi
   const {
     role, viewportPx, trueFovDeg, axisErrorDeg, legacyAlignmentOffsetPx,
     isCrosshairAligned, viewOrientation, evalResult,
-    isHighPerformanceMode, now, sunAltDeg,
+    isHighPerformanceMode, now, sunAltDeg, collimationOffsetDeg,
   } = spec;
   const isFinder = role === 'finder';
   const width = viewportPx;
@@ -875,10 +886,16 @@ export function renderOpticalView(ctx: CanvasRenderingContext2D, spec: OpticalVi
     const errorPxX = isFinder && axisErrorDeg ? (axisErrorDeg.deltaAz / trueFovDeg) * width : 0;
     const errorPxY = isFinder && axisErrorDeg ? (axisErrorDeg.deltaAlt / trueFovDeg) * height : 0;
 
+    // ── Collimation offset (main feed only, Phase 61) ── Same divergence
+    // math as the finder's axisErrorDeg above, mirrored to the feed the
+    // mirrors actually steer.
+    const collimationPxX = !isFinder && collimationOffsetDeg ? (collimationOffsetDeg.deltaAz / trueFovDeg) * width : 0;
+    const collimationPxY = !isFinder && collimationOffsetDeg ? (collimationOffsetDeg.deltaAlt / trueFovDeg) * height : 0;
+
     const legacyX = legacyAlignmentOffsetPx?.x ?? 0;
     const legacyY = legacyAlignmentOffsetPx?.y ?? 0;
-    const currentOffsetX = isFinder ? -legacyX - errorPxX : 0;
-    const currentOffsetY = isFinder ? -legacyY + errorPxY : 0;
+    const currentOffsetX = isFinder ? -legacyX - errorPxX : -collimationPxX;
+    const currentOffsetY = isFinder ? -legacyY + errorPxY : collimationPxY;
 
     const droopY = evalResult.isAltDrooping ? ((now % 10000) / 10000) * height : 0;
 
