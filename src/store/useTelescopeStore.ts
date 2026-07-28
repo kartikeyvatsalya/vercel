@@ -19,6 +19,7 @@ import {
 import { useProgressStore } from './useProgressStore';
 import type { TelescopeProfile, Target } from '../types';
 import type { LoadedAssets } from '../engine/assetLoader';
+import { sanitizeNumber, sanitizeEnum } from './persistGuards';
 
 // ── Phase B: Physics Bridge (Zustand → 3D) ──────────────────────
 // Real Alt-Az pointing is now derived from each target's RA/Dec via
@@ -740,48 +741,103 @@ export const useTelescopeStore = create<TelescopeState>()(
         } = state;
         return rest;
       },
-      // ── Stale-snapshot repair (Phase 26 audit fix 4b) ──
+      // ── Stale-snapshot repair (Phase 26 audit fix 4b; hardened Phase 65) ──
       // activeTarget persists as a full object; when the TARGETS catalog gains
       // fields (angularDiameterDeg, ra/dec…) or corrects data, rehydrate the
       // live catalog entry by ID so stale copies never shadow fresh data.
       merge: (persistedState, currentState) => {
         const merged = { ...currentState, ...(persistedState as Partial<TelescopeState>) };
-        if (merged.activeTarget) {
-          merged.activeTarget = TARGETS[merged.activeTarget.id] ?? merged.activeTarget;
-        }
-        // ── Profile schema repair (Phase 55) ──
+
+        // ── Numeric/enum corruption guard (Phase 65) ──
+        // A stale build, a hand-edited key, or a value that was NaN at the
+        // moment it got written (JSON has no NaN literal, so it round-trips
+        // as `null`) can all hand back something the optics/canvas math
+        // never expects. Nothing downstream guards against NaN — Math.min/
+        // Math.max both propagate it instead of clamping it away — so every
+        // persisted numeric or enum field is re-validated here, once, before
+        // it can reach render code. This is the fix for the "blank eyepiece"
+        // bug: a corrupted field used to sail through untouched and poison
+        // the first canvas draw that used it; Incognito only ever "fixed" it
+        // by starting with no localStorage at all.
+        merged.focuserPosition = sanitizeNumber(merged.focuserPosition, 50, 0, 100);
+        merged.seeingQuality = sanitizeNumber(merged.seeingQuality, 3, 1, 5);
+        merged.transparency = sanitizeNumber(
+          merged.transparency, DEFAULT_TRANSPARENCY, TRANSPARENCY_MIN, TRANSPARENCY_MAX
+        );
+        merged.observerLocation = {
+          latitude: sanitizeNumber(merged.observerLocation?.latitude, DEFAULT_OBSERVER_LOCATION.latitude, -90, 90),
+          longitude: sanitizeNumber(merged.observerLocation?.longitude, DEFAULT_OBSERVER_LOCATION.longitude, -180, 180),
+        };
+        // simulationMode gates a bare SIM_MODE_RULES[mode] lookup in half a
+        // dozen components with no fallback of their own — an invalid value
+        // here doesn't blank a canvas, it throws and takes the whole app down.
+        merged.simulationMode = sanitizeEnum(merged.simulationMode, ['fun', 'easy', 'realistic'] as const, 'easy');
+        merged.alignmentDifficulty = sanitizeEnum(
+          merged.alignmentDifficulty, ['auto', 'easy', 'medium', 'realistic'] as const, 'easy'
+        );
+        merged.language = sanitizeEnum(merged.language, ['en', 'hi'] as const, 'en');
+        merged.testedEyepieceIds = Array.isArray(merged.testedEyepieceIds)
+          ? merged.testedEyepieceIds.filter((id) => EYEPIECE_CATALOG.some((e) => e.id === id))
+          : [];
+
+        // Resolve against the live catalog by ID so field additions/
+        // corrections aren't shadowed by a stale copy. A corrupted or
+        // unrecognized entry falls back to `null` ("no target lock") rather
+        // than trusting an object shape we can't verify — a state the app
+        // already treats as fully valid.
+        merged.activeTarget = merged.activeTarget ? TARGETS[merged.activeTarget.id] ?? null : null;
+
+        // ── Profile schema repair (Phase 55) + numeric guard (Phase 65) ──
         // Built-in profiles rehydrate fully from the live catalog, same as
-        // activeTarget above. Custom (user-built) profiles can't be looked
-        // up in a catalog, so instead backfill the one field that changed
-        // shape: sessions persisted before viewOrientation existed only
-        // have the legacy isInvertedView boolean. Map that forward
+        // activeTarget above — that alone fixes any corruption in a built-in
+        // profile's stored copy, SCT included. Custom (user-built) profiles
+        // can't be looked up in a catalog, so each numeric field is
+        // individually re-validated, and the legacy isInvertedView boolean
         // (true→'inverted', false→'mirrored' — every pre-Phase-55 profile
         // with isInvertedView:false was in practice a mirrored scope, never
-        // a true erect 'correct' view) instead of silently dropping the
-        // rendered parity transform for a returning user's custom scope.
+        // a true erect 'correct' view) is backfilled if viewOrientation is
+        // still missing.
         const repairProfile = (profile: TelescopeProfile): TelescopeProfile => {
-          const builtIn = TELESCOPE_PROFILES[profile.id];
+          const builtIn = TELESCOPE_PROFILES[profile?.id];
           if (builtIn) return builtIn;
-          if (profile.viewOrientation) return profile;
+          const aperture = sanitizeNumber(profile?.aperture, TELESCOPE_PROFILES.dobsonian8.aperture, 1, 10000);
+          const focalLength = sanitizeNumber(
+            profile?.focalLength, TELESCOPE_PROFILES.dobsonian8.focalLength, 1, 100000
+          );
+          const focalRatio = sanitizeNumber(
+            profile?.focalRatio, Number((focalLength / aperture).toFixed(1)), 0.1, 1000
+          );
+          const centralObstruction = sanitizeNumber(profile?.centralObstruction, 0, 0, 99);
           const { isInvertedView, ...rest } = profile as TelescopeProfile & { isInvertedView?: boolean };
-          return { ...rest, viewOrientation: isInvertedView ? 'inverted' : 'mirrored' };
+          return {
+            ...rest,
+            aperture,
+            focalLength,
+            focalRatio,
+            centralObstruction,
+            viewOrientation: rest.viewOrientation ?? (isInvertedView ? 'inverted' : 'mirrored'),
+          };
         };
-        if (merged.activeProfile) {
-          merged.activeProfile = repairProfile(merged.activeProfile);
-        }
-        if (merged.availableProfiles) {
-          merged.availableProfiles = merged.availableProfiles.map(repairProfile);
-        }
-        // ── Eyepiece-ID backfill (Phase 27, P27.3) ──
-        // Sessions persisted before activeEyepieceId existed only have the
-        // legacy eyepieceFocalLength number. Map that forward to the closest
-        // catalog ID instead of silently resetting returning users to 25mm.
-        if (!merged.activeEyepieceId || !EYEPIECE_CATALOG.some((e) => e.id === merged.activeEyepieceId)) {
-          const matched = EYEPIECE_CATALOG.find((e) => e.focalLengthMm === merged.eyepieceFocalLength);
-          const fallback = EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
-          merged.activeEyepieceId = (matched ?? fallback).id;
-          merged.eyepieceFocalLength = (matched ?? fallback).focalLengthMm;
-        }
+        merged.activeProfile = merged.activeProfile ? repairProfile(merged.activeProfile) : TELESCOPE_PROFILES.dobsonian8;
+        merged.availableProfiles = Array.isArray(merged.availableProfiles)
+          ? merged.availableProfiles.map(repairProfile)
+          : TELESCOPE_PROFILES_LIST;
+
+        // ── Eyepiece resync (Phase 27 backfill; hardened Phase 65) ──
+        // eyepieceFocalLength is DERIVED from activeEyepieceId (see the
+        // field's own comment above), so rather than validate the number in
+        // isolation, resolve the catalog entry ONCE and let it drive both
+        // fields — covers the legacy ID-less snapshot (matched by the old
+        // focal-length number) and a session where the two had drifted apart
+        // (a valid ID paired with a corrupt number used to sail straight
+        // through the old ID-only check).
+        const resolvedEyepiece =
+          EYEPIECE_CATALOG.find((e) => e.id === merged.activeEyepieceId) ??
+          EYEPIECE_CATALOG.find((e) => e.focalLengthMm === merged.eyepieceFocalLength) ??
+          EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
+        merged.activeEyepieceId = resolvedEyepiece.id;
+        merged.eyepieceFocalLength = resolvedEyepiece.focalLengthMm;
+
         return merged;
       },
     }

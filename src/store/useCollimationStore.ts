@@ -12,6 +12,7 @@ import {
   type ScrewTriple,
 } from '../engine/collimation';
 import { useTelescopeStore } from './useTelescopeStore';
+import { sanitizeNumber } from './persistGuards';
 
 /**
  * Collimation State (Phase 57)
@@ -183,6 +184,28 @@ export const useCollimationStore = create<CollimationState>()(
         primaryScrews: state.primaryScrews,
         secondaryScrews: state.secondaryScrews,
       }),
+      // ── Numeric corruption guard (Phase 65) ──
+      // Each screw feeds engine/collimation.ts's trig directly; a NaN/null
+      // (or a wildly out-of-bounds hand-edited value) turned decentred-shadow
+      // and coma-flare math into NaN too, silently blanking the star test
+      // canvas. A malformed triple (wrong length, non-array) resets the
+      // whole cell to factory-aligned rather than trusting its shape.
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<CollimationState> | undefined;
+        const sanitizeScrews = (screws: unknown): ScrewTriple => {
+          if (!Array.isArray(screws) || screws.length !== 3) return ALIGNED;
+          return [
+            sanitizeNumber(screws[0], 0, -10000, 10000),
+            sanitizeNumber(screws[1], 0, -10000, 10000),
+            sanitizeNumber(screws[2], 0, -10000, 10000),
+          ];
+        };
+        return {
+          ...currentState,
+          primaryScrews: sanitizeScrews(persisted?.primaryScrews),
+          secondaryScrews: sanitizeScrews(persisted?.secondaryScrews),
+        };
+      },
       // A rehydrated session must republish its verdict: useTelescopeStore
       // persists `isCollimated` separately, and the two snapshots are written
       // at different moments, so they can land out of step.

@@ -14,6 +14,7 @@ import {
   type BalanceVerdict,
 } from '../engine/mechanics';
 import { useTelescopeStore } from './useTelescopeStore';
+import { sanitizeNumber } from './persistGuards';
 
 /**
  * Mount Mechanics State (Phase 58)
@@ -192,6 +193,22 @@ export const useMechanicsStore = create<MechanicsState>()(
       // Only the shaft position persists; every derived number is recomputed
       // against whatever telescope is active on the next visit.
       partialize: (state) => ({ counterweightPosition: state.counterweightPosition }),
+      // ── Numeric corruption guard (Phase 65) ──
+      // counterweightPosition feeds engine/mechanics.ts's torque math
+      // directly; a NaN/null (or a value outside the shaft's physical 0…1
+      // travel) turned the live torque readout and 3D weight position NaN,
+      // right along with the droop it inflicts on the eyepiece feed. Falls
+      // back to the current instrument's own balance point rather than a
+      // hardcoded number, matching the "arrives balanced" default above.
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        counterweightPosition: sanitizeNumber(
+          (persistedState as Partial<MechanicsState> | undefined)?.counterweightPosition,
+          currentState.counterweightPosition,
+          0,
+          1
+        ),
+      }),
       // A rehydrated session must republish its verdict: useTelescopeStore
       // persists `isMechanicallyBalanced` separately, and the two snapshots are
       // written at different moments, so they can land out of step.

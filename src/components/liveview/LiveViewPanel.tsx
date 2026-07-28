@@ -83,6 +83,20 @@ const DRAG_SENSITIVITY_MAX = 3.0;
 // for a genuinely static scene, ~12× fewer expensive draw calls when idle.
 const IDLE_REDRAW_INTERVAL_MS = 200;
 
+// ── Frame-delta clamp (Phase 65) ──
+// A backgrounded tab, a DevTools pause, or a long synchronous task elsewhere
+// on the main thread can leave `now - lastTime` (below) multiple seconds —
+// even minutes — wide on the very next frame. Every physics term this loop
+// integrates against that raw delta (the D-pad slew step, the finderscope
+// thumbscrew offsets, the imbalance droop, the track-lock countdown) treats
+// it as "time since last frame," and at 60× sim speed the resulting jump
+// compounds with getSmoothSimTime's own rate multiplication into a pointing
+// teleport or an instantly-completed lock — which reads exactly like a freeze
+// or a skipped frame of gameplay. Floored to a generous 250ms (a 4fps floor,
+// well under any real stall worth distinguishing) so a multi-second stall can
+// never masquerade as that much genuine elapsed playback time.
+const MAX_FRAME_DELTA_MS = 250;
+
 // ── 'astrophotography' > 'planetary' live-composite softness (Phase 33) ──
 // calculatePlanetarySharpness at the DEFAULT settings (50% cutoff, seeing 3)
 // yields exactly 0.45 — that's the "clean" line. At or above it the live
@@ -358,7 +372,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
 
     const render = () => {
       const now = performance.now();
-      const deltaTime = now - lastTime;
+      // Clamped (Phase 65) — see MAX_FRAME_DELTA_MS above.
+      const deltaTime = Math.min(now - lastTime, MAX_FRAME_DELTA_MS);
       lastTime = now;
 
       const telescope = useTelescopeStore.getState();
