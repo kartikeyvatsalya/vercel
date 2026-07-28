@@ -68,7 +68,18 @@
       "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff --stat)",
       "PowerShell(git -C \"E:\\\\Telescope Simulator\" status --short)",
       "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- src/store/useCollimationStore.ts)",
-      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- src/store/useTelescopeStore.ts)"
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- src/store/useTelescopeStore.ts)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" checkout main)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" pull)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" branch backup-pre-capstone)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" branch --list)",
+      "PowerShell(npx tsc --noEmit -p \"E:\\\\Telescope Simulator\\\\tsconfig.app.json\")",
+      "PowerShell(if \\($?\\) { \"TSC OK\" })",
+      "PowerShell(npx oxlint --version)",
+      "PowerShell(npx oxlint src 2>&1)",
+      "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- .claude/settings.local.json)",
+      "PowerShell(\"---- settings.local.json diff ----\")",
+      "PowerShell(\"---- stat ----\")"
     ]
   }
 }

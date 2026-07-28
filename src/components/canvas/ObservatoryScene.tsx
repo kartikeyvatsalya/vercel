@@ -1158,6 +1158,21 @@ const SkyDome: React.FC = () => {
     };
   }, []);
 
+  // Phase 63: release the two catalog buffers on unmount. R3F disposes objects
+  // it CONSTRUCTS from JSX (`<bufferGeometry args={...} />`); a geometry handed
+  // to it through the `geometry={...}` prop below stays the caller's to free.
+  // This scene is not long-lived — App.tsx gates the whole lazy WebGL chunk on
+  // viewMode, so it unmounts every time the student drops to pure Eyepiece view
+  // — and without this each 3D → 2D → 3D round trip orphans both geometries
+  // and the GPU buffers behind them.
+  useEffect(
+    () => () => {
+      brightGeom.dispose();
+      faintGeom.dispose();
+    },
+    [brightGeom, faintGeom]
+  );
+
   useFrame(() => {
     const { observerLocation, isVirtualNight } = useTelescopeStore.getState();
     const simTimeSmooth = getSmoothSimTime();

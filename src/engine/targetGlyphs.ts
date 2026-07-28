@@ -139,12 +139,116 @@ function blitGlyphSprite(ctx: CanvasRenderingContext2D, sprite: BakedGlyphSprite
   );
 }
 
+/** Source-pixel rectangle of the imaged disk inside a photographic texture. */
+interface TextureDiskBounds {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+// One scan per texture for the lifetime of the page. `null` is a cached
+// ANSWER (tainted canvas, or a frame with no dark margin to trim), not a
+// cache miss — WeakMap.has distinguishes the two.
+const textureDiskBoundsCache = new WeakMap<LoadedTexture, TextureDiskBounds | null>();
+
+/** Luminance at or below which a source pixel counts as empty space, not disk. */
+const DISK_BOUNDS_LUM_THRESHOLD = 12;
+/** Sample every Nth pixel — ±1px on an 850px disk is far below one output pixel. */
+const DISK_BOUNDS_SCAN_STRIDE = 2;
+
+/**
+ * Bounding box of the non-black content in a photographic texture (Phase 63).
+ *
+ * The Wikimedia full-Moon frame is 1024×973 with the disk occupying only the
+ * middle ~832 × ~877 of it; the rest is the photographer's black sky. The
+ * Phase 34 bake drew that WHOLE frame into a 2r box and then masked it to a
+ * circle of radius r, which left an annulus of opaque black JPEG background
+ * from roughly 0.85r out to where the limb feather began. Against the
+ * historical space-black sky nobody could see it. Against Phase 29's daylight
+ * and twilight backdrops it is a hard black ring bolted around the Moon — the
+ * reported halo. (Jupiter's bake already dodges this a different way, with a
+ * blunt 2.3× overscan that pushes its own margin outside the mask.)
+ *
+ * Cropping to this box makes the photographed disk exactly fill radius r, so
+ * the mask lands on the real limb and there is no margin left to show. It also
+ * squares the aspect for free: the Moon's frame is 5% wider than it is tall,
+ * so scaling it into a square box had been stretching a circular disk into an
+ * ellipse before the circular mask cropped it back.
+ *
+ * Returns null when the pixels can't be read (a tainted CORS texture) or when
+ * the content already reaches the frame edges — both mean "draw it as it is."
+ */
+function getTextureDiskBounds(tex: LoadedTexture): TextureDiskBounds | null {
+  const cached = textureDiskBoundsCache.get(tex);
+  if (cached !== undefined) return cached;
+
+  const width = tex instanceof HTMLCanvasElement ? tex.width : tex.naturalWidth;
+  const height = tex instanceof HTMLCanvasElement ? tex.height : tex.naturalHeight;
+  let bounds: TextureDiskBounds | null = null;
+
+  const scan = document.createElement('canvas');
+  scan.width = width;
+  scan.height = height;
+  const sctx = scan.getContext('2d', { willReadFrequently: true });
+  if (sctx) {
+    sctx.drawImage(tex, 0, 0);
+    let frame: ImageData | null = null;
+    try {
+      frame = sctx.getImageData(0, 0, width, height);
+    } catch {
+      frame = null; // tainted texture — fall through and cache the null answer
+    }
+    if (frame) {
+      const px = frame.data;
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let y = 0; y < height; y += DISK_BOUNDS_SCAN_STRIDE) {
+        const row = y * width;
+        for (let x = 0; x < width; x += DISK_BOUNDS_SCAN_STRIDE) {
+          const i = (row + x) * 4;
+          const lum = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+          if (lum <= DISK_BOUNDS_LUM_THRESHOLD) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      // The stride can miss the outermost row/column of the disk by up to
+      // (stride - 1) px; grow by that much, clamped to the frame.
+      const slack = DISK_BOUNDS_SCAN_STRIDE - 1;
+      if (maxX > minX && maxY > minY) {
+        const sx = Math.max(0, minX - slack);
+        const sy = Math.max(0, minY - slack);
+        const sw = Math.min(width, maxX + 1 + slack) - sx;
+        const sh = Math.min(height, maxY + 1 + slack) - sy;
+        // Nothing to gain when the content already fills the frame.
+        if (sw < width || sh < height) bounds = { sx, sy, sw, sh };
+      }
+    }
+  }
+
+  textureDiskBoundsCache.set(tex, bounds);
+  return bounds;
+}
+
 function getMoonSprite(radiusPx: number, tex: LoadedTexture): BakedGlyphSprite | null {
   const r = quantizeSpriteRadius(radiusPx, DISK_SPRITE_MAX_RADIUS);
   const side = (r + SPRITE_PAD_PX) * 2;
   return getGlyphSprite(`moon|${r}`, r, side, side, (cctx) => {
     const c = r + SPRITE_PAD_PX;
-    cctx.drawImage(tex, c - r, c - r, r * 2, r * 2);
+    // Phase 63: crop to the imaged disk so the photo's black sky margin never
+    // reaches the canvas — see getTextureDiskBounds for why that margin read
+    // as a hard black halo against a daylit or twilight backdrop.
+    const disk = getTextureDiskBounds(tex);
+    if (disk) {
+      cctx.drawImage(tex, disk.sx, disk.sy, disk.sw, disk.sh, c - r, c - r, r * 2, r * 2);
+    } else {
+      cctx.drawImage(tex, c - r, c - r, r * 2, r * 2);
+    }
     // Phase 42: the fixed left-to-right terminator gradient that used to be
     // baked in here is gone — the real, Sun-driven phase shadow is now
     // erased live from this clean full-disk sprite by eraseLunarPhaseShadow
