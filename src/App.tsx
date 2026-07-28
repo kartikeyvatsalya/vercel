@@ -843,7 +843,7 @@ function App() {
             >
               Telescope Trainer
             </h1>
-            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Observatory Control v0.7</p>
+            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Observatory Control v1.0 RC</p>
           </div>
         </div>
 
