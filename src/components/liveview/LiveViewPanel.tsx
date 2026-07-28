@@ -196,6 +196,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   // mount smoothly instead of stepping it per click.
   const slewDirRef = useRef({ dAlt: 0, dAz: 0 });
 
+  // ── Capture/record timeout guards (Phase 64) ── handlePlanetaryCapture,
+  // handleRecordVideo, and handleDsoCapture each schedule a delayed setState
+  // to simulate exposure/stack processing time. Without tracking the id, a
+  // fast mode/tab switch that unmounts this panel mid-delay still fires the
+  // timeout afterward — cleared on unmount below.
+  const planetaryCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordVideoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dsoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── 'astrophotography' mode state (ported from AstroPhotoTrainer, P27.4) ──
   // Local (not a store slice) so it persists across a quick peek at another
   // tab exactly like 'track' mode's lock timer does, since LiveViewPanel is
@@ -303,6 +312,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     setDarkFrameCount(0);
     setHasDarksApplied(false);
   }, [astroMode]);
+
+  // Clear any in-flight capture/record timeouts on unmount (Phase 64).
+  useEffect(() => {
+    return () => {
+      if (planetaryCaptureTimeoutRef.current) clearTimeout(planetaryCaptureTimeoutRef.current);
+      if (recordVideoTimeoutRef.current) clearTimeout(recordVideoTimeoutRef.current);
+      if (dsoCaptureTimeoutRef.current) clearTimeout(dsoCaptureTimeoutRef.current);
+    };
+  }, []);
 
   // Shared render loop for both feeds
   //
@@ -1059,7 +1077,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   const handlePlanetaryCapture = () => {
     if (!hasRecording) return;
     setIsCapturing(true);
-    setTimeout(() => {
+    planetaryCaptureTimeoutRef.current = setTimeout(() => {
       const currentDefocus = Math.abs(telescopeState.focuserPosition - getPerfectFocusPoint(telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive));
       const sharpness = calculatePlanetarySharpness(frameCutoff, telescopeState.seeingQuality);
       let grade: string;
@@ -1095,7 +1113,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
 
   const handleRecordVideo = () => {
     setIsRecording(true);
-    setTimeout(() => {
+    recordVideoTimeoutRef.current = setTimeout(() => {
       setIsRecording(false);
       setHasRecording(true);
     }, 1500);
@@ -1103,7 +1121,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
 
   const handleDsoCapture = () => {
     setIsCapturingDso(true);
-    setTimeout(() => {
+    dsoCaptureTimeoutRef.current = setTimeout(() => {
       const currentDefocus = Math.abs(telescopeState.focuserPosition - getPerfectFocusPoint(telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive));
       const snr = calculateDsoSNR(dsoSubCount, dsoSubExposureSec, dsoIso);
       const isTrailing = !trackingLock && dsoSubExposureSec > 2;

@@ -115,7 +115,15 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
     stepSimTimeHours(hours);
     onTimeStep?.(hours);
   };
-  const missionState = useMissionStore();
+  // Phase 64: scoped via useShallow — this was a bare useMissionStore()
+  // whole-store subscription, re-rendering this always-mounted panel on
+  // every mission-store write regardless of whether the change touched
+  // anything actually shown here.
+  const missionState = useMissionStore(useShallow((state) => ({
+    activeRankMissionId: state.activeRankMissionId,
+    completedTargetIds: state.completedTargetIds,
+    rankMissionStatus: state.rankMissionStatus,
+  })));
   const { t } = useTranslation();
 
   if (!activeProfile) return null;
