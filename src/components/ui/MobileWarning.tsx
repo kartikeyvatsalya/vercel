@@ -18,7 +18,7 @@ export const MobileWarning: React.FC = () => {
   if (!isNarrow || dismissed) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950 p-6 text-center">
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950 p-6 text-center">
       <div className="max-w-xs flex flex-col items-center gap-4">
         <div className="bg-cyan-500/20 border border-cyan-500/30 p-3 rounded-xl">
           <Monitor className="w-8 h-8 text-cyan-400" />

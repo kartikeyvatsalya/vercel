@@ -340,6 +340,18 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ translucent = fa
           </button>
         </div>
 
+        {/* ── Drift assist (Phase 66) ── Easy/Fun gentle an untracked sky by
+            slowing the one simulation clock, so the clock above runs slower
+            too while the motor is off; say so instead of letting it look
+            broken. */}
+        {timeRate > 0 && !isTrackingMotorOn && modeRules.driftMultiplier < 1 && (
+          <p className="text-[9px] leading-snug text-amber-300/80">
+            {modeRules.driftMultiplier <= 0
+              ? t('telemetry.assistHeld')
+              : t('telemetry.assistSlowed', { pct: Math.round(modeRules.driftMultiplier * 100) })}
+          </p>
+        )}
+
         {/* ── Dark adaptation (Phase 59) ── The observer's own optics. Twenty
             simulated minutes in the dark to fill; one unfiltered glance at the
             Sun to empty. Shown as a bar because the useful question is never

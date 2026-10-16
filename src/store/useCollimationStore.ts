@@ -12,7 +12,7 @@ import {
   type ScrewTriple,
 } from '../engine/collimation';
 import { useTelescopeStore } from './useTelescopeStore';
-import { sanitizeNumber } from './persistGuards';
+import { createPersistStorage, isRecord, sanitizeNumber } from './persistGuards';
 
 /**
  * Collimation State (Phase 57)
@@ -178,6 +178,8 @@ export const useCollimationStore = create<CollimationState>()(
     }),
     {
       name: 'telescope-collimation-storage',
+      // A burst of screw clicks becomes one trailing write (Phase 66).
+      storage: createPersistStorage<Pick<CollimationState, 'primaryScrews' | 'secondaryScrews'>>({ coalesceMs: 400 }),
       // Only the screws persist; every derived number is recomputed against
       // whatever telescope is active on the next visit.
       partialize: (state) => ({
@@ -191,7 +193,7 @@ export const useCollimationStore = create<CollimationState>()(
       // canvas. A malformed triple (wrong length, non-array) resets the
       // whole cell to factory-aligned rather than trusting its shape.
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as Partial<CollimationState> | undefined;
+        const persisted = isRecord(persistedState) ? persistedState : undefined;
         const sanitizeScrews = (screws: unknown): ScrewTriple => {
           if (!Array.isArray(screws) || screws.length !== 3) return ALIGNED;
           return [

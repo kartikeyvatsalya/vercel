@@ -7,7 +7,7 @@ import { evaluateState, evaluateAstroPhotoRules } from '../../engine/rulesEngine
 import { getMagnification, getTrueFOV, FINDERSCOPE_MAG, FINDERSCOPE_APPARENT_FOV, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID, getPerfectFocusPoint, focuserDefocusMm } from '../../engine/opticalMath';
 import { calculateDsoSNR, calculatePlanetarySharpness } from '../../engine/astroMath';
 import { SIM_MODE_RULES } from '../../engine/simulationModes';
-import { computeSkyOffsetDeg, projectSkyOffsetPx, getDriftGentledSimTime } from '../../engine/skyGeometry';
+import { computeSkyOffsetDeg, projectSkyOffsetPx, angularSeparationDeg, computeSolarExposure } from '../../engine/skyGeometry';
 import { renderOpticalView } from '../../engine/skyRenderer';
 import { computeBahtinovGeometry, drawVernierInset, VERNIER_INSET_WIDTH_PX, VERNIER_INSET_HEIGHT_PX } from '../../engine/bahtinov';
 import { fresnelRingCount, starTestRadiusDeg, type StarTestRenderSpec } from '../../engine/starTest';
@@ -16,7 +16,7 @@ import { getCollimationReadout } from '../../store/useCollimationStore';
 import { getMechanicsReadout } from '../../store/useMechanicsStore';
 import { CollimationPanel } from './CollimationPanel';
 import { TARGETS } from '../../data/bookContent';
-import { getSmoothSimTime, SIDEREAL_DEG_PER_SEC } from '../../engine/timeEngine';
+import { getSmoothSimTime, getTimeEngineRate, SIDEREAL_DEG_PER_SEC } from '../../engine/timeEngine';
 import { getSkyState, DARK_ADAPTATION_FULL_MS } from '../../engine/daylight';
 import { convertEquatorialToHorizontal } from '../../engine/ephemerisMath';
 import { useTranslation } from '../../engine/i18n';
@@ -112,11 +112,37 @@ const ASTRO_CLEAN_SHARPNESS = 0.45;
 // objects is safe.
 const UNIVERSAL_SKY_BODIES = Object.values(TARGETS);
 
-// ── Physical solar hazard radius (Phase 35) ── Angular distance from the
-// LIVE Sun's center within which unfiltered optics are an eye hazard: half
-// the finder's ~7.5° field (the widest optic bolted to the tube — if the
-// Sun is anywhere in the finder, so is the danger) plus the solar radius.
-const SUN_HAZARD_RADIUS_DEG = 4.0;
+type TelescopeSnapshot = ReturnType<typeof useTelescopeStore.getState>;
+
+/**
+ * ── AUTHENTIC ALIGNMENT PROTOCOL (Phase 25/26) ──
+ * Real-world order of operations: FIRST center a prominent target in the
+ * main eyepiece (slew the mount), and only THEN touch the finder's screws.
+ * The screws stay locked until the mount actually points at the target.
+ *
+ * A boolean store selector (Phase 66): the panel re-renders only when the
+ * lock FLIPS. It used to subscribe to the raw pointing and clock to compute
+ * this in render, which re-rendered this whole panel on every frame of a
+ * slew and once a second at rest. Measured as a true angle on the sky.
+ */
+function selectAlignmentUnlocked(s: TelescopeSnapshot): boolean {
+  if (!s.activeTarget) return false;
+  const rules = SIM_MODE_RULES[s.simulationMode];
+  const eyepiece = EYEPIECE_CATALOG.find((e) => e.id === s.activeEyepieceId)
+    ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
+  const fovDeg = getTrueFOV(
+    eyepiece.afovDeg,
+    getMagnification(s.activeProfile?.focalLength || 1200, s.eyepieceFocalLength, s.isBarlowActive)
+  );
+  const offset = computeSkyOffsetDeg(
+    s.activeTarget, s.pointingAlt, s.pointingAz,
+    s.observerLocation.latitude, s.observerLocation.longitude, s.simTime
+  );
+  const offsetDeg = offset
+    ? angularSeparationDeg(s.pointingAlt, s.pointingAz, s.pointingAlt + offset.dAlt, s.pointingAz + offset.dAz)
+    : 0;
+  return offsetDeg < Math.max(0.3, fovDeg * rules.alignmentLockThresholdFovFraction);
+}
 
 // ── 'track' mode constants (ported from DobsonianTrainer) ──
 const TRACK_LOCK_DURATION_MS = 15_000;
@@ -145,7 +171,7 @@ interface LiveViewPanelProps {
   mode: 'align' | 'track' | 'collimate' | 'astrophotography';
 }
 
-export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
+const LiveViewPanelImpl: React.FC<LiveViewPanelProps> = ({ mode }) => {
   // Phase 52: this used to be a bare useTelescopeStore() — a whole-store,
   // no-selector subscription that re-rendered this (very heavy) panel on
   // EVERY store write anywhere in the app, including the 60fps setPointing
@@ -153,9 +179,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   // Scoped via useShallow to exactly the fields this render body/handlers
   // actually read reactively — the shared rAF loop below reads everything
   // else fresh via .getState() and is unaffected either way (see the Phase
-  // 28 comment on that effect). pointingAlt/Az stay in the selector because
-  // isAlignmentUnlocked below genuinely needs them live; this panel still
-  // re-renders on a pointing change, just no longer on unrelated ones.
+  // 28 comment on that effect). Phase 66: pointing and the clock are no
+  // longer subscribed at all (see selectAlignmentUnlocked).
   const telescopeState = useTelescopeStore(useShallow((state) => ({
     simulationMode: state.simulationMode,
     activeEyepieceId: state.activeEyepieceId,
@@ -163,12 +188,6 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     eyepieceFocalLength: state.eyepieceFocalLength,
     isBarlowActive: state.isBarlowActive,
     activeTarget: state.activeTarget,
-    pointingAlt: state.pointingAlt,
-    pointingAz: state.pointingAz,
-    observerLocation: state.observerLocation,
-    simTime: state.simTime,
-    driftAnchorSimTime: state.driftAnchorSimTime,
-    isTrackingMotorOn: state.isTrackingMotorOn,
     focuserPosition: state.focuserPosition,
     seeingQuality: state.seeingQuality,
     isDustCapOn: state.isDustCapOn,
@@ -233,7 +252,10 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   const [dsoSubExposureSec, setDsoSubExposureSec] = useState(30);
   const [dsoSubCount, setDsoSubCount] = useState(1);
   const [dsoIso, setDsoIso] = useState(800);
-  const [trackingLock, setTrackingLock] = useState(false);
+  // Mount Tracking Lock lives in the store (Phase 66) so the Orion mission's
+  // "Enable Motorized Tracking" step can see it.
+  const trackingLock = useTelescopeStore((s) => s.isAstroTrackingLocked);
+  const setTrackingLock = useTelescopeStore((s) => s.setAstroTrackingLocked);
   const [darkFrameCount, setDarkFrameCount] = useState(0);
   const [hasDarksApplied, setHasDarksApplied] = useState(false);
   const [isCapturingDso, setIsCapturingDso] = useState(false);
@@ -249,38 +271,13 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
   const activeEyepiece = EYEPIECE_CATALOG.find((e) => e.id === telescopeState.activeEyepieceId)
     ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
 
-  // ── AUTHENTIC ALIGNMENT PROTOCOL (Phase 25/26) ──
-  // Real-world order of operations: FIRST center a prominent target in the
-  // main eyepiece (slew the mount), and only THEN touch the finder's screws.
-  // The screws stay locked until the mount actually points at the target.
-  // The offset is measured at the same drift-gentled ephemeris time the
-  // feeds render with (Phase 33), so display and lock always agree.
   const mainMagnification = getMagnification(
     telescopeState.activeProfile?.focalLength || 1200,
     telescopeState.eyepieceFocalLength,
     telescopeState.isBarlowActive
   );
   const mainFovDeg = getTrueFOV(activeEyepiece.afovDeg, mainMagnification);
-  const currentSkyOffset = telescopeState.activeTarget
-    ? computeSkyOffsetDeg(
-        telescopeState.activeTarget,
-        telescopeState.pointingAlt,
-        telescopeState.pointingAz,
-        telescopeState.observerLocation.latitude,
-        telescopeState.observerLocation.longitude,
-        getDriftGentledSimTime(
-          telescopeState.simTime,
-          telescopeState.driftAnchorSimTime,
-          modeRules.driftMultiplier,
-          telescopeState.isTrackingMotorOn
-        )
-      )
-    : null;
-  const offsetMagnitudeDeg =
-    currentSkyOffset ? Math.hypot(currentSkyOffset.dAlt, currentSkyOffset.dAz) : 0;
-  const isAlignmentUnlocked =
-    !!telescopeState.activeTarget &&
-    offsetMagnitudeDeg < Math.max(0.3, mainFovDeg * modeRules.alignmentLockThresholdFovFraction);
+  const isAlignmentUnlocked = useTelescopeStore(selectAlignmentUnlocked);
 
   // ── Star-test disk size (Phase 57) ──
   // How big the defocused donut currently renders in the main feed, in px.
@@ -327,12 +324,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     setHasDarksApplied(false);
   }, [astroMode]);
 
-  // Clear any in-flight capture/record timeouts on unmount (Phase 64).
+  // Clear any in-flight capture/record timeouts on unmount (Phase 64). The
+  // solar-exposure flag this loop publishes is withdrawn too: with no
+  // eyepiece on screen nothing is shining into anyone's eye (Phase 66).
   useEffect(() => {
     return () => {
       if (planetaryCaptureTimeoutRef.current) clearTimeout(planetaryCaptureTimeoutRef.current);
       if (recordVideoTimeoutRef.current) clearTimeout(recordVideoTimeoutRef.current);
       if (dsoCaptureTimeoutRef.current) clearTimeout(dsoCaptureTimeoutRef.current);
+      useTelescopeStore.getState().setSunInOptics(false);
     };
   }, []);
 
@@ -429,19 +429,31 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           pointing = { alt: p.altitude, az: p.azimuth };
         }
 
-        // ── Physical solar-pointing hazard (Phase 35) ── The universal sky
-        // draws the Sun wherever the tube crosses it, target lock or not —
-        // so the safety interlock watches the mount's PHYSICAL pointing
-        // against the LIVE solar ephemeris (computeSkyOffsetDeg resolves the
-        // Sun through getBodyEquatorial), not just the UI selection. Only an
-        // actually-risen Sun (same −1° grace as the render cull) is a hazard.
-        const sunOffset = computeSkyOffsetDeg(
-          TARGETS.sun, pointing.alt, pointing.az,
-          observer.latitude, observer.longitude, simTimeSmooth
+        const finderFovDeg = getTrueFOV(FINDERSCOPE_APPARENT_FOV, FINDERSCOPE_MAG);
+
+        // ── Physical solar exposure (Phase 35; per optic since Phase 66) ──
+        // The universal sky draws the Sun wherever the tube crosses it, target
+        // lock or not, so the safety interlock watches where the optics
+        // PHYSICALLY point against the live solar ephemeris — at the same
+        // instant the Sun is drawn with — as a true angle on the sky
+        // (hypot(dAlt, dAz) overstated it near the zenith). The finder gets
+        // its own axis: its alignment error and thumbscrew nudge can put the
+        // Sun in the finder while the main field is clear, or the reverse.
+        const finderPxPerDeg = FINDER_CANVAS_PX / finderFovDeg;
+        const finderError = telescope.finderscopeError;
+        const exposure = computeSolarExposure(
+          pointing,
+          {
+            dx: finderError.deltaAz + alignment.offsetX / finderPxPerDeg,
+            dy: finderError.deltaAlt - alignment.offsetY / finderPxPerDeg,
+          },
+          observer,
+          simTimeSmooth
         );
-        const isPhysicallyPointedAtSun = !!sunOffset
-          && pointing.alt + sunOffset.dAlt > -1
-          && Math.hypot(sunOffset.dAlt, sunOffset.dAz) < SUN_HAZARD_RADIUS_DEG;
+        const isSunInOptics = exposure.main || exposure.finder;
+        // Edge-only store write (no-op while unchanged) — lets the instructor
+        // voice follow the physical exposure without re-rendering per frame.
+        telescope.setSunInOptics(isSunInOptics);
 
         const evalResult = evaluateState({
           isDustCapOn: telescope.isDustCapOn,
@@ -458,7 +470,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
           isBarlowActive: telescope.isBarlowActive,
           focusToleranceUnits: modeRules.focusToleranceUnits,
           enforceAtmosphericLimit: modeRules.atmosphericLimitEnforced,
-          isPhysicallyPointedAtSun,
+          isPhysicallyPointedAtSun: isSunInOptics,
         });
 
         // ── White-light event (Phase 59) ── An unfiltered look at the Sun
@@ -471,20 +483,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
         lastSolarHazard = evalResult.hasSolarHazard;
         const darkAdaptation = Math.min(1, telescope.darkAdaptationMs / DARK_ADAPTATION_FULL_MS);
 
-        const finderFovDeg = getTrueFOV(FINDERSCOPE_APPARENT_FOV, FINDERSCOPE_MAG);
         const digitalZoom = telescope.isDigitalZoomOn && modeRules.digitalZoomAvailable ? 2 : 1;
-
-        // ── Drift gentling in time (Phase 33) ── The LOCKED TARGET's
-        // ephemeris clock runs at the mode's driftMultiplier rate (motor off
-        // only), so Easy/Fun gentle passive drift while every manual slew
-        // still pans the target 1:1 against the raw mount pointing in BOTH
-        // feeds — the starfield always uses the true simTimeSmooth.
-        const targetSimTime = getDriftGentledSimTime(
-          simTimeSmooth,
-          telescope.driftAnchorSimTime,
-          modeRules.driftMultiplier,
-          telescope.isTrackingMotorOn
-        );
 
         // ── Dynamic Daylight (Phase 29) ── One sun-altitude sample shared
         // by both feeds this frame (Virtual Night override included).
@@ -517,8 +516,10 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
         const pointingMoved = telescope.pointingAlt !== lastStoreAlt || telescope.pointingAz !== lastStoreAz;
         lastStoreAlt = telescope.pointingAlt;
         lastStoreAz = telescope.pointingAz;
+        // The clock's EFFECTIVE rate (playback × drift assist): an assisted
+        // Easy sky really does drift slower, so it idles sooner.
         const mainDriftPxPerSec = mainTrueFovDeg > 0
-          ? (SIDEREAL_DEG_PER_SEC * telescope.timeRate / mainTrueFovDeg) * MAIN_CANVAS_PX
+          ? (SIDEREAL_DEG_PER_SEC * getTimeEngineRate() / mainTrueFovDeg) * MAIN_CANVAS_PX
           : 0;
         const skyVisiblyMoving = !telescope.isTrackingMotorOn && mainDriftPxPerSec > 2;
         // 'TRACKING LOCKED' HUD (Phase 40): keep the loop at full framerate for
@@ -615,9 +616,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 trueFovDeg: mainTrueFovDeg,
                 pointing,
                 viewOrientation: activeProfile.viewOrientation,
-                targetSimTime,
                 digitalZoom,
                 evalResult,
+                solarHazard: evalResult.hasSolarHazard && exposure.main,
                 isHighPerformanceMode: telescope.isHighPerformanceMode,
                 aperture: activeProfile.aperture,
                 target: activeTarget ?? null,
@@ -660,11 +661,11 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                   );
                 }
 
-                // Same gentled clock as the render — the reticle judges the
-                // target exactly where the student sees it.
+                // Same instant as the render — the reticle judges the target
+                // exactly where the student sees it.
                 const trackSkyOffset = computeSkyOffsetDeg(
                   activeTarget, pointing.alt, pointing.az,
-                  observer.latitude, observer.longitude, targetSimTime
+                  observer.latitude, observer.longitude, simTimeSmooth
                 );
                 const { px, py } = projectSkyOffsetPx(trackSkyOffset, pointing.alt, mainTrueFovDeg, mainCanvas.width);
                 const dist = Math.hypot(px, py);
@@ -926,8 +927,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
                 axisErrorDeg: telescope.finderscopeError,
                 legacyAlignmentOffsetPx: { x: alignment.offsetX, y: alignment.offsetY },
                 isCrosshairAligned: alignment.isAligned,
-                targetSimTime,
                 evalResult,
+                solarHazard: evalResult.hasSolarHazard && exposure.finder,
                 isHighPerformanceMode: telescope.isHighPerformanceMode,
                 aperture: activeProfile.aperture,
                 target: activeTarget ?? null,
@@ -1556,5 +1557,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({ mode }) => {
     </div>
   );
 };
+
+// Memoized (Phase 66): its only prop is `mode`, so a re-render of the app
+// shell no longer reconciles this whole panel.
+export const LiveViewPanel = React.memo(LiveViewPanelImpl);
 
 export default LiveViewPanel;

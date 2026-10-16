@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Telescope, X, Crosshair, Move, Circle, Camera } from 'lucide-react';
 import type { ModuleId } from '../../types';
+import { TEXTURE_CREDITS } from '../../engine/assetLoader';
+import { useDialogFocus } from './useDialogFocus';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ABOUT MODAL — Phase 60
@@ -93,9 +95,19 @@ const MODULES: { id: ModuleId; label: string; icon: React.ReactNode; description
   },
 ];
 
-export const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+export const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
+  return (
+  <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="about-dialog-title"
+      tabIndex={-1}
+      className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden outline-none"
+    >
       {/* Header */}
       <div className="shrink-0 bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -103,7 +115,7 @@ export const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
             <Telescope className="w-6 h-6 text-cyan-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold tracking-wide bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <h2 id="about-dialog-title" className="text-lg font-bold tracking-wide bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
               BRAHMAND
             </h2>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">
@@ -201,6 +213,27 @@ export const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
             ))}
           </ul>
         </div>
+
+        {/* Image credits (Phase 66) — the photographic textures come from
+            Wikimedia Commons; the Moon is CC BY-SA and requires attribution. */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Image Credits</p>
+          <ul className="flex flex-col gap-1 text-[11px] text-slate-400 leading-snug">
+            {TEXTURE_CREDITS.map((c) => (
+              <li key={c.subject}>
+                <strong className="text-slate-300">{c.subject}</strong> —{' '}
+                <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-200">{c.credit}</a>
+                {', '}
+                {c.licenseUrl
+                  ? <a href={c.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-200">{c.license}</a>
+                  : c.license}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            Via Wikimedia Commons; resampled, masked and phase-shaded by the simulator.
+          </p>
+        </div>
       </div>
 
       <div className="shrink-0 px-6 py-5 border-t border-slate-800">
@@ -213,6 +246,7 @@ export const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default AboutModal;

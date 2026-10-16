@@ -25,6 +25,36 @@ export const TERRESTRIAL_POINTING = { alt: 2.0, az: 180 };
 /** Wraps a degree delta into (-180, 180], so "358° away" reads as "-2° away." */
 export const wrap180 = (deg: number): number => ((deg + 180) % 360 + 360) % 360 - 180;
 
+// ── Per-instant ephemeris memo (Phase 66) ───────────────────────────
+// Both 2D feeds, the solar-hazard check and the Moon's phase shading all ask
+// for the Sun and Moon at the SAME frame instant; the lunar series alone is a
+// few dozen transcendental calls. One remembered answer per body keyed by
+// (instant, site) makes every repeat within a frame free. Bounded by
+// construction: at most one entry per computed body.
+interface EquatorialMemo { timeMs: number; lat: number; lon: number; value: { ra: number; dec: number } }
+const sunMemo: { entry: EquatorialMemo | null } = { entry: null };
+const moonMemo: { entry: EquatorialMemo | null } = { entry: null };
+
+function memoized(
+  memo: { entry: EquatorialMemo | null },
+  timeMs: number,
+  lat: number,
+  lon: number,
+  compute: () => { ra: number; dec: number }
+): { ra: number; dec: number } {
+  const e = memo.entry;
+  if (e && e.timeMs === timeMs && e.lat === lat && e.lon === lon) return e.value;
+  // Frozen because the same object is handed to every caller for this instant.
+  const value = Object.freeze(compute());
+  memo.entry = { timeMs, lat, lon, value };
+  return value;
+}
+
+/** The Sun's RA/Dec at an instant — memoized per instant (see above). */
+export function getSunEquatorialAt(simTimeMs: number): { ra: number; dec: number } {
+  return memoized(sunMemo, simTimeMs, 0, 0, () => getSunEquatorial(getJulianDate(new Date(simTimeMs))));
+}
+
 /**
  * ── Universal body ephemeris resolution (Phase 35; Moon live in 42.8) ──
  * The single authority for "where is this catalog body on the celestial
@@ -57,8 +87,11 @@ export function getBodyEquatorial(
   observer?: ObserverGeodetic
 ): { ra: number; dec: number } | null {
   if (target.type === 'terrestrial') return null;
-  if (target.id === 'sun') return getSunEquatorial(getJulianDate(new Date(simTimeMs)));
-  if (target.id === 'moon') return getMoonEquatorial(simTimeMs, observer);
+  if (target.id === 'sun') return getSunEquatorialAt(simTimeMs);
+  if (target.id === 'moon') {
+    if (!observer) return getMoonEquatorial(simTimeMs);
+    return memoized(moonMemo, simTimeMs, observer.latitude, observer.longitude, () => getMoonEquatorial(simTimeMs, observer));
+  }
   if (target.ra === undefined || target.dec === undefined) return null;
   return { ra: target.ra, dec: target.dec };
 }
@@ -100,13 +133,16 @@ export const clampSkyPx = (px: number): number => Math.max(-2000, Math.min(2000,
 /**
  * Projects an angular sky offset onto a square canvas of `viewportPx` side
  * length, given the view's true field of view. Pure angular truth — the
- * simulation modes' drift gentling happens in TIME (see
- * getDriftGentledSimTime below), never by scaling this projection.
+ * simulation modes' drift assist acts on the CLOCK (engine/timeEngine),
+ * never on this projection.
  *
  * Azimuth offset is scaled by cos(pointingAlt) (Phase 54): azimuth-circle
  * degrees shrink toward the pole (they'd converge to a point at zenith), so
  * an un-scaled dAz stretches the field horizontally — up to 11x near the
- * zenith — instead of matching what a real flat focal plane shows.
+ * zenith — instead of matching what a real flat focal plane shows. Every
+ * sky layer in skyRenderer uses this same mapping, and (Phase 66) so does
+ * every visibility cull there, so nothing is culled that this would place
+ * inside the field.
  */
 export function projectSkyOffsetPx(
   offset: { dAlt: number; dAz: number } | null,
@@ -123,38 +159,96 @@ export function projectSkyOffsetPx(
 }
 
 /**
- * ── Drift gentling in TIME, not space (Phase 33) ──
- * The simulation modes' driftMultiplier used to scale the projected target
- * offset itself (projectSkyOffsetPx's old `scale` param). That conflated two
- * very different motions: the slow PASSIVE drift of an untracked sky (the
- * thing "Easy" mode should gentle) and the student's own DELIBERATE mount
- * slews — which got scaled too, so in Fun mode (×0) a locked target sat
- * pinned to the crosshair however far you slewed, and in Easy (×0.35) it
- * visibly lagged the starfield in the finder ("frozen finderscope").
- *
- * The fix: gentle the target's EPHEMERIS CLOCK instead. The rendered offset
- * is targetPosition(gentledTime) − rawPointing, so mount motion always maps
- * 1:1 onto the view (both feeds pan honestly during any slew) while the
- * sky's own rotation is slowed to `driftScale` of true rate.
- *
- *   • Motor ON (or Realistic's scale 1): true time — the motor already
- *     cancels drift, and gentling a tracked clock would make the mount
- *     appear to drag the view off its own target.
- *   • Motor OFF: time flows at driftScale from `driftAnchorSimTime` — the
- *     store re-anchors it on target locks, motor toggles, and ±1 Hour steps
- *     (deliberate time jumps should show their full, honest effect).
- *
- * Phase 38: skyRenderer.ts feeds this SAME gentled value to the entire
- * celestial sphere — starfield, field stars, and every catalog body, not
- * just the one locked target — so a gentled sky drifts as one rigid whole
- * instead of the target visibly lagging the stars around it.
+ * True great-circle separation (deg) between two Alt/Az directions
+ * (haversine — well-conditioned for the small angles that matter here).
+ * Unlike hypot(dAlt, dAz), it stays correct near the zenith, where a large
+ * azimuth difference can be a tiny angle on the sky.
  */
-export function getDriftGentledSimTime(
-  simTime: number,
-  driftAnchorSimTime: number,
-  driftScale: number,
-  isTrackingMotorOn: boolean
-): number {
-  if (isTrackingMotorOn || driftScale >= 1) return simTime;
-  return driftAnchorSimTime + (simTime - driftAnchorSimTime) * driftScale;
+export function angularSeparationDeg(alt1: number, az1: number, alt2: number, az2: number): number {
+  const a1 = degToRad(alt1);
+  const a2 = degToRad(alt2);
+  const sinDAlt = Math.sin((a2 - a1) / 2);
+  const sinDAz = Math.sin(degToRad(az2 - az1) / 2);
+  const h = sinDAlt * sinDAlt + Math.cos(a1) * Math.cos(a2) * sinDAz * sinDAz;
+  return (2 * Math.asin(Math.min(1, Math.sqrt(h))) * 180) / Math.PI;
+}
+
+/**
+ * The sky direction reached by tilting an optical axis at (alt, az) by small
+ * FIELD angles — `dx` toward increasing azimuth (screen right in an upright
+ * view), `dy` toward the zenith — measured in the axis's own tangent plane.
+ * This is how a finderscope that is mis-aimed by (Δaz, Δalt) relative to the
+ * main tube actually points, and unlike alt + dy / az + dx / cos(alt) it stays
+ * well defined straight up.
+ */
+export function offsetHorizontalDirection(
+  altDeg: number,
+  azDeg: number,
+  dxDeg: number,
+  dyDeg: number
+): { alt: number; az: number } {
+  const alt = degToRad(altDeg);
+  const az = degToRad(azDeg);
+  // Unit vectors in (east, north, up) coordinates.
+  const p = [Math.cos(alt) * Math.sin(az), Math.cos(alt) * Math.cos(az), Math.sin(alt)];
+  const right = [Math.cos(az), -Math.sin(az), 0];
+  const up = [-Math.sin(alt) * Math.sin(az), -Math.sin(alt) * Math.cos(az), Math.cos(alt)];
+  const tx = Math.tan(degToRad(dxDeg));
+  const ty = Math.tan(degToRad(dyDeg));
+  const v = [p[0] + tx * right[0] + ty * up[0], p[1] + tx * right[1] + ty * up[1], p[2] + tx * right[2] + ty * up[2]];
+  const n = Math.hypot(v[0], v[1], v[2]);
+  const outAlt = Math.asin(Math.max(-1, Math.min(1, v[2] / n)));
+  const outAz = Math.atan2(v[0], v[1]);
+  return { alt: (outAlt * 180) / Math.PI, az: (((outAz * 180) / Math.PI) % 360 + 360) % 360 };
+}
+
+/**
+ * Worst-case TRUE angular radius of the sky that the flat Alt/Az projection
+ * above maps into a disk of `fieldRadiusDeg` field-degrees around the
+ * pointing. Measured numerically (Phase 66) over pointing altitudes from the
+ * horizon to the zenith and field radii up to 16°: the ratio never exceeded
+ * 1.26 — the azimuth squeeze near the zenith pulls in sky from across the
+ * pole-of-the-horizon, but only a little. 1.3× is the bounded, conservative
+ * search radius for layers that must enumerate candidates (the procedural
+ * field stars); layers that iterate a fixed list test each object exactly.
+ */
+export function projectedFieldCapRadiusDeg(fieldRadiusDeg: number): number {
+  return Math.max(0, fieldRadiusDeg) * 1.3;
+}
+
+/**
+ * Angular distance from the Sun's centre (deg) within which unfiltered optics
+ * are an eye hazard: half the finder's ~7.5° field (the widest optic bolted to
+ * the tube — if the Sun is anywhere in the finder, so is the danger) plus the
+ * solar radius.
+ */
+export const SUN_HAZARD_RADIUS_DEG = 4.0;
+
+export interface SolarExposure {
+  /** The Sun is within the hazard radius of the MAIN tube's optical axis. */
+  main: boolean;
+  /** The Sun is within the hazard radius of the FINDERSCOPE's own (possibly mis-aimed) axis. */
+  finder: boolean;
+}
+
+/**
+ * Physical solar exposure of each optic (Phase 66) — true spherical geometry
+ * against the live solar ephemeris at the SAME instant the renderer draws the
+ * Sun with, for the main tube and, separately, for the finder, whose axis is
+ * offset by its alignment error. Only a risen Sun (the renderer's −1° grace)
+ * can shine into either. What the menu has selected plays no part here.
+ */
+export function computeSolarExposure(
+  pointing: { alt: number; az: number },
+  finderAxisOffsetDeg: { dx: number; dy: number },
+  observer: { latitude: number; longitude: number },
+  simTimeMs: number
+): SolarExposure {
+  const sunEq = getSunEquatorialAt(simTimeMs);
+  const sun = convertEquatorialToHorizontal(sunEq.ra, sunEq.dec, observer.latitude, observer.longitude, new Date(simTimeMs));
+  if (sun.altitude <= -1) return { main: false, finder: false };
+  const main = angularSeparationDeg(pointing.alt, pointing.az, sun.altitude, sun.azimuth) < SUN_HAZARD_RADIUS_DEG;
+  const finderAxis = offsetHorizontalDirection(pointing.alt, pointing.az, finderAxisOffsetDeg.dx, finderAxisOffsetDeg.dy);
+  const finder = angularSeparationDeg(finderAxis.alt, finderAxis.az, sun.altitude, sun.azimuth) < SUN_HAZARD_RADIUS_DEG;
+  return { main, finder };
 }

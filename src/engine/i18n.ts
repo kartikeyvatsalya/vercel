@@ -56,6 +56,8 @@ const en = {
   'telemetry.virtualNight': 'Virtual Night',
   'telemetry.darkAdaptation': 'Dark Adaptation',
   'telemetry.adaptWaiting': 'let sim time run',
+  'telemetry.assistSlowed': 'Easy assist: while the motor is off, the sky (and this clock) run at {pct}% speed.',
+  'telemetry.assistHeld': 'Fun assist: while the motor is off, the sky (and this clock) hold still.',
 
   // ── balance.* — MountBalancePanel.tsx (Phase 58) ──
   'balance.heading': 'Mount Balance',
@@ -326,6 +328,8 @@ const hi: Record<TranslationKey, string> = {
   'telemetry.virtualNight': 'वर्चुअल रात',
   'telemetry.darkAdaptation': 'अंधेरा अनुकूलन',
   'telemetry.adaptWaiting': 'सिम समय चलने दें',
+  'telemetry.assistSlowed': 'ईज़ी सहायता: मोटर बंद रहने पर आकाश (और यह घड़ी) {pct}% गति से चलते हैं।',
+  'telemetry.assistHeld': 'फन सहायता: मोटर बंद रहने पर आकाश (और यह घड़ी) स्थिर रहते हैं।',
 
   // ── balance.* ──
   'balance.heading': 'माउंट संतुलन',

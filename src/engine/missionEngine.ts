@@ -3,10 +3,12 @@ import { persist } from 'zustand/middleware';
 import { useTelescopeStore } from '../store/useTelescopeStore';
 import { useAlignmentStore } from '../store/useAlignmentStore';
 import { useProgressStore } from '../store/useProgressStore';
-import { missions } from '../data/missions';
-import type { RankMission } from '../data/missions';
+import { createPersistStorage, isRecord, sanitizeBoolean, sanitizeEnum, sanitizeNumber, sanitizeStringArray } from '../store/persistGuards';
+import { missions, type MissionTelescopeView } from '../data/missions';
+import { TARGETS } from '../data/bookContent';
 import * as opticalMath from './opticalMath';
-import { computeSkyOffsetDeg } from './skyGeometry';
+import { computeSkyOffsetDeg, angularSeparationDeg } from './skyGeometry';
+import { getSmoothSimTime } from './timeEngine';
 import type { InstructorResponse } from '../types';
 
 export type MissionStepId =
@@ -35,34 +37,28 @@ export interface MissionDefinition {
 // ─────────────────────────────────────────────────────────────────────────────
 // RANK CURRICULUM RUNTIME — "Skywatcher" / "Observer" missions (src/data/missions.ts)
 //
-// successCondition contract (see missions.ts header for full details):
-//   Compiled ONCE via `new Function('telescope', 'math', body)` when the mission
-//   starts, then re-invoked on every relevant state change. Must return boolean.
+// successCondition contract (see missions.ts header for full details): a
+// typed predicate over MissionTelescopeView, re-invoked on every relevant
+// state change. Phase 66 replaced the old `new Function` source strings — the
+// conditions only ever came from this repository's own bundled data, so this
+// was not a remote-code path, but strings bypassed the type checker entirely.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type SuccessEvaluator = (telescope: any, math: typeof opticalMath) => boolean;
+/** Missions whose predicate has already thrown — warned about once, not on every state change. */
+const warnedMissionIds = new Set<string>();
 
-/**
- * Compiles a RankMission's successCondition string into a safe, memoized
- * evaluator function. Any runtime error inside the student-observable
- * condition body (or a malformed condition string itself) is swallowed and
- * treated as "not yet successful" rather than crashing the app.
- */
-function compileSuccessCondition(mission: RankMission): SuccessEvaluator {
+/** Runs a mission's success predicate; a throw counts as "not yet successful", never a crash. */
+function isMissionSatisfied(missionId: string, view: MissionTelescopeView): boolean {
+  const mission = missions.find((m) => m.id === missionId);
+  if (!mission) return false;
   try {
-    // eslint-disable-next-line no-new-func -- documented sandboxed evaluator, see missions.ts contract
-    const fn = new Function('telescope', 'math', mission.successCondition) as SuccessEvaluator;
-    return (telescope, math) => {
-      try {
-        return !!fn(telescope, math);
-      } catch (err) {
-        console.warn(`[missionEngine] successCondition threw for "${mission.id}":`, err);
-        return false;
-      }
-    };
+    return mission.successCondition(view, opticalMath) === true;
   } catch (err) {
-    console.warn(`[missionEngine] Failed to compile successCondition for "${mission.id}":`, err);
-    return () => false;
+    if (!warnedMissionIds.has(missionId)) {
+      warnedMissionIds.add(missionId);
+      console.warn(`[missionEngine] successCondition threw for "${missionId}":`, err);
+    }
+    return false;
   }
 }
 
@@ -147,6 +143,13 @@ interface MissionState {
   activeMissionId: string | null;
   steps: MissionStep[];
   currentStepIndex: number;
+  /**
+   * Epoch-ms when the CURRENT step became active (Phase 66). Logbook-based
+   * steps only accept an entry captured at or after this moment, so an old
+   * capture — from a previous attempt, or a previous session — can no longer
+   * complete a fresh attempt the instant it starts.
+   */
+  stepStartedAt: number;
   startMission: (id: string) => void;
   endMission: () => void;
   advanceStep: () => void;
@@ -156,9 +159,25 @@ interface MissionState {
   activeRankMissionId: string | null;
   rankMissionStatus: 'idle' | 'active' | 'success';
   completedTargetIds: string[];
-  compiledSuccessFn: SuccessEvaluator | null;
   startRankMission: (id: string) => void;
   endRankMission: () => void;
+}
+
+type PersistedMissionState = Pick<
+  MissionState,
+  'isActive' | 'activeMissionId' | 'steps' | 'currentStepIndex' | 'stepStartedAt'
+  | 'activeRankMissionId' | 'rankMissionStatus' | 'completedTargetIds'
+>;
+
+/**
+ * GoTo lockout follows the mission lifecycle (Phase 59; tightened Phase 66):
+ * only an ACTIVE star-hopping rank mission holds it. Starting a guided
+ * workflow, abandoning, completing, or resuming a finished mission all hand
+ * the slew back.
+ */
+function syncGoToLockout(rankMissionId: string | null, status: MissionState['rankMissionStatus']): void {
+  const mission = rankMissionId ? missions.find((m) => m.id === rankMissionId) : undefined;
+  useTelescopeStore.getState().setGoToSuppressed(status === 'active' && !!mission?.suppressGoTo);
 }
 
 export const useMissionStore = create<MissionState>()(
@@ -168,18 +187,22 @@ export const useMissionStore = create<MissionState>()(
       activeMissionId: null,
       steps: [],
       currentStepIndex: 0,
+      stepStartedAt: 0,
 
-      startMission: (id) => set({
-        isActive: true,
-        activeMissionId: id,
-        steps: getMissionSteps(id),
-        currentStepIndex: 0,
-        // Mutually exclusive with the rank curriculum runtime
-        activeRankMissionId: null,
-        rankMissionStatus: 'idle',
-        completedTargetIds: [],
-        compiledSuccessFn: null,
-      }),
+      startMission: (id) => {
+        set({
+          isActive: true,
+          activeMissionId: id,
+          steps: getMissionSteps(id),
+          currentStepIndex: 0,
+          stepStartedAt: Date.now(),
+          // Mutually exclusive with the rank curriculum runtime
+          activeRankMissionId: null,
+          rankMissionStatus: 'idle',
+          completedTargetIds: [],
+        });
+        syncGoToLockout(null, 'idle');
+      },
 
       endMission: () => set({ isActive: false, activeMissionId: null, steps: [], currentStepIndex: 0 }),
 
@@ -190,28 +213,24 @@ export const useMissionStore = create<MissionState>()(
         return {
           steps: newSteps,
           currentStepIndex: Math.min(state.currentStepIndex + 1, newSteps.length),
+          stepStartedAt: Date.now(),
         };
       }),
 
       resetMission: () => set((state) => ({
         steps: state.activeMissionId ? getMissionSteps(state.activeMissionId) : [],
         currentStepIndex: 0,
+        stepStartedAt: Date.now(),
       })),
 
       // ── Rank Curriculum runtime ──
       activeRankMissionId: null,
       rankMissionStatus: 'idle',
       completedTargetIds: [],
-      compiledSuccessFn: null,
 
       startRankMission: (id) => {
         const mission = missions.find(m => m.id === id);
         if (!mission) return;
-        // Phase 59: a star-hopping mission takes the GoTo away for its whole
-        // duration. Owned here rather than in App.tsx so it can never get out
-        // of step with the mission runtime — including a rehydrated session
-        // that resumes mid-mission (see onRehydrateStorage below).
-        useTelescopeStore.getState().setGoToSuppressed(!!mission.suppressGoTo);
         set({
           // Mutually exclusive with the legacy guided workflow runtime
           isActive: false,
@@ -222,40 +241,84 @@ export const useMissionStore = create<MissionState>()(
           activeRankMissionId: id,
           rankMissionStatus: 'active',
           completedTargetIds: [],
-          compiledSuccessFn: compileSuccessCondition(mission),
         });
+        // Phase 59: a star-hopping mission takes the GoTo away for its whole
+        // duration. Owned here rather than in App.tsx so it can never get out
+        // of step with the mission runtime.
+        syncGoToLockout(id, 'active');
       },
 
       endRankMission: () => {
-        // Always restore GoTo — the lockout belongs to the mission, not to the
-        // telescope, and a student who abandons the hop must not be left with a
-        // permanently dead slew.
-        useTelescopeStore.getState().setGoToSuppressed(false);
         set({
           activeRankMissionId: null,
           rankMissionStatus: 'idle',
           completedTargetIds: [],
-          compiledSuccessFn: null,
         });
+        // Always restore GoTo — the lockout belongs to the mission, not to the
+        // telescope, and a student who abandons the hop must not be left with a
+        // permanently dead slew.
+        syncGoToLockout(null, 'idle');
       },
     }),
     {
       name: 'telescope-mission-storage',
-      partialize: (state) => {
-        const { compiledSuccessFn, ...rest } = state;
-        return rest as MissionState;
+      storage: createPersistStorage<PersistedMissionState>(),
+      partialize: (state): PersistedMissionState => ({
+        isActive: state.isActive,
+        activeMissionId: state.activeMissionId,
+        steps: state.steps,
+        currentStepIndex: state.currentStepIndex,
+        stepStartedAt: state.stepStartedAt,
+        activeRankMissionId: state.activeRankMissionId,
+        rankMissionStatus: state.rankMissionStatus,
+        completedTargetIds: state.completedTargetIds,
+      }),
+      // ── Mission snapshot repair (Phase 66) ── Steps are rebuilt from the
+      // live definitions (a saved copy carries stale titles/instructions and
+      // could carry anything); only progress through them is restored. The
+      // two runtimes stay mutually exclusive, and unknown mission ids reset
+      // to idle rather than leaving a panel with nothing behind it.
+      merge: (persistedState, currentState) => {
+        const saved = isRecord(persistedState) ? persistedState : {};
+        const activeMissionId = AVAILABLE_MISSIONS.some((m) => m.id === saved.activeMissionId)
+          ? (saved.activeMissionId as string)
+          : null;
+        const isActive = sanitizeBoolean(saved.isActive, false) && activeMissionId !== null;
+        const steps = isActive && activeMissionId ? getMissionSteps(activeMissionId) : [];
+        const currentStepIndex = isActive
+          ? Math.floor(sanitizeNumber(saved.currentStepIndex, 0, 0, steps.length))
+          : 0;
+        steps.forEach((s, i) => { s.isComplete = i < currentStepIndex; });
+
+        let activeRankMissionId = missions.some((m) => m.id === saved.activeRankMissionId)
+          ? (saved.activeRankMissionId as string)
+          : null;
+        if (isActive) activeRankMissionId = null;
+        const rankMissionStatus = activeRankMissionId
+          ? sanitizeEnum(saved.rankMissionStatus, ['active', 'success'] as const, 'active')
+          : 'idle';
+        return {
+          ...currentState,
+          isActive,
+          activeMissionId: isActive ? activeMissionId : null,
+          steps,
+          currentStepIndex,
+          // A snapshot from before Phase 66 has no step clock: start it now,
+          // so evidence captured before the upgrade cannot complete the step.
+          stepStartedAt: sanitizeNumber(saved.stepStartedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+          activeRankMissionId,
+          rankMissionStatus,
+          completedTargetIds: activeRankMissionId
+            ? sanitizeStringArray(saved.completedTargetIds, Object.keys(TARGETS))
+            : [],
+        };
       },
       onRehydrateStorage: () => (state) => {
-        if (state && state.activeRankMissionId) {
-          const mission = missions.find(m => m.id === state.activeRankMissionId);
-          if (mission) {
-            state.compiledSuccessFn = compileSuccessCondition(mission);
-            // isGoToSuppressed is deliberately NOT persisted (a reopened app
-            // must never start with a mysteriously dead GoTo), so a resumed
-            // star-hopping mission has to re-assert it here.
-            useTelescopeStore.getState().setGoToSuppressed(!!mission.suppressGoTo);
-          }
-        }
+        // isGoToSuppressed is deliberately NOT persisted (a reopened app must
+        // never start with a mysteriously dead GoTo), so a resumed, still
+        // ACTIVE star-hopping mission re-asserts it here — and a finished one
+        // does not.
+        if (state) syncGoToLockout(state.activeRankMissionId, state.rankMissionStatus);
       }
     }
   )
@@ -273,7 +336,7 @@ export const useMissionStore = create<MissionState>()(
  */
 export function evaluateRankMissionProgress(): InstructorResponse | null {
   const state = useMissionStore.getState();
-  if (state.rankMissionStatus !== 'active' || !state.activeRankMissionId || !state.compiledSuccessFn) {
+  if (state.rankMissionStatus !== 'active' || !state.activeRankMissionId) {
     return null;
   }
 
@@ -286,31 +349,48 @@ export function evaluateRankMissionProgress(): InstructorResponse | null {
   // Phase 59: `targetOffsetDeg` — how far the mount is from the thing it is
   // locked onto. Derived rather than stored (the mount pointing and the
   // target's ephemeris are both already live), and exposed on the adapter
-  // because a navigation mission's whole success criterion IS that number and
-  // the condition sandbox has no access to skyGeometry.
+  // because a navigation mission's whole success criterion IS that number.
+  // Phase 66: measured as a true angle on the sky against the live clock —
+  // hypot(dAlt, dAz) overstated it near the zenith, where a large azimuth
+  // difference is a small distance, and the ~1 Hz mirror lagged the view.
+  const now = getSmoothSimTime();
   const targetSkyOffset = computeSkyOffsetDeg(
     telescopeState.activeTarget,
     telescopeState.pointingAlt,
     telescopeState.pointingAz,
     telescopeState.observerLocation.latitude,
     telescopeState.observerLocation.longitude,
-    telescopeState.simTime
+    now
   );
 
-  const telescopeAdapter = {
-    ...telescopeState,
+  const telescopeAdapter: MissionTelescopeView = {
+    activeTarget: telescopeState.activeTarget,
     activeProfile: {
       ...telescopeState.activeProfile,
       apertureMm: telescopeState.activeProfile.aperture,
       focalLengthMm: telescopeState.activeProfile.focalLength,
     },
+    activeEyepieceId: telescopeState.activeEyepieceId,
+    eyepieceFocalLength: telescopeState.eyepieceFocalLength,
+    isBarlowActive: telescopeState.isBarlowActive,
+    isDustCapOn: telescopeState.isDustCapOn,
+    isMirrorCooled: telescopeState.isMirrorCooled,
+    isCollimated: telescopeState.isCollimated,
+    isMechanicallyBalanced: telescopeState.isMechanicallyBalanced,
+    focuserPosition: telescopeState.focuserPosition,
+    seeingQuality: telescopeState.seeingQuality,
+    isGoToSuppressed: telescopeState.isGoToSuppressed,
     targetOffsetDeg: targetSkyOffset
-      ? Math.hypot(targetSkyOffset.dAlt, targetSkyOffset.dAz)
+      ? angularSeparationDeg(
+          telescopeState.pointingAlt,
+          telescopeState.pointingAz,
+          telescopeState.pointingAlt + targetSkyOffset.dAlt,
+          telescopeState.pointingAz + targetSkyOffset.dAz
+        )
       : null,
   };
 
-  const success = state.compiledSuccessFn(telescopeAdapter, opticalMath);
-  if (!success) return null;
+  if (!isMissionSatisfied(missionDef.id, telescopeAdapter)) return null;
 
   const currentTargetId = telescopeState.activeTarget?.id;
   const isMultiTargetCapstone = missionDef.id === 'rank2_capstone_right_tool';
@@ -325,6 +405,7 @@ export function evaluateRankMissionProgress(): InstructorResponse | null {
     if (nextCompleted.length >= 3) {
       useProgressStore.getState().unlockAchievement(missionDef.id);
       useMissionStore.setState({ rankMissionStatus: 'success' });
+      syncGoToLockout(missionDef.id, 'success');
       return {
         title: `Capstone Complete: ${missionDef.title}`,
         severity: 'success',
@@ -349,9 +430,11 @@ export function evaluateRankMissionProgress(): InstructorResponse | null {
     };
   }
 
-  // Single-target missions succeed on their first valid evaluation.
+  // Single-target missions succeed on their first valid evaluation — and a
+  // completed star-hop hands the GoTo back straight away.
   useProgressStore.getState().unlockAchievement(missionDef.id);
   useMissionStore.setState({ rankMissionStatus: 'success', completedTargetIds: [missionDef.targetId] });
+  syncGoToLockout(missionDef.id, 'success');
   return {
     title: `Mission Complete: ${missionDef.title}`,
     severity: 'success',
@@ -379,6 +462,12 @@ export function evaluateMissionProgress(activeModule: string): InstructorRespons
   }
 
   const currentStep = mission.steps[mission.currentStepIndex];
+  // Evidence rule (Phase 66): a logbook-graded step accepts only a capture
+  // made while THIS step was the active one. Strictly after its start: the
+  // capture that completed the previous step is timestamped before (or in
+  // the same millisecond as) the advance, and must not count twice.
+  const lastEntry = progress.logbookEntries[0];
+  const freshEntry = lastEntry && lastEntry.timestamp > mission.stepStartedAt ? lastEntry : undefined;
 
   switch (currentStep.id) {
     // ── Shared Steps ──
@@ -430,12 +519,11 @@ export function evaluateMissionProgress(activeModule: string): InstructorRespons
 
     // ── Saturn Recon: Planetary Lucky Imaging ──
     case 'astrophoto_planetary': {
-      const lastEntry = progress.logbookEntries[0];
       if (
-        lastEntry &&
-        lastEntry.targetId === 'saturn' &&
-        lastEntry.tags.includes('Lucky ≤20%') &&
-        lastEntry.tags.some(t => t.includes('Grade: A') || t.includes('Grade: B'))
+        freshEntry &&
+        freshEntry.targetId === 'saturn' &&
+        freshEntry.tags.includes('Lucky ≤20%') &&
+        freshEntry.tags.some(t => t.includes('Grade: A') || t.includes('Grade: B'))
       ) {
         mission.advanceStep();
         progress.unlockAchievement('master_astronomer');
@@ -450,12 +538,11 @@ export function evaluateMissionProgress(activeModule: string): InstructorRespons
 
     // ── Orion DSO: Tracking ──
     case 'dso_tracking': {
-      // Check if user is in astrophotography module with M42 selected and tracking locked
-      // We read the latest logbook entry or just check current state
-      if (activeModule === 'astrophotography' && telescope.activeTarget?.id === 'm42') {
-        // We can't directly read the component state, so we check for a logbook entry indicating tracking was used
-        // For now, advance if they're on the right module with the right target
-        // The actual tracking check happens in the next step via logbook tags
+      // The step is literally "Enable Motorized Tracking": it now requires the
+      // Deep Sky desk's Mount Tracking Lock (Phase 66 — the lock used to live
+      // in LiveViewPanel's local state, invisible here, so the step advanced
+      // on module + target alone).
+      if (activeModule === 'astrophotography' && telescope.activeTarget?.id === 'm42' && telescope.isAstroTrackingLocked) {
         mission.advanceStep();
         return {
           title: 'Mission Update',
@@ -468,12 +555,11 @@ export function evaluateMissionProgress(activeModule: string): InstructorRespons
 
     // ── Orion DSO: Stack Sub-Exposures ──
     case 'dso_stack': {
-      const lastEntry = progress.logbookEntries[0];
       if (
-        lastEntry &&
-        lastEntry.targetId === 'm42' &&
-        lastEntry.tags.includes('DSO Stack') &&
-        !lastEntry.tags.includes('Star Trailed')
+        freshEntry &&
+        freshEntry.targetId === 'm42' &&
+        freshEntry.tags.includes('DSO Stack') &&
+        !freshEntry.tags.includes('Star Trailed')
       ) {
         mission.advanceStep();
         return {
@@ -487,12 +573,11 @@ export function evaluateMissionProgress(activeModule: string): InstructorRespons
 
     // ── Orion DSO: Dark Frame Calibration ──
     case 'dso_darks': {
-      const lastEntry = progress.logbookEntries[0];
       if (
-        lastEntry &&
-        lastEntry.targetId === 'm42' &&
-        lastEntry.tags.includes('Dark Calibrated') &&
-        lastEntry.tags.some(t => t.includes('Grade: A') || t.includes('Grade: B'))
+        freshEntry &&
+        freshEntry.targetId === 'm42' &&
+        freshEntry.tags.includes('Dark Calibrated') &&
+        freshEntry.tags.some(t => t.includes('Grade: A') || t.includes('Grade: B'))
       ) {
         mission.advanceStep();
         progress.unlockAchievement('deep_sky_astrophotographer');

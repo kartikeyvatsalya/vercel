@@ -133,10 +133,22 @@ Every system below — pedagogy, progression, feedback loops, assessment, the 3D
 - Isolated tour-box clipping and overflow fixed via `maxHeight` + internal scrolling; lunar halo removed for render correctness.
 - Phase 63 capstone: a full architectural review of the codebase ahead of the v1.0 cut.
 
-### `v1.0.0` — Phase 64 (Gold Master Hardening) ✅ ⬅ **CURRENT**
+### `v1.0.0` — Phase 64 (Gold Master Hardening) ✅
 - Fixed an unmount timeout leak in `LiveViewPanel.tsx`'s astrophotography capture/record handlers (`handlePlanetaryCapture`, `handleRecordVideo`, `handleDsoCapture`) — all three now clear their pending `setTimeout` on unmount.
 - Fixed `TelemetryPanel.tsx`'s last unscoped store subscription: `useMissionStore()` now reads only `activeRankMissionId`, `completedTargetIds`, and `rankMissionStatus` via `useShallow`, matching every other store this always-mounted panel touches.
 - Full documentation sync (this file) against the real, verified state of the codebase and git history.
+
+### `v1.0.1` — Phases 65–66 (Stability, Performance & Correctness Hardening) ✅ ⬅ **CURRENT**
+- Phase 65: every persisted store validates what it loads (shared `src/store/persistGuards.ts`), 60× time steps are clamped, and the SCT blank-canvas bug is fixed.
+- Phase 66 startup and memory, measured in headless Chrome against the Phase 65 build with the CPU throttled 4×: time to a usable screen fell from 11.9 s to 1.6 s, peak renderer memory from 1.46 GB to 0.17 GB, and peak GPU-process memory from 3.0 GB to 0.5 GB. The four photographic textures now download at no more than 1280 pixels on a side (about 0.76 MB in total instead of 43 MB); the old Orion original alone was 18,000 × 18,000 pixels, and its decode was the most likely cause of crashes on low-memory phones and tablets. Startup no longer waits for the photographs; the procedural glyphs cover the gap.
+- One sky clock: the eyepiece, finder, solar check, missions and telemetry all read the same simulation instant. The Easy and Fun drift assist now slows that one clock (and the telemetry panel says so) instead of keeping a second, private clock for the targets.
+- Star culling uses the same screen geometry as star drawing, so stars no longer vanish near the field edge or near the zenith; faint field stars are evenly dense at every declination and cheaper to generate near the poles.
+- Saved settings: unchanged state is never rewritten and rapid changes are coalesced (slewing went from about 190 storage writes per second to none); a full or blocked browser storage can no longer freeze the eyepiece views; corrupted saved data is repaired field by field instead of being trusted.
+- Solar safety: the finderscope is checked separately from the main tube, using its real alignment offset; a warning appears as soon as the Sun is selected without a filter; a filtered Sun shows the Sun alone on a black sky.
+- Starfield occlusion follows each body's real outline (Saturn's rings, Jupiter's flattened disk) in both the main view and the finder.
+- Missions: success conditions are typed functions (no runtime code generation); logbook evidence must be newer than the current step; the deep-sky tracking step requires a real tracking lock; the GoTo lockout follows the active mission only.
+- Changing the observing site keeps a GoTo target or a tracked patch of sky in view instead of throwing the telescope to a stale position.
+- The Settings, About and Custom Telescope dialogs fit small screens, keep keyboard focus inside, close with Escape and return focus to the button that opened them.
 
 ---
 

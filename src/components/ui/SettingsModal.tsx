@@ -1,35 +1,65 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useShallow } from '../../store/useShallowSelector';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
 import { useCollimationStore } from '../../store/useCollimationStore';
 import { useMechanicsStore } from '../../store/useMechanicsStore';
 import { SIM_MODE_RULES, type SimulationMode } from '../../engine/simulationModes';
 import { useTranslation } from '../../engine/i18n';
+import { useDialogFocus } from './useDialogFocus';
 import { Settings, X, Cpu, Activity, Gauge, GraduationCap } from 'lucide-react';
 
 
 export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const telescopeState = useTelescopeStore();
+  // Phase 66: scoped (was a whole-store subscription that re-rendered the
+  // open modal on every store write, pointing and clock included).
+  const telescopeState = useTelescopeStore(useShallow((s) => ({
+    simulationMode: s.simulationMode,
+    setSimulationMode: s.setSimulationMode,
+    isHighPerformanceMode: s.isHighPerformanceMode,
+    setHighPerformanceMode: s.setHighPerformanceMode,
+    isMechanicallyBalanced: s.isMechanicallyBalanced,
+    setMechanicallyBalanced: s.setMechanicallyBalanced,
+    isCollimated: s.isCollimated,
+    activeProfile: s.activeProfile,
+    startTour: s.startTour,
+  })));
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    // z-[10000], shared by every focus-trapping dialog (Phase 66): above the
+    // Instructor HUD (9999), whose controls the trap makes unreachable, and
+    // below only the MobileWarning (10001).
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      {/* Capped below the viewport height (Phase 66): on a short screen the
+          body scrolls inside the panel instead of the panel running off the
+          top and bottom of the screen with no way to reach its controls. */}
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        tabIndex={-1}
+        className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] shadow-2xl overflow-hidden flex flex-col outline-none"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/50">
+        <div className="shrink-0 flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/50">
           <div className="flex items-center gap-3 text-white">
-            <Settings className="w-5 h-5 text-indigo-400" />
-            <h2 className="font-bold text-lg tracking-wide uppercase">Simulator Settings</h2>
+            <Settings className="w-5 h-5 text-indigo-400" aria-hidden="true" />
+            <h2 id="settings-dialog-title" className="font-bold text-lg tracking-wide uppercase">Simulator Settings</h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
+            aria-label="Close settings"
             className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-white"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex flex-col gap-6 text-sm">
+        <div className="flex-1 min-h-0 p-6 overflow-y-auto overscroll-contain flex flex-col gap-6 text-sm">
 
           {/* ── Advanced Tour (Phase 60) ──
               Collimation, counterweight torque, transparency and dark
@@ -73,6 +103,7 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                   <button
                     key={mode}
                     onClick={() => telescopeState.setSimulationMode(mode)}
+                    aria-pressed={isActive}
                     className={`text-left p-4 rounded-xl border transition-colors ${
                       isActive
                         ? 'bg-amber-950/40 border-amber-500/60'
@@ -104,6 +135,9 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               </div>
               <button
                 onClick={() => telescopeState.setHighPerformanceMode(!telescopeState.isHighPerformanceMode)}
+                role="switch"
+                aria-checked={telescopeState.isHighPerformanceMode}
+                aria-label="High-Performance Graphics"
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
                   telescopeState.isHighPerformanceMode ? 'bg-indigo-500' : 'bg-slate-600'
                 }`}
@@ -162,7 +196,8 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                 onClick={() => {
                   const collimation = useCollimationStore.getState();
                   if (telescopeState.isCollimated) {
-                    collimation.scramble('primary');
+                    // An SCT has no user primary cell — scramble the cell it has.
+                    collimation.scramble(telescopeState.activeProfile?.collimation?.primary ? 'primary' : 'secondary');
                   } else {
                     collimation.resetAll();
                   }

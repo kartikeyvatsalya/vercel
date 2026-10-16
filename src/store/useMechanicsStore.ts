@@ -14,7 +14,7 @@ import {
   type BalanceVerdict,
 } from '../engine/mechanics';
 import { useTelescopeStore } from './useTelescopeStore';
-import { sanitizeNumber } from './persistGuards';
+import { createPersistStorage, isRecord, sanitizeNumber } from './persistGuards';
 
 /**
  * Mount Mechanics State (Phase 58)
@@ -190,6 +190,9 @@ export const useMechanicsStore = create<MechanicsState>()(
     }),
     {
       name: 'telescope-mechanics-storage',
+      // A slider drag becomes one trailing write instead of one per input
+      // event (Phase 66).
+      storage: createPersistStorage<Pick<MechanicsState, 'counterweightPosition'>>({ coalesceMs: 400 }),
       // Only the shaft position persists; every derived number is recomputed
       // against whatever telescope is active on the next visit.
       partialize: (state) => ({ counterweightPosition: state.counterweightPosition }),
@@ -203,7 +206,7 @@ export const useMechanicsStore = create<MechanicsState>()(
       merge: (persistedState, currentState) => ({
         ...currentState,
         counterweightPosition: sanitizeNumber(
-          (persistedState as Partial<MechanicsState> | undefined)?.counterweightPosition,
+          isRecord(persistedState) ? persistedState.counterweightPosition : undefined,
           currentState.counterweightPosition,
           0,
           1

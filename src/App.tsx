@@ -1,10 +1,11 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useShallow } from './store/useShallowSelector';
-import { useTelescopeStore, TERRESTRIAL_POINTING, type TourTrack } from './store/useTelescopeStore';
+import { useTelescopeStore, TERRESTRIAL_POINTING, type TourTrack, type ObserverLocation } from './store/useTelescopeStore';
 import { TARGETS } from './data/bookContent';
 import { convertEquatorialToHorizontal } from './engine/ephemerisMath';
 import { getBodyEquatorial } from './engine/skyGeometry';
-import type { Target, ModuleId } from './types';
+import { getSmoothSimTime } from './engine/timeEngine';
+import type { Target, ModuleId, InstructorResponse } from './types';
 import { SIM_MODE_RULES, type SimulationMode } from './engine/simulationModes';
 import { useTranslation, type TranslationKey } from './engine/i18n';
 import { useProgressStore } from './store/useProgressStore';
@@ -108,6 +109,93 @@ const MODULE_LABEL_KEYS: Record<ModuleId, TranslationKey> = {
 // Dropup display order for the target selector
 const TARGET_MENU_ORDER = ['moon', 'saturn', 'jupiter', 'm42', 'sun', 'spire'];
 
+/**
+ * How long boot waits for the photographic textures before opening the app
+ * anyway (Phase 66). Textures are an enhancement: late ones swap in live, and
+ * a failed or stalled one leaves the procedural glyphs in place.
+ */
+const BOOT_TEXTURE_GRACE_MS = 3000;
+
+const WELCOME_RESPONSE: InstructorResponse = {
+  title: 'Telescope Trainer',
+  severity: 'info',
+  message: {
+    id: 'welcome',
+    text: "Welcome, young sky-watcher! I'm here to guide you. Remember, an astronomer doesn't need to be a genius—only curious and patient.",
+    emotion: 'encouraging',
+    priority: 5,
+  },
+};
+
+// ── Target altitude (Phase 25; Sun/Moon live since 42.8) ──
+// Resolved through getBodyEquatorial so the Sun and the orbiting Moon report
+// their LIVE ephemeris positions — the horizon chips must agree with where
+// the renderer actually draws them.
+function targetAltitudeAt(target: Target, observer: ObserverLocation, timeMs: number): number | null {
+  if (target.type === 'terrestrial') return TERRESTRIAL_POINTING.alt; // ground-anchored, always up
+  const eq = getBodyEquatorial(target, timeMs, observer);
+  if (!eq) return null;
+  return convertEquatorialToHorizontal(eq.ra, eq.dec, observer.latitude, observer.longitude, new Date(timeMs)).altitude;
+}
+
+// The two surfaces below follow the ~1 Hz clock themselves (Phase 66) so the
+// App shell does not: subscribing the whole shell to simTime re-rendered the
+// entire tree — the 3D scene graph included — once a second.
+
+/** "Below Horizon" chip for the split-view header. */
+const BelowHorizonChip: React.FC<{ target: Target }> = ({ target }) => {
+  const { t } = useTranslation();
+  const { simTime, observerLocation } = useTelescopeStore(useShallow((s) => ({ simTime: s.simTime, observerLocation: s.observerLocation })));
+  if ((targetAltitudeAt(target, observerLocation, simTime) ?? 1) >= 0) return null;
+  return (
+    <span
+      title={t('tip.belowHorizon')}
+      className="text-[9px] font-bold uppercase tracking-wide text-amber-400 bg-amber-950/60 border border-amber-700/50 rounded px-1 py-0.5"
+    >
+      {t('common.belowHorizon')}
+    </span>
+  );
+};
+
+/** Target dropup rows with live horizon states — mounted only while the menu is open. */
+const TargetMenuRows: React.FC<{ activeTargetId: string | undefined; onSelect: (id: string) => void }> = ({ activeTargetId, onSelect }) => {
+  const { t } = useTranslation();
+  const { simTime, observerLocation } = useTelescopeStore(useShallow((s) => ({ simTime: s.simTime, observerLocation: s.observerLocation })));
+  return (
+    <>
+      {TARGET_MENU_ORDER.map((id) => {
+        const targetData = TARGETS[id];
+        const alt = targetAltitudeAt(targetData, observerLocation, simTime);
+        const below = alt !== null && alt < 0;
+        const isActive = activeTargetId === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onSelect(id)}
+            className={`w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-left transition-colors border ${
+              isActive ? 'bg-cyan-950/60 border-cyan-700/50' : 'hover:bg-slate-800 border-transparent'
+            }`}
+          >
+            <span className={`text-xs font-bold ${below ? 'text-slate-500' : 'text-slate-200'}`}>
+              {targetData.name}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {below && (
+                <span className="text-[9px] font-bold uppercase tracking-wide text-amber-400 bg-amber-950/60 border border-amber-700/50 rounded px-1 py-0.5">
+                  {t('common.belowHorizon')}
+                </span>
+              )}
+              {alt !== null && (
+                <span className="text-[9px] font-mono text-slate-500">{alt.toFixed(0)}°</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </>
+  );
+};
+
 // ─── Field Note Modal ("failure is data") ───────────────────────
 // Shown when a student abandons an active Rank Curriculum mission.
 // Converts the abandonment into a genuine Field Logbook entry rather
@@ -208,8 +296,10 @@ function App() {
     isMirrorCooled: state.isMirrorCooled,
     focuserPosition: state.focuserPosition,
     isBarlowActive: state.isBarlowActive,
-    observerLocation: state.observerLocation,
-    simTime: state.simTime,
+    // Physical solar exposure + the astro tracking lock (Phase 66): both
+    // change only on real events, and both feed the evaluation effect below.
+    isSunInOptics: state.isSunInOptics,
+    isAstroTrackingLocked: state.isAstroTrackingLocked,
     setTarget: state.setTarget,
     setSimulationMode: state.setSimulationMode,
     setLanguage: state.setLanguage,
@@ -258,7 +348,7 @@ function App() {
     ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;
   const { t, language } = useTranslation();
 
-  const [instructorResponse, setInstructorResponse] = useState(null);
+  const [instructorResponse, setInstructorResponse] = useState<InstructorResponse | null>(null);
   const [activeModule, setActiveModule] = useState<ModuleId>('finderscope');
   const [isFieldLogbookOpen, setIsFieldLogbookOpen] = useState(false);
 
@@ -325,24 +415,34 @@ function App() {
   // few seconds IntroMascot's one-shot beam animation happens to be playing.
   const [tourCtaEmphasis, setTourCtaEmphasis] = useState(false);
 
-  // ── Preload + WARM high-res textures on mount (Phase 29) ──
-  // preloadAssets decodes and downsamples every texture behind this loading
-  // screen (the 18000px Orion mosaic becomes a 1024px canvas), and
-  // warmGlyphCaches pre-bakes the M42 filter composite — so the first
-  // switch to M42 never pays a decode/composite hitch mid-frame.
+  // ── Preload + WARM textures on mount (Phase 29; non-blocking since Phase 66) ──
+  // preloadAssets decodes and resamples every texture off the render path,
+  // and warmGlyphCaches pre-bakes the M42 filter composite and disk sprites,
+  // so the first switch to a target never pays that cost mid-frame. Boot no
+  // longer WAITS for them past a short grace period: a stalled image host
+  // used to hold the loading screen for the loader's full 15 s timeout.
+  // Late textures swap in live (the render loop reads loadedAssets every
+  // frame); failed ones leave the procedural glyphs in place.
   useEffect(() => {
+    let cancelled = false;
     setAssetLoadMessage('Loading optical assets...');
+    const graceId = window.setTimeout(() => {
+      if (!cancelled) setAssetsLoaded(true);
+    }, BOOT_TEXTURE_GRACE_MS);
     preloadAssets()
       .then((assets) => {
-        setAssetLoadMessage('Warming render caches...');
+        if (cancelled) return;
         warmGlyphCaches(assets);
         useTelescopeStore.getState().setLoadedAssets(assets);
         setAssetsLoaded(true);
       })
       .catch(() => {
-        // Even on total failure, let the app through — procedural fallback
-        setAssetsLoaded(true);
+        if (!cancelled) setAssetsLoaded(true);
       });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(graceId);
+    };
   }, []);
 
   // ── First-visit tour prompt trigger (Phase 33) ── After the loading
@@ -495,66 +595,79 @@ function App() {
   }, []);
 
   // General Rules Evaluation & Mission Engine Integration
+  // Phase 66: the body reads only primitives and stable object fields hoisted
+  // here, so the dependency list below is complete without adding the whole
+  // `telescopeState` object (whose identity changes on every selected-field
+  // write) or `modeRules` (a table entry — its two relevant numbers are
+  // what can change).
+  const { focusToleranceUnits, atmosphericLimitEnforced } = modeRules;
+  const {
+    activeProfile, activeTarget, eyepieceFocalLength, isBarlowActive, isDustCapOn, isSolarFilterAttached,
+    seeingQuality, isAltTensionLocked, isMechanicallyBalanced, isCollimated, isMirrorCooled, focuserPosition,
+    isSunInOptics, isAstroTrackingLocked,
+  } = telescopeState;
   useEffect(() => {
-    if (!telescopeState || !telescopeState.activeProfile || !telescopeState.activeTarget) return;
+    if (!activeProfile || !activeTarget) return;
 
     // 0. Curriculum: mark any lesson complete whose mission/module hook just fired
     evaluateLessonCompletion();
 
-    // 1. Evaluate Legacy Guided-Workflow Mission (if active)
+    // 1. Evaluate Legacy Guided-Workflow Mission (if active). Reads the store
+    // itself — isAstroTrackingLocked and the logbook are listed as deps so a
+    // toggle or a new capture re-evaluates the current step.
     const missionUpdate = evaluateMissionProgress(activeModule);
     if (missionUpdate) {
-      setInstructorResponse(missionUpdate as any);
+      setInstructorResponse(missionUpdate);
       return;
     }
 
     // 1b. Evaluate Rank Curriculum Mission (if active) — "Skywatcher"/"Observer"
     const rankMissionUpdate = evaluateRankMissionProgress();
     if (rankMissionUpdate) {
-      setInstructorResponse(rankMissionUpdate as any);
+      setInstructorResponse(rankMissionUpdate);
       return;
     }
 
-    // 2. Evaluate General Telescope State Rules
-
-    const magnification = getMagnification(telescopeState.activeProfile.focalLength, telescopeState.eyepieceFocalLength, telescopeState.isBarlowActive);
+    // 2. Evaluate General Telescope State Rules. The solar verdict follows the
+    // PHYSICAL exposure the eyepiece loop publishes (Phase 66), so the voice
+    // agrees with what the eyepieces show.
+    const magnification = getMagnification(activeProfile.focalLength, eyepieceFocalLength, isBarlowActive);
     const evalResult = evaluateState({
-      isDustCapOn: telescopeState.isDustCapOn,
-      isSolarFilterAttached: telescopeState.isSolarFilterAttached,
-      targetId: telescopeState.activeTarget.id,
+      isDustCapOn,
+      isSolarFilterAttached,
+      targetId: activeTarget.id,
       magnification,
-      seeingQuality: telescopeState.seeingQuality,
-      isAltTensionLocked: telescopeState.isAltTensionLocked,
-      isMechanicallyBalanced: telescopeState.isMechanicallyBalanced,
-      isCollimated: telescopeState.isCollimated,
-      isMirrorCooled: telescopeState.isMirrorCooled,
-      focuserPosition: telescopeState.focuserPosition,
-      eyepieceFocalLength: telescopeState.eyepieceFocalLength,
-      isBarlowActive: telescopeState.isBarlowActive,
-                focusToleranceUnits: modeRules.focusToleranceUnits,
-                enforceAtmosphericLimit: modeRules.atmosphericLimitEnforced
+      seeingQuality,
+      isAltTensionLocked,
+      isMechanicallyBalanced,
+      isCollimated,
+      isMirrorCooled,
+      focuserPosition,
+      eyepieceFocalLength,
+      isBarlowActive,
+      focusToleranceUnits,
+      enforceAtmosphericLimit: atmosphericLimitEnforced,
+      isPhysicallyPointedAtSun: isSunInOptics,
     });
 
-    setInstructorResponse(evalResult.instructorResponse as any);
-    // Phase 54: lists exactly the fields this effect body reads, instead of
-    // the whole `telescopeState` object — that object's identity changes
-    // every time `simTime` ticks (~1×/sec), which was re-running this
-    // mission/lesson evaluation every second even though nothing here
-    // reads simTime.
+    setInstructorResponse(evalResult.instructorResponse);
   }, [
-    telescopeState.activeProfile,
-    telescopeState.activeTarget,
-    telescopeState.eyepieceFocalLength,
-    telescopeState.isBarlowActive,
-    telescopeState.isDustCapOn,
-    telescopeState.isSolarFilterAttached,
-    telescopeState.seeingQuality,
-    telescopeState.isAltTensionLocked,
-    telescopeState.isMechanicallyBalanced,
-    telescopeState.isCollimated,
-    telescopeState.isMirrorCooled,
-    telescopeState.focuserPosition,
-    telescopeState.simulationMode,
+    activeProfile,
+    activeTarget,
+    eyepieceFocalLength,
+    isBarlowActive,
+    isDustCapOn,
+    isSolarFilterAttached,
+    seeingQuality,
+    isAltTensionLocked,
+    isMechanicallyBalanced,
+    isCollimated,
+    isMirrorCooled,
+    focuserPosition,
+    focusToleranceUnits,
+    atmosphericLimitEnforced,
+    isSunInOptics,
+    isAstroTrackingLocked,
     activeModule,
     missionState.currentStepIndex,
     progressState.logbookEntries.length,
@@ -572,25 +685,16 @@ function App() {
     if (!missionState.activeRankMissionId || missionState.rankMissionStatus !== 'active') return;
     const id = window.setInterval(() => {
       const update = evaluateRankMissionProgress();
-      if (update) setInstructorResponse(update as any);
+      if (update) setInstructorResponse(update);
     }, 500);
     return () => window.clearInterval(id);
   }, [missionState.activeRankMissionId, missionState.rankMissionStatus]);
 
-  // Initial welcome message
+  // Initial welcome message — runs once, after (and over) the evaluation
+  // effect's first verdict, exactly as before; it no longer reads state, so
+  // it has no dependencies to declare.
   useEffect(() => {
-    if (!instructorResponse) {
-      setInstructorResponse({
-        title: 'Telescope Trainer',
-        severity: 'info',
-        message: {
-          id: 'welcome',
-          text: "Welcome, young sky-watcher! I'm here to guide you. Remember, an astronomer doesn't need to be a genius—only curious and patient.",
-          emotion: 'encouraging',
-          priority: 5,
-        }
-      } as any);
-    }
+    setInstructorResponse(WELCOME_RESPONSE);
   }, []);
 
   // ── Tour track picker (Phase 61) ── Shared by the nav button and the
@@ -667,7 +771,9 @@ function App() {
   };
 
   const handleAbandonRankMission = () => {
-    if (activeRankMission) {
+    // A COMPLETED mission is simply dismissed — the field note is for a
+    // mission left unfinished, and used to log a success as "Abandoned".
+    if (activeRankMission && missionState.rankMissionStatus !== 'success') {
       setShowFieldNoteModal(true);
     } else {
       missionState.endRankMission();
@@ -692,26 +798,10 @@ function App() {
 
 
   // ── Target selection via dropup, with live horizon awareness (Phase 25) ──
-  // Phase 42.8: coordinates resolve through getBodyEquatorial so the Sun and
-  // the now-orbiting Moon read their LIVE ephemeris positions here too —
-  // otherwise the dropup's "Below Horizon" chip could disagree with where the
-  // renderer actually draws them.
-  const getTargetAltitudeNow = (target: Target): number | null => {
-    if (target.type === 'terrestrial') return TERRESTRIAL_POINTING.alt; // ground-anchored, always up
-    const { observerLocation, simTime } = telescopeState;
-    const eq = getBodyEquatorial(target, simTime, observerLocation);
-    if (!eq) return null;
-    return convertEquatorialToHorizontal(
-      eq.ra, eq.dec,
-      observerLocation.latitude, observerLocation.longitude,
-      new Date(simTime)
-    ).altitude;
-  };
-
   const handleSelectTarget = (targetId: string) => {
     const target = TARGETS[targetId];
     if (!target) return;
-    const alt = getTargetAltitudeNow(target);
+    const alt = targetAltitudeAt(target, useTelescopeStore.getState().observerLocation, getSmoothSimTime());
     const isBelowHorizon = alt !== null && alt < 0;
     // setTarget stores the true (possibly negative) ephemeris altitude; the
     // 3D mount's horizon clamp parks the tube at the 0° hard-stop.
@@ -761,15 +851,8 @@ function App() {
     const timeStr = new Date(s.simTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
     let targetBit = '';
     if (s.activeTarget) {
-      const target = s.activeTarget;
-      // Phase 42.8: resolve through getBodyEquatorial (live Sun/Moon ephemeris).
-      const eq = target.type === 'terrestrial' ? null : getBodyEquatorial(target, s.simTime, s.observerLocation);
-      const alt = target.type === 'terrestrial'
-        ? TERRESTRIAL_POINTING.alt
-        : eq
-          ? convertEquatorialToHorizontal(eq.ra, eq.dec, s.observerLocation.latitude, s.observerLocation.longitude, new Date(s.simTime)).altitude
-          : null;
-      if (alt !== null) targetBit = ` · ${target.name} now at ${alt.toFixed(0)}°`;
+      const alt = targetAltitudeAt(s.activeTarget, s.observerLocation, s.simTime);
+      if (alt !== null) targetBit = ` · ${s.activeTarget.name} now at ${alt.toFixed(0)}°`;
     }
     setSlewToast(`Simulation time ${hours > 0 ? '+' : ''}${hours}h → ${timeStr}${targetBit}`);
     if (slewToastTimeoutRef.current) window.clearTimeout(slewToastTimeoutRef.current);
@@ -1083,6 +1166,8 @@ function App() {
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}
+            aria-label="Simulator settings"
+            title="Simulator settings"
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -1239,14 +1324,7 @@ function App() {
                 <Crosshair className="w-3 h-3" /> Eyepiece Feed
               </span>
               <span className="flex items-center gap-1.5">
-                {telescopeState.activeTarget && (getTargetAltitudeNow(telescopeState.activeTarget) ?? 1) < 0 && (
-                  <span
-                    title={t('tip.belowHorizon')}
-                    className="text-[9px] font-bold uppercase tracking-wide text-amber-400 bg-amber-950/60 border border-amber-700/50 rounded px-1 py-0.5"
-                  >
-                    {t('common.belowHorizon')}
-                  </span>
-                )}
+                {telescopeState.activeTarget && <BelowHorizonChip target={telescopeState.activeTarget} />}
                 <span className={`text-[10px] font-mono uppercase tracking-widest ${telescopeState.activeTarget ? 'text-slate-400' : 'text-amber-400'}`}>
                   {telescopeState.activeTarget?.name ?? t('common.manualSlew')}
                 </span>
@@ -1534,35 +1612,7 @@ function App() {
               </button>
               {isTargetMenuOpen && (
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 min-w-[16rem] bg-slate-900 border border-slate-600 rounded-xl p-1.5 shadow-2xl z-50 flex flex-col gap-0.5">
-                  {TARGET_MENU_ORDER.map((id) => {
-                    const targetData = TARGETS[id];
-                    const alt = getTargetAltitudeNow(targetData);
-                    const below = alt !== null && alt < 0;
-                    const isActive = telescopeState.activeTarget?.id === id;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => handleSelectTarget(id)}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-left transition-colors border ${
-                          isActive ? 'bg-cyan-950/60 border-cyan-700/50' : 'hover:bg-slate-800 border-transparent'
-                        }`}
-                      >
-                        <span className={`text-xs font-bold ${below ? 'text-slate-500' : 'text-slate-200'}`}>
-                          {targetData.name}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          {below && (
-                            <span className="text-[9px] font-bold uppercase tracking-wide text-amber-400 bg-amber-950/60 border border-amber-700/50 rounded px-1 py-0.5">
-                              {t('common.belowHorizon')}
-                            </span>
-                          )}
-                          {alt !== null && (
-                            <span className="text-[9px] font-mono text-slate-500">{alt.toFixed(0)}°</span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  <TargetMenuRows activeTargetId={telescopeState.activeTarget?.id} onSelect={handleSelectTarget} />
                 </div>
               )}
             </div>

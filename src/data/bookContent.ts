@@ -114,6 +114,7 @@ export const INSTRUCTOR_STRINGS = {
   welcome: "Welcome, young sky-watcher! I'm here to guide you. Remember, an astronomer doesn't need to be a genius—only curious and patient.",
   dustCapWarning: "The universe is dark, but not that dark! Check the front of the telescope tube and remove the dust cap.",
   solarHazard: "SAFETY OVERRIDE! Unfiltered sunlight detected! In real life, viewing the Sun without a solar filter causes instant, permanent blindness and destroys optics.",
+  solarPreWarning: "The Sun is selected, but no solar filter is fitted. Attach the solar filter BEFORE the telescope — or its finderscope — points anywhere near the Sun.",
   overMagnification: "Notice how the image is boiling and blurry? The atmosphere is too turbulent tonight for such high magnification. Switch to a lower power eyepiece!",
   altDroop: "Whoops! Gravity is pulling the nose down. Tighten the side tension knobs on the rocker box.",
   goodFocus: "Excellent focus! Look at those sharp details. The stars should look like tiny pinpricks, not blurry donuts.",

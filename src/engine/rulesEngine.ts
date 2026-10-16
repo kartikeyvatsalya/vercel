@@ -22,14 +22,15 @@ export interface RuleStateInput {
   /** Enforce the empty-magnification atmospheric blur penalty (default true). */
   enforceAtmosphericLimit?: boolean;
   /**
-   * ── The Universal Physical Sky (Phase 35) ── True when the mount is
-   * PHYSICALLY pointed within the solar hazard radius of the live Sun
-   * (LiveViewPanel computes this from the mount's raw pointing + the solar
-   * ephemeris). The universal renderer draws the Sun wherever the tube
-   * crosses it — target lock or not — so the safety interlock must fire on
-   * physical pointing too, exactly as a real telescope would blind you
-   * regardless of what the hand controller's menu says. Optional so legacy
-   * callers keep the historical UI-selection-only behavior.
+   * ── Physical solar exposure (Phase 35; sole authority since Phase 66) ──
+   * True when the Sun is within the hazard radius of either optic's actual
+   * axis (LiveViewPanel resolves it per frame from the live solar ephemeris,
+   * the mount pointing, and the finder's own misalignment). When a caller
+   * provides it, it ALONE decides both the hazard and whether a solar
+   * filter shows the Sun — what the target menu names no longer can: a
+   * selected-but-set Sun is not a hazard, and a filter pointed at the Sun
+   * shows it even with the Moon still selected. Omitted only by callers that
+   * cannot know where the tube points; they fall back to the UI selection.
    */
   isPhysicallyPointedAtSun?: boolean;
 }
@@ -54,6 +55,8 @@ export interface RuleEvaluationResult {
   isBlackedOut: boolean;
   hasSolarHazard: boolean;
   isSolarFilterBlocking: boolean;
+  /** A solar filter is on and the Sun is in the optics: render the filtered Sun on black (Phase 66). */
+  isSolarFiltered: boolean;
   isAtmosphericBlurActive: boolean;
   isThermalBlurActive: boolean;
   isAltDrooping: boolean;
@@ -71,6 +74,7 @@ export function evaluateState(state: RuleStateInput): RuleEvaluationResult {
     isBlackedOut: false,
     hasSolarHazard: false,
     isSolarFilterBlocking: false,
+    isSolarFiltered: false,
     isAtmosphericBlurActive: false,
     isThermalBlurActive: false,
     isAltDrooping: false,
@@ -79,10 +83,14 @@ export function evaluateState(state: RuleStateInput): RuleEvaluationResult {
     instructorResponse: null,
   };
 
-  // 1. Solar Hazard (Highest Priority) — fires on the UI selection OR on
-  // physically sweeping the tube across the live Sun (Phase 35): the danger
-  // is where the optics point, not what the menu says.
-  if ((state.targetId === 'sun' || state.isPhysicallyPointedAtSun) && !state.isSolarFilterAttached && !state.isDustCapOn) {
+  // Where the optics physically point decides everything solar (Phase 66);
+  // only a caller that cannot know that falls back to the menu selection.
+  const hasPhysicalExposure = state.isPhysicallyPointedAtSun !== undefined;
+  const sunInOptics = hasPhysicalExposure ? state.isPhysicallyPointedAtSun === true : state.targetId === 'sun';
+
+  // 1. Solar Hazard (Highest Priority) — the danger is where the optics
+  // point, not what the menu says.
+  if (sunInOptics && !state.isSolarFilterAttached && !state.isDustCapOn) {
     result.hasSolarHazard = true;
     result.instructorResponse = {
       title: 'Safety Override',
@@ -97,8 +105,12 @@ export function evaluateState(state: RuleStateInput): RuleEvaluationResult {
     return result;
   }
 
-  // 2. Solar Filter on Non-Solar Target
-  if (state.isSolarFilterAttached && state.targetId !== 'sun' && !state.isDustCapOn) {
+  // 2. Solar filter: it passes only concentrated sunlight. With the Sun in
+  // the optics the view is the filtered Sun on black; anywhere else, black.
+  if (state.isSolarFilterAttached && sunInOptics && !state.isDustCapOn) {
+    result.isSolarFiltered = true;
+  }
+  if (state.isSolarFilterAttached && !sunInOptics && !state.isDustCapOn) {
     result.isBlackedOut = true;
     result.isSolarFilterBlocking = true;
     result.instructorResponse = {
@@ -130,10 +142,26 @@ export function evaluateState(state: RuleStateInput): RuleEvaluationResult {
     return result;
   }
 
-  // 4. Mechanical Failure: Alt Tension
+  // 3b. The Sun is SELECTED but not (yet) in the optics, with no filter on —
+  // not a hazard, but the moment to fit the filter is before the slew
+  // (Phase 66: the menu selection no longer triggers the hazard itself).
+  if (hasPhysicalExposure && state.targetId === 'sun' && !state.isSolarFilterAttached) {
+    result.instructorResponse = {
+      title: 'Solar Safety',
+      severity: 'warning',
+      message: {
+        id: 'solar-prewarning',
+        text: INSTRUCTOR_STRINGS.solarPreWarning,
+        emotion: 'serious',
+        priority: 2,
+      },
+    };
+  }
+
+  // 4. Mechanical Failure: Alt Tension (never shouts over the solar advisory above)
   if (!state.isAltTensionLocked) {
     result.isAltDrooping = true;
-    result.instructorResponse = {
+    result.instructorResponse = result.instructorResponse ?? {
       title: 'Mechanical Slippage',
       severity: 'warning',
       message: {

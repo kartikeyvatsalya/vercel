@@ -1,14 +1,17 @@
-import type { InstructorEmotion } from '../types';
+import type { InstructorEmotion, Target, TelescopeProfile } from '../types';
+import type * as OpticalMath from '../engine/opticalMath';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RANK I & II MISSION DEFINITIONS — "Skywatcher" and "Observer"
 //
-// successCondition contract:
-//   Evaluated as: new Function('telescope', 'math', successCondition)
-//     telescope → useTelescopeStore.getState()
-//     math      → import * as math from '../engine/opticalMath'
-//   Must return boolean. Compiled ONCE at mission start, re-run on state change
-//   (same call site as evaluateMissionProgress in App.tsx's useEffect).
+// successCondition contract (typed predicates since Phase 66 — these were
+// source strings run through `new Function`, which the type checker could not
+// see into, so a misspelt field silently read `undefined` and the mission
+// could never complete):
+//   (telescope: MissionTelescopeView, math: opticalMath) => boolean
+//   Re-run on state change (same call site as evaluateMissionProgress in
+//   App.tsx's useEffect). A throw is caught by the engine and counts as
+//   "not yet successful".
 //
 // Design invariants (from the Educational Blueprint):
 //   • Rank I checks are FORGIVING (±5 focus units). Capstones tighten (±4).
@@ -25,6 +28,31 @@ import type { InstructorEmotion } from '../types';
 //   telescope.isGoToSuppressed → true while a mission has disabled auto-slew.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** What a success condition may read — built by missionEngine's telescope adapter. */
+export interface MissionTelescopeView {
+  activeTarget: Target | null;
+  activeProfile: TelescopeProfile & { apertureMm: number; focalLengthMm: number };
+  activeEyepieceId: string;
+  eyepieceFocalLength: number;
+  isBarlowActive: boolean;
+  isDustCapOn: boolean;
+  isMirrorCooled: boolean;
+  isCollimated: boolean;
+  isMechanicallyBalanced: boolean;
+  focuserPosition: number;
+  seeingQuality: number;
+  isGoToSuppressed: boolean;
+  targetOffsetDeg: number | null;
+}
+
+export type MissionMath = typeof OpticalMath;
+export type SuccessCondition = (telescope: MissionTelescopeView, math: MissionMath) => boolean;
+
+/** The eyepiece in use, falling back to the default exactly as the store does. */
+const eyepieceOf = (telescope: MissionTelescopeView, math: MissionMath) =>
+  math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
+  ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID)!;
+
 export interface RankMission {
   id: string;
   rank: 'I' | 'II';
@@ -32,7 +60,7 @@ export interface RankMission {
   description: string;        // Voice: The Senior Observer. Warm, wry, never says "wrong."
   objectives: string[];
   targetId: 'moon' | 'saturn' | 'm42';
-  successCondition: string;   // See contract above.
+  successCondition: SuccessCondition;   // See contract above.
   fieldNotePrompt: string;    // Shown if the student exits without success.
   /**
    * Disables the GoTo auto-slew for the duration of this mission (Phase 59).
@@ -71,7 +99,7 @@ export const missions: RankMission[] = [
       'Log what you saw in your Field Logbook. A sketch counts. A single honest sentence counts.',
     ],
     targetId: 'moon',
-    successCondition: `
+    successCondition: (telescope, math) => {
       // Forgiving Rank I tolerance: within ±5 of the dynamic perfect-focus point.
       const focusTarget = math.getPerfectFocusPoint(telescope.eyepieceFocalLength, telescope.isBarlowActive);
       return (
@@ -79,7 +107,7 @@ export const missions: RankMission[] = [
         telescope.isDustCapOn === false &&
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'No sharp Moon tonight — that happens to every observer alive. Write one line: what did the blur LOOK like? Rings? Fog? That detail is data for next time.',
   },
@@ -105,9 +133,8 @@ export const missions: RankMission[] = [
       'Refocus. Every eyepiece change deserves a fresh focus. Build the habit now.',
     ],
     targetId: 'moon',
-    successCondition: `
-      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
-        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
+    successCondition: (telescope, math) => {
+      const activeEyepiece = eyepieceOf(telescope, math);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
@@ -122,7 +149,7 @@ export const missions: RankMission[] = [
         tfov >= 0.9 &&                                              // The real lesson: FOV is drift insurance
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'The Moon escaped again? Log which direction it drifted. Observers have used that exact note to find east for four hundred years.',
   },
@@ -148,7 +175,7 @@ export const missions: RankMission[] = [
       'Focus until the rings separate cleanly from the planet. Then just... look, for a while.',
     ],
     targetId: 'saturn',
-    successCondition: `
+    successCondition: (telescope, math) => {
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
@@ -164,7 +191,7 @@ export const missions: RankMission[] = [
         !math.isExitPupilTooSmall(exitPupil) &&
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'Saturn kept its secrets tonight. Note the seeing conditions in your log — was the image boiling? The river of air runs rough some nights. It is not you.',
   },
@@ -192,12 +219,11 @@ export const missions: RankMission[] = [
       'Repeat on at least 4 more nights to complete the Diary. (The Logbook is watching for the phase sequence.)',
     ],
     targetId: 'moon',
-    successCondition: `
+    successCondition: (telescope, math) => {
       // Per-night instrument check. The multi-night phase-sequence requirement is
       // validated by the Logbook engine (5 'moon' entries spanning >= 5 sim dates),
       // consistent with 'the Logbook levels up, not the player.'
-      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
-        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
+      const activeEyepiece = eyepieceOf(telescope, math);
       const MOON_DIAMETER_DEG = 0.5;
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
@@ -214,7 +240,7 @@ export const missions: RankMission[] = [
         tfov >= MOON_DIAMETER_DEG * 1.3 &&                          // Whole Moon + breathing room
         Math.abs(telescope.focuserPosition - focusTarget) <= 4      // Capstone: tightened from 5 → 4
       );
-    `,
+    },
     fieldNotePrompt:
       'A Diary with a gap is still a Diary. Log tonight as "clouded out" — every great observatory\u2019s archive is full of pages that say exactly that.',
   },
@@ -243,7 +269,7 @@ export const missions: RankMission[] = [
       'Cap off, mirror cooled, critical focus. Faint light deserves your best habits.',
     ],
     targetId: 'm42',
-    successCondition: `
+    successCondition: (telescope, math) => {
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
@@ -260,7 +286,7 @@ export const missions: RankMission[] = [
         exitPupil >= 3.0 && exitPupil <= 7.0 &&                     // Gentle power for faint drizzle
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'The nebula hid tonight. Log your aperture and exit pupil — when you find it later, comparing these numbers will teach you more than success would have.',
   },
@@ -294,7 +320,7 @@ export const missions: RankMission[] = [
     ],
     targetId: 'm42',
     suppressGoTo: true,
-    successCondition: `
+    successCondition: (telescope, math) => {
       // The whole exam is the OFFSET: did the student physically drive the
       // mount to within a finder-field's reach of the nebula? No aperture,
       // eyepiece or exit-pupil gates here on purpose — this mission is about
@@ -308,7 +334,7 @@ export const missions: RankMission[] = [
         telescope.targetOffsetDeg <= 1.0 &&              // comfortably inside the 7.5° finder
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'Lost in Orion? Everyone is, the first time. Log the last star you were SURE of and which way you went from it. That note is the first line of your own star atlas.',
   },
@@ -334,9 +360,8 @@ export const missions: RankMission[] = [
       'Refocus after the eyepiece change. Always.',
     ],
     targetId: 'moon',
-    successCondition: `
-      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
-        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
+    successCondition: (telescope, math) => {
+      const activeEyepiece = eyepieceOf(telescope, math);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
@@ -351,7 +376,7 @@ export const missions: RankMission[] = [
         !math.isAtmosphericLimitExceeded(mag, telescope.seeingQuality) &&
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'Framing is taste plus arithmetic. Log which eyepieces you tried and what each field felt like — too loose, too tight. That list IS the skill, half-built.',
   },
@@ -378,7 +403,7 @@ export const missions: RankMission[] = [
       'Refocus — the Barlow shifts your focus point substantially. Feel where it moved.',
     ],
     targetId: 'saturn',
-    successCondition: `
+    successCondition: (telescope, math) => {
       // Success = the RECOVERY state: Barlow engaged, aggressive-but-honest power.
       // The 'witness the mush' step is telemetry, not a gate — the Diagnostic
       // evidence model logs any isAtmosphericLimitExceeded excursion this session.
@@ -398,7 +423,7 @@ export const missions: RankMission[] = [
         !math.isExitPupilTooSmall(exitPupil) &&
         Math.abs(telescope.focuserPosition - focusTarget) <= 5
       );
-    `,
+    },
     fieldNotePrompt:
       'Couldn\u2019t find the sweet spot? Log the seeing quality and the last magnification you tried. On a 1-out-of-5 night, even I settle for 50×. The sky sets the ceiling; we just find it.',
   },
@@ -426,14 +451,13 @@ export const missions: RankMission[] = [
       'Log all three with a one-sentence justification each. The Logbook completes the mission when all three entries exist.',
     ],
     targetId: 'm42',
-    successCondition: `
+    successCondition: (telescope, math) => {
       // Per-target 'rightness' evaluator. The mission engine must observe this
       // condition returning true once for EACH of the three targets within the
       // mission session (tracked via completedTargetIds on the mission state),
       // then verify three justified logbook entries. This single condition body
       // serves all three checks — the student's configuration judgment IS the exam.
-      const activeEyepiece = math.EYEPIECE_CATALOG.find((e) => e.id === telescope.activeEyepieceId)
-        ?? math.EYEPIECE_CATALOG.find((e) => e.id === math.DEFAULT_EYEPIECE_ID);
+      const activeEyepiece = eyepieceOf(telescope, math);
       const mag = math.getMagnification(
         telescope.activeProfile.focalLengthMm,
         telescope.eyepieceFocalLength,
@@ -465,7 +489,7 @@ export const missions: RankMission[] = [
         default:
           return false;
       }
-    `,
+    },
     fieldNotePrompt:
       'Two out of three is not failure — it is a map of exactly where to point your practice. Log which target defeated you and your best guess why. That guess is the beginning of Rank III.',
   },

@@ -5,12 +5,15 @@ import { useAlignmentStore } from '../../store/useAlignmentStore';
 import { evaluateState } from '../../engine/rulesEngine';
 import { getMagnification, getTrueFOV, getExitPupil, getRelativeBrightness, EYEPIECE_CATALOG, DEFAULT_EYEPIECE_ID } from '../../engine/opticalMath';
 
+/**
+ * Developer telemetry overlay (Ctrl+Shift+D). The always-mounted shell holds
+ * only the key listener; the store subscriptions live in DebugPanelContent,
+ * which mounts only while the overlay is open (Phase 66). The shell used to
+ * subscribe to BOTH whole stores itself, so this hidden panel re-rendered on
+ * every store write in the app — every frame of a slew included.
+ */
 export const DebugPanel: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const telescopeState = useTelescopeStore();
-  const modeRules = SIM_MODE_RULES[telescopeState.simulationMode];
-  const alignmentState = useAlignmentStore();
-  const [fps, setFps] = useState(0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -22,8 +25,16 @@ export const DebugPanel: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  return isVisible ? <DebugPanelContent /> : null;
+};
+
+const DebugPanelContent: React.FC = () => {
+  const telescopeState = useTelescopeStore();
+  const modeRules = SIM_MODE_RULES[telescopeState.simulationMode];
+  const alignmentState = useAlignmentStore();
+  const [fps, setFps] = useState(0);
+
   useEffect(() => {
-    if (!isVisible) return;
     let frameCount = 0;
     let lastTime = performance.now();
     let animationFrameId: number;
@@ -39,11 +50,11 @@ export const DebugPanel: React.FC = () => {
       animationFrameId = requestAnimationFrame(measureFPS);
     };
     animationFrameId = requestAnimationFrame(measureFPS);
-    
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isVisible]);
 
-  if (!isVisible || !telescopeState || !telescopeState.activeProfile || !telescopeState.activeTarget) return null;
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  if (!telescopeState.activeProfile || !telescopeState.activeTarget) return null;
 
   const activeEyepiece = EYEPIECE_CATALOG.find((e) => e.id === telescopeState.activeEyepieceId)
     ?? EYEPIECE_CATALOG.find((e) => e.id === DEFAULT_EYEPIECE_ID)!;

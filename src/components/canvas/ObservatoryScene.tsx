@@ -1416,4 +1416,6 @@ export const ObservatoryScene: React.FC<ObservatorySceneProps> = ({ interactive 
   );
 };
 
-export default ObservatoryScene;
+// Memoized default export (Phase 66) — the lazy() boundary in App.tsx loads
+// this: an App shell re-render must not reconcile the whole R3F scene graph.
+export default React.memo(ObservatoryScene);

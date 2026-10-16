@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTelescopeStore } from '../../store/useTelescopeStore';
+import { useDialogFocus } from './useDialogFocus';
 import { Telescope, Wrench, X, Calculator } from 'lucide-react';
 import type { TelescopeProfile } from '../../types';
 
 export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { addCustomProfile } = useTelescopeStore();
+  const addCustomProfile = useTelescopeStore((s) => s.addCustomProfile);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
   
   const [name, setName] = useState('My Custom Scope');
   const [type, setType] = useState<'dobsonian' | 'refractor' | 'sct' | 'newtonian' | 'binoculars'>('newtonian');
@@ -78,17 +81,24 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col font-sans">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="garage-dialog-title"
+        tabIndex={-1}
+        className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] shadow-2xl overflow-hidden flex flex-col font-sans outline-none"
+      >
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700 flex items-start justify-between gap-4">
+        <div className="shrink-0 bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-amber-500/20 border border-amber-500/40 p-2.5 rounded-xl">
               <Wrench className="w-6 h-6 text-amber-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent uppercase tracking-widest">
+              <h2 id="garage-dialog-title" className="text-lg font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent uppercase tracking-widest">
                 Equipment Garage
               </h2>
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Build Custom Telescope</p>
@@ -96,6 +106,7 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors text-slate-400 hover:text-white shrink-0"
           >
             <X className="w-5 h-5" />
@@ -103,7 +114,7 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
         </div>
 
         {/* Body */}
-        <div className="p-6 flex flex-col gap-5 overflow-y-auto max-h-[70vh]">
+        <div className="flex-1 min-h-0 p-6 flex flex-col gap-5 overflow-y-auto">
           
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Profile Name</label>
@@ -211,7 +222,7 @@ export const CustomTelescopeModal: React.FC<{ onClose: () => void }> = ({ onClos
         </div>
 
         {/* Footer Actions */}
-        <div className="p-5 border-t border-slate-800 bg-slate-900/50">
+        <div className="shrink-0 p-5 border-t border-slate-800 bg-slate-900/50">
           <button
             onClick={handleSave}
             disabled={!isValid}
