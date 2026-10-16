@@ -79,7 +79,19 @@
       "PowerShell(npx oxlint src 2>&1)",
       "PowerShell(git -C \"E:\\\\Telescope Simulator\" diff -- .claude/settings.local.json)",
       "PowerShell(\"---- settings.local.json diff ----\")",
-      "PowerShell(\"---- stat ----\")"
+      "PowerShell(\"---- stat ----\")",
+      "Bash(git fetch *)",
+      "Bash(python extract_pdfs.py)",
+      "Bash(python -c \"import pypdf\")",
+      "Bash(python -c \"import fitz; print\\('fitz ok'\\)\")",
+      "Bash(python -c \"import PyPDF2; print\\('PyPDF2 ok'\\)\")",
+      "Bash(where pdftotext *)",
+      "Bash(pip show *)",
+      "Bash(git status *)",
+      "Bash(cd \"E:/Telescope Simulator\" && echo \"=== .vercel ===\" && ls -la .vercel 2>&1; cat .vercel/project.json 2>&1; echo; echo \"=== vercel.json ===\"; cat vercel.json 2>&1; echo \"=== backups in Temp ===\"; ls -la \"C:/Users/gupta/AppData/Local/Temp/\" 2>&1 | grep -i brahmand; echo \"=== root listing ===\"; ls -la)",
+      "Bash(git bundle *)",
+      "Bash(unzip -l \"C:/Users/gupta/AppData/Local/Temp/brahmand-uncommitted-20260929.zip\")",
+      "Bash(grep -v '^\\\\s*$')"
     ]
   }
 }
