@@ -25,3 +25,9 @@ dist-ssr
 
 .vercel
 .env*
+
+# Local reference documents from the desktop workspace (kept out of the repo)
+/BRAHMAND_Aperture_FocalLength_fNumber_EN-HI.pdf
+/Telescope Trainer_ Tech & Code.pdf
+/Telescope Trainer_ Tech & Code (part 2).pdf
+/card.pdf
